@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import StockReleaseClient from "./stock-release-client";
 import ItemManagement from "./item-management";
 import { AddItemDialog } from "./add-item-dialog";
+import { cn } from "@/lib/utils";
 
 type View = 'release' | 'items';
 
@@ -104,6 +105,9 @@ export default function StockReleaseApp() {
       description: `"${item.name}" pronto para registrar a saída.`,
     });
   };
+  
+  const tabTriggerStyle = "pb-2 text-muted-foreground data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary";
+
 
   return (
     <div className="flex flex-col gap-8">
@@ -116,9 +120,9 @@ export default function StockReleaseApp() {
         </header>
 
         <Tabs value={view} onValueChange={(value) => setView(value as View)} className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="release">Lançamento</TabsTrigger>
-                <TabsTrigger value="items">Itens</TabsTrigger>
+            <TabsList className="bg-transparent p-0 justify-start gap-6 border-b">
+                <TabsTrigger value="release" className={cn(tabTriggerStyle, 'rounded-none shadow-none px-0')}>Lançamento</TabsTrigger>
+                <TabsTrigger value="items" className={cn(tabTriggerStyle, 'rounded-none shadow-none px-0')}>Itens</TabsTrigger>
             </TabsList>
             <TabsContent value="release" className="mt-6">
                 <StockReleaseClient
