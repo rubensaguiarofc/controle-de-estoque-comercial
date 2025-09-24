@@ -58,7 +58,9 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: 
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
     }
-    codeReaderRef.current.reset();
+    if (codeReaderRef.current) {
+      codeReaderRef.current.reset();
+    }
   }, []);
 
   useEffect(() => {
@@ -75,39 +77,74 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: 
     }
   }, [isOpen, editingItem, form, stopCamera]);
 
-   // Unified Camera Effect
+   // Unified Camera & Scanner Effect
    useEffect(() => {
+    const codeReader = codeReaderRef.current;
     let isMounted = true;
-    const startCamera = async () => {
-        if (!isScanning || !videoRef.current) return;
-        
+
+    const startCameraAndScanner = async () => {
+        if (!isScanning || !videoRef.current) {
+            return;
+        }
+
         try {
+            // Start Camera
             const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
             if (!isMounted) {
-              stream.getTracks().forEach(track => track.stop());
-              return;
+                stream.getTracks().forEach(track => track.stop());
+                return;
             }
-            setHasCameraPermission(true);
             streamRef.current = stream;
+            setHasCameraPermission(true);
+
             if (videoRef.current) {
                 videoRef.current.srcObject = stream;
                 videoRef.current.setAttribute('playsinline', 'true');
                 await videoRef.current.play();
             }
+
+            // Start Barcode Scanner (only if not in OCR mode)
+            if (!isOcrMode && isMounted) {
+                const hints = new Map();
+                const formats = [
+                    BarcodeFormat.EAN_13, BarcodeFormat.EAN_8, BarcodeFormat.UPC_A,
+                    BarcodeFormat.UPC_E, BarcodeFormat.CODE_128, BarcodeFormat.QR_CODE,
+                ];
+                hints.set(DecodeHintType.POSSIBLE_FORMATS, formats);
+                hints.set(DecodeHintType.TRY_HARDER, true);
+                codeReader.setHints(hints);
+
+                await codeReader.decodeFromStream(stream, videoRef.current, (result, err) => {
+                    if (result && isMounted) {
+                        form.setValue('barcode', result.getText());
+                        setIsScanning(false);
+                        setIsOcrMode(false);
+                        toast({
+                            title: "Código de Barras Escaneado",
+                            description: `Código: ${result.getText()}`,
+                        });
+                    }
+                    if (err && !(err instanceof NotFoundException)) {
+                        console.error('Barcode scan error:', err);
+                    }
+                });
+            }
         } catch (error) {
             console.error('Error accessing camera:', error);
-            setHasCameraPermission(false);
-            setIsScanning(false);
-            toast({
-                variant: 'destructive',
-                title: 'Acesso à Câmera Negado',
-                description: 'Por favor, habilite a permissão da câmera.',
-            });
+            if (isMounted) {
+                setHasCameraPermission(false);
+                setIsScanning(false);
+                toast({
+                    variant: 'destructive',
+                    title: 'Acesso à Câmera Negado',
+                    description: 'Por favor, habilite a permissão da câmera.',
+                });
+            }
         }
     };
-    
+
     if (isScanning) {
-        startCamera();
+        startCameraAndScanner();
     } else {
         stopCamera();
     }
@@ -116,59 +153,7 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: 
         isMounted = false;
         stopCamera();
     };
- }, [isScanning, toast, stopCamera]);
-
-
-  // Barcode Scanner Effect
-  useEffect(() => {
-    const codeReader = codeReaderRef.current;
-
-    const startDecoding = async () => {
-      // Do not start decoding if in OCR mode or if video is not ready
-      if (!isScanning || isOcrMode || !videoRef.current || !streamRef.current) {
-        codeReader.reset();
-        return;
-      }
-      
-      try {
-        const hints = new Map();
-        const formats = [
-          BarcodeFormat.EAN_13, BarcodeFormat.EAN_8, BarcodeFormat.UPC_A,
-          BarcodeFormat.UPC_E, BarcodeFormat.CODE_128, BarcodeFormat.QR_CODE,
-        ];
-        hints.set(DecodeHintType.POSSIBLE_FORMATS, formats);
-        hints.set(DecodeHintType.TRY_HARDER, true);
-        codeReader.setHints(hints);
-
-        // Use decodeFromStream for continuous scanning
-        await codeReader.decodeFromStream(streamRef.current, videoRef.current, (result, err) => {
-          if (result) {
-            form.setValue('barcode', result.getText());
-            setIsScanning(false);
-            setIsOcrMode(false);
-            toast({
-              title: "Código de Barras Escaneado",
-              description: `Código: ${result.getText()}`,
-            });
-          }
-          if (err && !(err instanceof NotFoundException)) {
-            // Avoid logging "NotFound" errors which are expected during scanning
-            console.error('Barcode scan error:', err);
-          }
-        });
-      } catch (error) {
-        // This might happen if the stream is not ready, just log it.
-        console.error('Error starting barcode decoder:', error);
-      }
-    };
-
-    startDecoding();
-
-    // Cleanup function for this effect
-    return () => {
-      codeReader.reset();
-    };
-}, [isScanning, isOcrMode, form, toast]);
+ }, [isScanning, isOcrMode, form, toast, stopCamera]);
 
 
  const handleOcrCapture = async () => {
@@ -301,7 +286,7 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: 
             </DialogDescription>
         </DialogHeader>
         <div className="relative w-full aspect-video bg-black rounded-md overflow-hidden">
-            <video ref={videoRef} className="w-full h-full object-cover" />
+            <video ref={videoRef} className="w-full h-full object-cover" playsInline />
             <div className="absolute inset-0 flex items-center justify-center p-8">
                 <div className="w-full max-w-xs h-24 border-4 border-dashed border-primary rounded-lg opacity-75"/>
             </div>
@@ -337,7 +322,7 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: 
             </DialogDescription>
         </DialogHeader>
         <div className="relative w-full aspect-video bg-black rounded-md overflow-hidden">
-            <video ref={videoRef} className="w-full h-full object-cover" />
+            <video ref={videoRef} className="w-full h-full object-cover" playsInline />
             <div className="absolute inset-0 flex items-center justify-center p-8">
                 <div className="w-full max-w-xs h-32 border-4 border-dashed border-primary rounded-lg opacity-75"/>
             </div>
