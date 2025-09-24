@@ -53,7 +53,7 @@ export default function StockReleaseApp() {
     }
   }, [history, stockItems, isInitialLoad]);
 
-  const handleAddItem = useCallback((newItem: Omit<StockItem, 'id' | 'barcode'> & { barcode?: string }) => {
+  const handleAddItem = useCallback((newItem: Omit<StockItem, 'id'>) => {
     const newIdNumber = (stockItems.length > 0 ? Math.max(...stockItems.map(item => parseInt(item.id.split('-')[1]))) + 1 : 1).toString().padStart(3, '0');
     const newId = `ITM-${newIdNumber}`;
     const itemWithId: StockItem = { ...newItem, id: newId, barcode: newItem.barcode || '' };
@@ -76,7 +76,7 @@ export default function StockReleaseApp() {
     })
   }, [toast]);
 
-  const handleDialogSubmit = (itemData: any) => {
+  const handleDialogSubmit = (itemData: Omit<StockItem, 'id'>) => {
     if (editingItem) {
       handleUpdateItem({ ...editingItem, ...itemData });
     } else {
@@ -107,7 +107,6 @@ export default function StockReleaseApp() {
                 <StockReleaseClient
                     stockItems={stockItems}
                     history={history}
-                    onAddItem={handleAddItem}
                     onUpdateHistory={setHistory}
                     onSetIsAddItemDialogOpen={setAddItemDialogOpen}
                 />

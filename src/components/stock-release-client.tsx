@@ -53,7 +53,6 @@ const ITEMS_PER_PAGE = 5;
 interface StockReleaseClientProps {
   stockItems: StockItem[];
   history: WithdrawalRecord[];
-  onAddItem: (newItem: Omit<StockItem, 'id' | 'barcode'> & { barcode?: string }) => void;
   onUpdateHistory: (history: WithdrawalRecord[]) => void;
   onSetIsAddItemDialogOpen: (isOpen: boolean) => void;
 }
@@ -61,7 +60,6 @@ interface StockReleaseClientProps {
 export default function StockReleaseClient({ 
     stockItems, 
     history, 
-    onAddItem, 
     onUpdateHistory, 
     onSetIsAddItemDialogOpen 
 }: StockReleaseClientProps) {
