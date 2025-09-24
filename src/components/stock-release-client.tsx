@@ -97,6 +97,19 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
     setCurrentDate(format(new Date(), "eeee, dd 'de' MMMM 'de' yyyy", { locale: ptBR }));
   }, []);
 
+  const { uniqueRequesters, uniqueDestinations } = useMemo(() => {
+    const requesters = new Set<string>();
+    const destinations = new Set<string>();
+    history.forEach(record => {
+      if (record.requestedBy) requesters.add(record.requestedBy);
+      if (record.requestedFor) destinations.add(record.requestedFor);
+    });
+    return {
+      uniqueRequesters: Array.from(requesters),
+      uniqueDestinations: Array.from(destinations),
+    };
+  }, [history]);
+
   const filteredHistory = useMemo(() => {
     setCurrentPage(1);
     return history.filter(record => {
@@ -439,8 +452,13 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
                                     <FormItem>
                                         <FormLabel>Quem (Retirou)</FormLabel>
                                         <FormControl>
-                                            <Input placeholder="Nome do responsável" {...field} />
+                                            <Input placeholder="Nome do responsável" {...field} list="requesters-datalist"/>
                                         </FormControl>
+                                        <datalist id="requesters-datalist">
+                                            {uniqueRequesters.map((requester) => (
+                                                <option key={requester} value={requester} />
+                                            ))}
+                                        </datalist>
                                         <FormMessage />
                                     </FormItem>
                                 )}
@@ -452,8 +470,13 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
                                     <FormItem>
                                         <FormLabel>Para Quem (Destino)</FormLabel>
                                         <FormControl>
-                                            <Input placeholder="Nome ou departamento" {...field} />
+                                            <Input placeholder="Nome ou departamento" {...field} list="destinations-datalist" />
                                         </FormControl>
+                                        <datalist id="destinations-datalist">
+                                            {uniqueDestinations.map((destination) => (
+                                                <option key={destination} value={destination} />
+                                            ))}
+                                        </datalist>
                                         <FormMessage />
                                     </FormItem>
                                 )}
@@ -645,3 +668,5 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
 
 StockReleaseClient.displayName = 'StockReleaseClient';
 export default StockReleaseClient;
+
+    
