@@ -196,7 +196,7 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
 
 
   return (
-    <>
+    <div>
     <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 items-start">
         <Card className="lg:col-span-3 shadow-lg">
             <CardHeader>
@@ -490,7 +490,7 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
         </div>
     </DialogContent>
 </Dialog>
-</>
+</div>
   );
   }
 );
@@ -498,4 +498,5 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
 StockReleaseClient.displayName = 'StockReleaseClient';
 export default StockReleaseClient;
 
+    
     
