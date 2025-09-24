@@ -22,9 +22,7 @@ import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { StockReleaseLogo } from "./icons";
 import { Separator } from "./ui/separator";
-import { AddItemDialog } from "./add-item-dialog";
 import { Calendar } from "./ui/calendar";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
@@ -32,15 +30,12 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 
 
 const formSchema = z.object({
-  item: z.object(
-    {
-      id: z.string(),
-      name: z.string(),
-      specifications: z.string(),
-      barcode: z.string().optional(),
-    },
-    { required_error: "Selecione um item da lista." }
-  ),
+  item: z.object({
+    id: z.string().optional(),
+    name: z.string().min(1, "O nome do item é obrigatório."),
+    specifications: z.string().min(1, "As especificações são obrigatórias."),
+    barcode: z.string().optional(),
+  }),
   quantity: z.coerce.number().min(1, "A quantidade deve ser pelo menos 1."),
   unit: z.string().min(1, "A unidade é obrigatória."),
   requestedBy: z.string().min(1, 'O campo "Quem" é obrigatório.'),
@@ -82,6 +77,10 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      item: {
+        name: "",
+        specifications: "",
+      },
       quantity: 1,
       unit: "un",
       requestedBy: "",
@@ -124,10 +123,17 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
   const totalPages = Math.ceil(filteredHistory.length / ITEMS_PER_PAGE);
 
   const onSubmit = (values: FormValues) => {
+    const withdrawalItem: StockItem = {
+      id: values.item.id || `NEW-${Date.now()}`, // Create a temporary ID if it's a new item
+      name: values.item.name,
+      specifications: values.item.specifications,
+      barcode: values.item.barcode,
+    };
+    
     const newRecord: WithdrawalRecord = {
       id: crypto.randomUUID(),
       date: new Date().toISOString(),
-      item: values.item,
+      item: withdrawalItem,
       quantity: values.quantity,
       unit: values.unit,
       requestedBy: values.requestedBy,
@@ -140,6 +146,10 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
       description: "Retirada de item registrada.",
     });
     form.reset({
+      item: {
+        name: "",
+        specifications: "",
+      },
       quantity: 1,
       unit: "un",
       requestedBy: "",
@@ -149,6 +159,7 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
   
   const handleClear = () => {
       form.reset({
+        item: { name: "", specifications: "" },
         quantity: 1,
         unit: "un",
         requestedBy: "",
@@ -175,81 +186,18 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
     });
   };
   
-  useEffect(() => {
-    if (!isSearchScannerOpen) return;
-
-    const codeReader = new BrowserMultiFormatReader();
-    let selectedDeviceId: string;
-
-    const startScanning = async () => {
-        try {
-            const videoInputDevices = await codeReader.listVideoInputDevices();
-             if (videoInputDevices.length === 0) {
-                throw new Error("Nenhuma câmera encontrada.");
-            }
-            
-            const rearCamera = videoInputDevices.find(device => device.label.toLowerCase().includes('back') || device.label.toLowerCase().includes('rear') );
-            selectedDeviceId = rearCamera ? rearCamera.deviceId : videoInputDevices[0].deviceId;
-
-            setHasCameraPermission(true);
-
-            if (searchVideoRef.current) {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: selectedDeviceId } });
-                searchVideoRef.current.srcObject = stream;
-                
-                codeReader.decodeFromVideoElement(searchVideoRef.current, (result, err) => {
-                    if (result) {
-                        const scannedBarcode = result.getText();
-                        const foundItem = stockItems.find(item => item.barcode === scannedBarcode);
-
-                        if (foundItem) {
-                            form.setValue('item', foundItem);
-                            toast({
-                                title: "Item Encontrado",
-                                description: `Item "${foundItem.name}" selecionado.`,
-                            });
-                        } else {
-                            toast({
-                                variant: 'destructive',
-                                title: 'Item Não Encontrado',
-                                description: `Nenhum item com o código de barras "${scannedBarcode}" foi encontrado.`,
-                            });
-                        }
-                        setSearchScannerOpen(false);
-                    }
-                    if (err && !(err instanceof NotFoundException)) {
-                        console.error('Barcode scan error:', err);
-                        toast({
-                            variant: 'destructive',
-                            title: 'Erro ao Escanear',
-                            description: 'Não foi possível ler o código de barras.',
-                        });
-                    }
-                });
-            }
-        } catch (error) {
-            console.error('Error accessing camera:', error);
-            setHasCameraPermission(false);
-            setSearchScannerOpen(false);
-            toast({
-                variant: 'destructive',
-                title: 'Acesso à Câmera Negado',
-                description: 'Por favor, habilite a permissão da câmera nas configurações do seu navegador.',
-            });
-        }
-    };
-
-    startScanning();
-
-    return () => {
-        codeReader.reset();
-        if (searchVideoRef.current && searchVideoRef.current.srcObject) {
-            const stream = searchVideoRef.current.srcObject as MediaStream;
-            stream.getTracks().forEach(track => track.stop());
-            searchVideoRef.current.srcObject = null;
-        }
-    };
-}, [isSearchScannerOpen, stockItems, form, toast]);
+  const handleItemNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newName = e.target.value;
+    form.setValue('item.name', newName);
+    const existingItem = stockItems.find(item => item.name === newName);
+    if (existingItem) {
+      form.setValue('item', existingItem);
+    } else {
+      form.setValue('item.id', undefined);
+      form.setValue('item.specifications', '');
+      form.setValue('item.barcode', undefined);
+    }
+  }
 
 
   return (
@@ -274,75 +222,43 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
                         <div className="grid sm:grid-cols-2 gap-4">
                             <FormField
                                 control={form.control}
-                                name="item"
+                                name="item.name"
                                 render={({ field }) => (
-                                <FormItem className="flex flex-col sm:col-span-2">
-                                    <FormLabel>Item</FormLabel>
-                                    <div className="flex gap-2">
-                                    <Popover open={comboboxOpen} onOpenChange={setComboboxOpen}>
-                                    <PopoverTrigger asChild>
-                                        <FormControl>
-                                        <Button
-                                            variant="outline"
-                                            role="combobox"
-                                            className={cn(
-                                            "w-full justify-between",
-                                            !field.value && "text-muted-foreground"
-                                            )}
-                                        >
-                                            {field.value
-                                            ? stockItems.find(
-                                                (item) => item.id === field.value.id
-                                                )?.name
-                                            : "Selecione um item"}
-                                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                        </Button>
-                                        </FormControl>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                                        <Command>
-                                            <CommandInput placeholder="Procurar item..." />
-                                            <CommandList>
-                                                <CommandEmpty>Nenhum item encontrado.</CommandEmpty>
-                                                <CommandGroup>
-                                                {stockItems.map((item) => (
-                                                    <CommandItem
-                                                    value={item.id}
-                                                    key={item.id}
-                                                    onSelect={(currentValue) => {
-                                                        const selectedItem = stockItems.find(
-                                                            (i) => i.id.toLowerCase() === currentValue.toLowerCase()
-                                                        );
-                                                        if (selectedItem) {
-                                                            form.setValue("item", selectedItem);
-                                                        }
-                                                        setComboboxOpen(false);
-                                                    }}
-                                                    >
-                                                    <Check
-                                                        className={cn(
-                                                        "mr-2 h-4 w-4",
-                                                        field.value?.id === item.id ? "opacity-100" : "opacity-0"
-                                                        )}
-                                                    />
-                                                    <span className="font-mono text-xs mr-2 text-muted-foreground">{item.id}</span>
-                                                    <span>{item.name}</span>
-                                                    </CommandItem>
-                                                ))}
-                                                </CommandGroup>
-                                            </CommandList>
-                                        </Command>
-                                    </PopoverContent>
-                                    </Popover>
-                                    <Button type="button" variant="outline" size="icon" onClick={() => setSearchScannerOpen(true)}>
-                                        <Camera className="h-4 w-4" />
-                                        <span className="sr-only">Escanear para buscar</span>
-                                    </Button>
-                                    </div>
+                                <FormItem className="sm:col-span-2">
+                                    <FormLabel>Nome do Item</FormLabel>
+                                    <FormControl>
+                                    <>
+                                        <Input 
+                                            placeholder="Digite ou selecione o nome do item" 
+                                            {...field} 
+                                            onChange={handleItemNameChange}
+                                            list="stock-items-datalist"
+                                        />
+                                        <datalist id="stock-items-datalist">
+                                            {stockItems.map((item) => (
+                                                <option key={item.id} value={item.name} />
+                                            ))}
+                                        </datalist>
+                                    </>
+                                    </FormControl>
                                     <FormMessage />
                                 </FormItem>
                                 )}
                             />
+                             <FormField
+                                control={form.control}
+                                name="item.specifications"
+                                render={({ field }) => (
+                                    <FormItem className="sm:col-span-2">
+                                        <FormLabel>Especificações</FormLabel>
+                                        <FormControl>
+                                            <Input placeholder="Ex: 8000 DPI, USB-C" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+
                             <div className="flex gap-4">
                                     <FormField
                                     control={form.control}
@@ -375,10 +291,7 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
                                 <Label>ID do Item</Label>
                                 <Input value={form.watch("item")?.id || '—'} readOnly className="bg-muted" />
                             </div>
-                                <div className="space-y-1 sm:col-span-2">
-                                <Label>Especificações</Label>
-                                <Input value={form.watch("item")?.specifications || '—'} readOnly className="bg-muted" />
-                            </div>
+                                
                             <FormField
                                 control={form.control}
                                 name="requestedBy"
@@ -587,3 +500,5 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
 
 StockReleaseClient.displayName = 'StockReleaseClient';
 export default StockReleaseClient;
+
+    
