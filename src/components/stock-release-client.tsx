@@ -2,7 +2,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Check, ChevronsUpDown, Loader2, ChevronLeft, ChevronRight, PlusCircle, Calendar as CalendarIcon, X, Camera } from "lucide-react";
+import { Check, ChevronsUpDown, Loader2, ChevronLeft, ChevronRight, PlusCircle, Calendar as CalendarIcon, X, Camera, Trash } from "lucide-react";
 import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -28,6 +28,7 @@ import { AddItemDialog } from "./add-item-dialog";
 import { Calendar } from "./ui/calendar";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "./ui/alert-dialog";
 
 
 const formSchema = z.object({
@@ -158,6 +159,15 @@ export default function StockReleaseClient({
     setRequesterFilter('');
     setDestinationFilter('');
   }
+
+  const handleDeleteRecord = (recordId: string) => {
+    const updatedHistory = history.filter(record => record.id !== recordId);
+    onUpdateHistory(updatedHistory);
+    toast({
+        title: "Registro Excluído",
+        description: "O registro de retirada foi removido do histórico.",
+    });
+  };
   
     useEffect(() => {
     if (!isSearchScannerOpen || !searchVideoRef.current) return;
@@ -441,6 +451,7 @@ export default function StockReleaseClient({
                             <TableHead className="text-center">Qtd.</TableHead>
                             <TableHead>Quem</TableHead>
                             <TableHead>Para Quem</TableHead>
+                             <TableHead className="text-right">Ações</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -452,11 +463,33 @@ export default function StockReleaseClient({
                                     <TableCell className="text-center">{`${record.quantity} ${record.unit}`}</TableCell>
                                     <TableCell>{record.requestedBy}</TableCell>
                                     <TableCell>{record.requestedFor}</TableCell>
+                                    <TableCell className="text-right">
+                                        <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={(e) => e.stopPropagation()}>
+                                                    <Trash className="h-4 w-4" />
+                                                    <span className="sr-only">Excluir</span>
+                                                </Button>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                                <AlertDialogHeader>
+                                                    <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                                                    <AlertDialogDescription>
+                                                        Essa ação não pode ser desfeita. Isso excluirá permanentemente o registro de retirada.
+                                                    </AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                    <AlertDialogCancel onClick={(e) => e.stopPropagation()}>Cancelar</AlertDialogCancel>
+                                                    <AlertDialogAction onClick={(e) => { e.stopPropagation(); handleDeleteRecord(record.id); }}>Excluir</AlertDialogAction>
+                                                </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                        </AlertDialog>
+                                    </TableCell>
                                 </TableRow>
                             ))
                         ) : (
                             <TableRow>
-                                <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
+                                <TableCell colSpan={6} className="text-center h-24 text-muted-foreground">
                                     Nenhum registro encontrado para os filtros aplicados.
                                 </TableCell>
                             </TableRow>
@@ -526,3 +559,5 @@ export default function StockReleaseClient({
 </>
   );
 }
+
+    
