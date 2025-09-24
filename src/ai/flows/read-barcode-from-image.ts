@@ -20,10 +20,10 @@ const ReadBarcodeFromImageInputSchema = z.object({
 export type ReadBarcodeFromImageInput = z.infer<typeof ReadBarcodeFromImageInputSchema>;
 
 const ReadBarcodeFromImageOutputSchema = z.object({
-  barcode: z.string().describe('O número do código de barras extraído da imagem. Deve conter apenas dígitos.'),
+  barcode: z.string().describe('O número do código de barras extraído da imagem. Deve conter apenas dígitos (0-9). Se nenhum código de barras numérico for encontrado, deve retornar uma string vazia.'),
 });
-export type ReadBarcodeFromImageOutput = z
-  .infer<typeof ReadBarcodeFromImageOutputSchema>;
+export type ReadBarcodeFromImageOutput =
+  z.infer<typeof ReadBarcodeFromImageOutputSchema>;
 
 export async function readBarcodeFromImage(
   input: ReadBarcodeFromImageInput
@@ -35,7 +35,17 @@ const prompt = ai.definePrompt({
   name: 'readBarcodeFromImagePrompt',
   input: {schema: ReadBarcodeFromImageInputSchema},
   output: {schema: ReadBarcodeFromImageOutputSchema},
-  prompt: `Você é um especialista em OCR otimizado para ler os números na parte inferior dos códigos de barras. Analise a imagem fornecida e extraia a sequência numérica do código de barras. Retorne apenas os dígitos.
+  prompt: `Você é um sistema especialista em Reconhecimento Óptico de Caracteres (OCR), otimizado para ler a sequência de números impressa abaixo de um código de barras em uma imagem.
+
+Sua tarefa é analisar a imagem fornecida e extrair APENAS a sequência numérica (geralmente de 8 a 13 dígitos) que corresponde ao código de barras.
+
+Instruções importantes:
+1.  **Foco em Números:** Ignore completamente as barras do código. Seu foco são os dígitos impressos.
+2.  **Resiliência a Imperfeições:** A imagem pode ter baixa qualidade, reflexos, brilho, estar amassada, distorcida ou em ângulo. Faça o seu melhor para compensar essas imperfeições e ler os números corretamente.
+3.  **Validação de Formato:** O resultado DEVE ser uma string contendo apenas dígitos (0-9). Nenhum outro caractere é permitido.
+4.  **Falha Limpa:** Se você não conseguir identificar uma sequência numérica clara que se pareça com um código de barras, ou se a imagem estiver ilegível, retorne uma string vazia (''). Não tente adivinhar.
+
+Analise a imagem e retorne o número do código de barras.
 
 Photo: {{media url=photoDataUri}}`,
 });

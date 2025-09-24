@@ -58,7 +58,9 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: 
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
     }
-    codeReaderRef.current.reset();
+    if(codeReaderRef.current) {
+      codeReaderRef.current.reset();
+    }
   }, []);
 
   useEffect(() => {
@@ -197,7 +199,7 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: 
             toast({
                 variant: 'destructive',
                 title: 'OCR Falhou',
-                description: 'Não foi possível ler o código numérico. Tente novamente ou digite manualmente.',
+                description: 'Não foi possível ler o código. Tente uma foto melhor ou digite manualmente.',
             });
         }
     } catch (aiError) {
@@ -205,7 +207,7 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: 
         toast({
             variant: 'destructive',
             title: 'Erro na IA',
-            description: 'Ocorreu um erro ao processar a imagem.',
+            description: 'Ocorreu um erro ao processar a imagem. Tente novamente.',
         });
     } finally {
         setIsOcrLoading(false);
@@ -356,7 +358,7 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: 
             </FormItem>
           )}
         />
-        <div className="flex w-full justify-center gap-2">
+        <div className="flex w-full flex-col sm:flex-row justify-center gap-2">
              <Button variant="ghost" onClick={() => setIsOcrMode(false)}>
                 <X className="mr-2" />
                 Voltar
