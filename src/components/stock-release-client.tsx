@@ -169,32 +169,41 @@ export default function StockReleaseClient({
     });
   };
   
-    useEffect(() => {
-    if (!isSearchScannerOpen || !searchVideoRef.current) return;
+  useEffect(() => {
+    if (!isSearchScannerOpen) return;
 
     const codeReader = new BrowserMultiFormatReader();
-    
+    let selectedDeviceId: string;
+
     const startScanning = async () => {
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+            const videoInputDevices = await codeReader.listVideoInputDevices();
+             if (videoInputDevices.length === 0) {
+                throw new Error("Nenhuma câmera encontrada.");
+            }
+            
+            const rearCamera = videoInputDevices.find(device => device.label.toLowerCase().includes('back') || device.label.toLowerCase().includes('rear') );
+            selectedDeviceId = rearCamera ? rearCamera.deviceId : videoInputDevices[0].deviceId;
+
             setHasCameraPermission(true);
 
             if (searchVideoRef.current) {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: selectedDeviceId } });
                 searchVideoRef.current.srcObject = stream;
                 
-                codeReader.decodeFromVideoDevice(undefined, searchVideoRef.current, (result, err) => {
+                codeReader.decodeFromVideoElement(searchVideoRef.current, (result, err) => {
                     if (result) {
                         const scannedBarcode = result.getText();
                         const foundItem = stockItems.find(item => item.barcode === scannedBarcode);
 
                         if (foundItem) {
                             form.setValue('item', foundItem);
-                             toast({
+                            toast({
                                 title: "Item Encontrado",
                                 description: `Item "${foundItem.name}" selecionado.`,
                             });
                         } else {
-                             toast({
+                            toast({
                                 variant: 'destructive',
                                 title: 'Item Não Encontrado',
                                 description: `Nenhum item com o código de barras "${scannedBarcode}" foi encontrado.`,
@@ -231,6 +240,7 @@ export default function StockReleaseClient({
         if (searchVideoRef.current && searchVideoRef.current.srcObject) {
             const stream = searchVideoRef.current.srcObject as MediaStream;
             stream.getTracks().forEach(track => track.stop());
+            searchVideoRef.current.srcObject = null;
         }
     };
 }, [isSearchScannerOpen, stockItems, form, toast]);
