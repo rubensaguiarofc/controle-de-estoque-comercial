@@ -2,13 +2,14 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ChevronLeft, ChevronRight, PlusCircle, Calendar as CalendarIcon, X, Trash, Download } from "lucide-react";
-import { useEffect, useState, useMemo, useRef, forwardRef, useImperativeHandle } from "react";
+import { ChevronLeft, ChevronRight, PlusCircle, Calendar as CalendarIcon, X, Trash, Download, ScanLine } from "lucide-react";
+import { useEffect, useState, useMemo, useRef, forwardRef, useImperativeHandle, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { format } from "date-fns";
 import { ptBR } from 'date-fns/locale';
 import Papa from 'papaparse';
+import { BrowserMultiFormatReader, NotFoundException, BarcodeFormat, DecodeHintType } from '@zxing/library';
 
 
 import type { StockItem, WithdrawalRecord } from "@/lib/types";
@@ -61,7 +62,8 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
   const [isSearchScannerOpen, setSearchScannerOpen] = useState(false);
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const searchVideoRef = useRef<HTMLVideoElement>(null);
-
+  const searchCodeReaderRef = useRef(new BrowserMultiFormatReader());
+  const searchStreamRef = useRef<MediaStream | null>(null);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [currentDate, setCurrentDate] = useState("");
@@ -118,6 +120,101 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
   }, [filteredHistory, currentPage]);
 
   const totalPages = Math.ceil(filteredHistory.length / ITEMS_PER_PAGE);
+  
+  const stopSearchCamera = useCallback(() => {
+    if (searchStreamRef.current) {
+        searchStreamRef.current.getTracks().forEach(track => track.stop());
+        searchStreamRef.current = null;
+    }
+    if(searchCodeReaderRef.current) {
+        searchCodeReaderRef.current.reset();
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isSearchScannerOpen) {
+        stopSearchCamera();
+    }
+  }, [isSearchScannerOpen, stopSearchCamera]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const codeReader = searchCodeReaderRef.current;
+  
+    const startScanner = async () => {
+      if (!isSearchScannerOpen || !searchVideoRef.current) return;
+  
+      try {
+        // First, get permission and list devices.
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        if (!isMounted) {
+            stream.getTracks().forEach(track => track.stop());
+            return;
+        }
+        setHasCameraPermission(true);
+        searchStreamRef.current = stream;
+
+        if (searchVideoRef.current) {
+            searchVideoRef.current.srcObject = stream;
+            searchVideoRef.current.setAttribute('playsinline', 'true');
+            await searchVideoRef.current.play();
+        }
+  
+        const hints = new Map();
+        const formats = [
+            BarcodeFormat.EAN_13, BarcodeFormat.EAN_8, BarcodeFormat.UPC_A,
+            BarcodeFormat.UPC_E, BarcodeFormat.CODE_128, BarcodeFormat.QR_CODE,
+        ];
+        hints.set(DecodeHintType.POSSIBLE_FORMATS, formats);
+        hints.set(DecodeHintType.TRY_HARDER, true);
+  
+        await codeReader.decodeFromStream(stream, searchVideoRef.current, (result, err) => {
+          if (result && isMounted) {
+            const foundItem = stockItems.find(item => item.barcode === result.getText());
+            if (foundItem) {
+              form.setValue('item', foundItem);
+              toast({
+                title: "Item Encontrado",
+                description: `Item "${foundItem.name}" selecionado.`,
+              });
+              setSearchScannerOpen(false);
+            } else {
+              toast({
+                variant: 'destructive',
+                title: "Item Não Encontrado",
+                description: "Nenhum item com este código de barras na biblioteca.",
+              });
+            }
+          }
+          if (err && !(err instanceof NotFoundException) && isMounted) {
+            console.error('Search barcode scan error:', err);
+          }
+        });
+  
+      } catch (error) {
+        console.error('Error starting search camera stream:', error);
+        if (isMounted) {
+          setHasCameraPermission(false);
+          setSearchScannerOpen(false);
+          toast({
+              variant: 'destructive',
+              title: 'Acesso à Câmera Negado',
+              description: 'Por favor, habilite a permissão da câmera nas configurações do seu navegador.',
+          });
+        }
+      }
+    };
+  
+    if (isSearchScannerOpen) {
+      startScanner();
+    }
+  
+    return () => {
+      isMounted = false;
+      stopSearchCamera();
+    };
+  }, [isSearchScannerOpen, stockItems, form, toast, stopSearchCamera]);
+
 
   const onSubmit = (values: FormValues) => {
     const withdrawalItem: StockItem = {
@@ -146,6 +243,7 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
       item: {
         name: "",
         specifications: "",
+        barcode: ""
       },
       quantity: 1,
       unit: "un",
@@ -156,7 +254,7 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
   
   const handleClear = () => {
       form.reset({
-        item: { name: "", specifications: "" },
+        item: { name: "", specifications: "", barcode: "" },
         quantity: 1,
         unit: "un",
         requestedBy: "",
@@ -219,7 +317,7 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
     }));
 
     const csv = Papa.unparse(dataToExport);
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     if (link.download !== undefined) {
       const url = URL.createObjectURL(blob);
@@ -264,21 +362,25 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
                                 render={({ field }) => (
                                 <FormItem className="sm:col-span-2">
                                     <FormLabel>Nome do Item</FormLabel>
+                                    <div className="flex gap-2">
                                     <FormControl>
-                                    <>
                                         <Input 
                                             placeholder="Digite ou selecione o nome do item" 
                                             {...field} 
                                             onChange={handleItemNameChange}
                                             list="stock-items-datalist"
                                         />
-                                        <datalist id="stock-items-datalist">
-                                            {stockItems.map((item) => (
-                                                <option key={item.id} value={item.name} />
-                                            ))}
-                                        </datalist>
-                                    </>
                                     </FormControl>
+                                    <Button type="button" variant="outline" size="icon" onClick={() => setSearchScannerOpen(true)}>
+                                        <ScanLine className="h-4 w-4" />
+                                        <span className="sr-only">Buscar por código de barras</span>
+                                    </Button>
+                                    </div>
+                                    <datalist id="stock-items-datalist">
+                                        {stockItems.map((item) => (
+                                            <option key={item.id} value={item.name} />
+                                        ))}
+                                    </datalist>
                                     <FormMessage />
                                 </FormItem>
                                 )}
@@ -427,9 +529,7 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
                         <TableRow>
                             <TableHead className="w-[100px]">Data</TableHead>
                             <TableHead>Item</TableHead>
-                            <TableHead>Especificações</TableHead>
                             <TableHead className="text-center">Qtd.</TableHead>
-                            <TableHead className="text-center">Un.</TableHead>
                             <TableHead>Quem</TableHead>
                             <TableHead>Para Quem</TableHead>
                              <TableHead className="text-right">Ações</TableHead>
@@ -441,9 +541,7 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
                                 <TableRow key={record.id}>
                                     <TableCell className="text-muted-foreground">{new Date(record.date).toLocaleDateString('pt-BR')}</TableCell>
                                     <TableCell className="font-medium">{record.item.name}</TableCell>
-                                    <TableCell>{record.item.specifications}</TableCell>
-                                    <TableCell className="text-center">{record.quantity}</TableCell>
-                                    <TableCell className="text-center">{record.unit}</TableCell>
+                                    <TableCell className="text-center">{record.quantity}{record.unit}</TableCell>
                                     <TableCell>{record.requestedBy}</TableCell>
                                     <TableCell>{record.requestedFor}</TableCell>
                                     <TableCell className="text-right">
@@ -472,7 +570,7 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
                             ))
                         ) : (
                             <TableRow>
-                                <TableCell colSpan={8} className="text-center h-24 text-muted-foreground">
+                                <TableCell colSpan={6} className="text-center h-24 text-muted-foreground">
                                     Nenhum registro encontrado para os filtros aplicados.
                                 </TableCell>
                             </TableRow>
@@ -481,7 +579,7 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
                 </Table>
             </CardContent>
                 {totalPages > 1 && (
-                <CardFooter className="flex items-center justify-between">
+                <CardFooter className="flex items-center justify-between pt-4">
                         <span className="text-sm text-muted-foreground">
                         Página {currentPage} de {totalPages}
                     </span>
@@ -519,10 +617,11 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
                 </DialogDescription>
             </DialogHeader>
             <div className="relative w-full aspect-video bg-black rounded-md overflow-hidden">
-                <video ref={searchVideoRef} className="w-full h-full object-cover" autoPlay muted playsInline />
+                <video ref={searchVideoRef} className="w-full h-full object-cover" playsInline />
                 <div className="absolute inset-0 flex items-center justify-center p-8">
                     <div className="w-full max-w-xs h-24 border-4 border-dashed border-primary rounded-lg opacity-75"/>
                 </div>
+                 <div className="absolute top-0 left-0 right-0 h-[2px] bg-red-500 shadow-[0_0_10px_2px_#ef4444] animate-scan" />
             </div>
                 {hasCameraPermission === false && (
                 <Alert variant="destructive">
@@ -532,7 +631,7 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
                     </AlertDescription>
                 </Alert>
             )}
-            <Button variant="destructive" onClick={() => setSearchScannerOpen(false)}>
+            <Button variant="ghost" onClick={() => setSearchScannerOpen(false)}>
                 <X className="mr-2" />
                 Cancelar
             </Button>
@@ -546,3 +645,5 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
 
 StockReleaseClient.displayName = 'StockReleaseClient';
 export default StockReleaseClient;
+
+    
