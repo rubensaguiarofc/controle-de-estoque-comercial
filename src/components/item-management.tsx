@@ -92,11 +92,11 @@ export default function ItemManagement({
           <TableBody>
             {filteredItems.length > 0 ? (
               filteredItems.map(item => (
-                <TableRow key={item.id} onClick={() => handleEdit(item)} className="cursor-pointer">
-                  <TableCell className="text-muted-foreground">{item.id}</TableCell>
-                  <TableCell className="font-medium">{item.name}</TableCell>
-                  <TableCell>{item.specifications}</TableCell>
-                  <TableCell className="font-mono text-sm">{item.barcode || 'N/A'}</TableCell>
+                <TableRow key={item.id}>
+                  <TableCell onClick={() => handleEdit(item)} className="text-muted-foreground cursor-pointer">{item.id}</TableCell>
+                  <TableCell onClick={() => handleEdit(item)} className="font-medium cursor-pointer">{item.name}</TableCell>
+                  <TableCell onClick={() => handleEdit(item)} className="cursor-pointer">{item.specifications}</TableCell>
+                  <TableCell onClick={() => handleEdit(item)} className="font-mono text-sm cursor-pointer">{item.barcode || 'N/A'}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex gap-2 justify-end">
                       <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleEdit(item); }}>
