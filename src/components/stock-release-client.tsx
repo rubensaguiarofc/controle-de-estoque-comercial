@@ -449,6 +449,7 @@ export default function StockReleaseClient({
                             <TableHead className="w-[100px]">Data</TableHead>
                             <TableHead>Item</TableHead>
                             <TableHead className="text-center">Qtd.</TableHead>
+                            <TableHead className="text-center">Un.</TableHead>
                             <TableHead>Quem</TableHead>
                             <TableHead>Para Quem</TableHead>
                              <TableHead className="text-right">Ações</TableHead>
@@ -460,7 +461,8 @@ export default function StockReleaseClient({
                                 <TableRow key={record.id}>
                                     <TableCell className="text-muted-foreground">{new Date(record.date).toLocaleDateString('pt-BR')}</TableCell>
                                     <TableCell className="font-medium">{record.item.name}</TableCell>
-                                    <TableCell className="text-center">{`${record.quantity} ${record.unit}`}</TableCell>
+                                    <TableCell className="text-center">{record.quantity}</TableCell>
+                                    <TableCell className="text-center">{record.unit}</TableCell>
                                     <TableCell>{record.requestedBy}</TableCell>
                                     <TableCell>{record.requestedFor}</TableCell>
                                     <TableCell className="text-right">
@@ -489,7 +491,7 @@ export default function StockReleaseClient({
                             ))
                         ) : (
                             <TableRow>
-                                <TableCell colSpan={6} className="text-center h-24 text-muted-foreground">
+                                <TableCell colSpan={7} className="text-center h-24 text-muted-foreground">
                                     Nenhum registro encontrado para os filtros aplicados.
                                 </TableCell>
                             </TableRow>
@@ -559,5 +561,3 @@ export default function StockReleaseClient({
 </>
   );
 }
-
-    
