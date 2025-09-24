@@ -2,12 +2,14 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ChevronLeft, ChevronRight, PlusCircle, Calendar as CalendarIcon, X, Trash } from "lucide-react";
+import { ChevronLeft, ChevronRight, PlusCircle, Calendar as CalendarIcon, X, Trash, Download } from "lucide-react";
 import { useEffect, useState, useMemo, useRef, forwardRef, useImperativeHandle } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { format } from "date-fns";
 import { ptBR } from 'date-fns/locale';
+import Papa from 'papaparse';
+
 
 import type { StockItem, WithdrawalRecord } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -194,6 +196,47 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
     }
   }
 
+  const handleExportToCSV = () => {
+    if (history.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "Nenhum dado para exportar",
+        description: "O histórico de retiradas está vazio.",
+      });
+      return;
+    }
+
+    const dataToExport = history.map(record => ({
+      "Data": format(new Date(record.date), 'dd/MM/yyyy HH:mm:ss'),
+      "ID do Item": record.item.id,
+      "Nome do Item": record.item.name,
+      "Especificações": record.item.specifications,
+      "Código de Barras": record.item.barcode,
+      "Quantidade": record.quantity,
+      "Unidade": record.unit,
+      "Retirado Por": record.requestedBy,
+      "Destino": record.requestedFor,
+    }));
+
+    const csv = Papa.unparse(dataToExport);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    if (link.download !== undefined) {
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute("download", `historico_retiradas_${format(new Date(), 'yyyy-MM-dd')}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    toast({
+      title: "Exportação Concluída",
+      description: "Seu arquivo CSV foi baixado.",
+    });
+  };
+
 
   return (
     <div>
@@ -324,9 +367,15 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
         </Card>
 
         <Card className="lg:col-span-2 shadow-lg">
-            <CardHeader>
-                <CardTitle>Histórico de Retiradas</CardTitle>
-                <CardDescription>Visualize e filtre as retiradas de itens.</CardDescription>
+            <CardHeader className="flex-row items-center justify-between">
+                <div>
+                    <CardTitle>Histórico de Retiradas</CardTitle>
+                    <CardDescription>Visualize e filtre as retiradas de itens.</CardDescription>
+                </div>
+                 <Button variant="outline" size="sm" onClick={handleExportToCSV}>
+                    <Download className="mr-2 h-4 w-4" />
+                    Exportar CSV
+                </Button>
             </CardHeader>
             <CardContent>
                 <div className="grid sm:grid-cols-2 gap-4 mb-4 p-4 border rounded-lg">
@@ -497,6 +546,3 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
 
 StockReleaseClient.displayName = 'StockReleaseClient';
 export default StockReleaseClient;
-
-    
-    

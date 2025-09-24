@@ -6,7 +6,7 @@ import type { StockItem, WithdrawalRecord } from "@/lib/types";
 import { MOCK_STOCK_ITEMS } from "@/lib/mock-data";
 import { useToast } from "@/hooks/use-toast";
 
-import { A6Logo, SaidaMarisLogo } from "./icons";
+import { SaidaMarisLogo } from "./icons";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import StockReleaseClient from "./stock-release-client";
 import ItemManagement from "./item-management";
@@ -116,7 +116,6 @@ export default function StockReleaseApp() {
             <SaidaMarisLogo className="h-8 w-8 text-primary" />
             <h1 className="text-3xl font-bold text-foreground tracking-tight">Saida Maris</h1>
           </div>
-          <A6Logo />
         </header>
 
         <Tabs value={view} onValueChange={(value) => setView(value as View)} className="w-full">
