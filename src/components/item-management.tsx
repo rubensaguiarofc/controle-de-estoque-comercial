@@ -1,14 +1,15 @@
 
 "use client";
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import type { StockItem } from '@/lib/types';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
-import { Edit, Trash, PlusCircle } from 'lucide-react';
+import { Edit, Trash, PlusCircle, Search } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
+import { Input } from './ui/input';
 
 interface ItemManagementProps {
   stockItems: StockItem[];
@@ -24,6 +25,7 @@ export default function ItemManagement({
   onSetEditingItem,
 }: ItemManagementProps) {
   const { toast } = useToast();
+  const [searchQuery, setSearchQuery] = useState('');
 
   const handleEdit = (item: StockItem) => {
     onSetEditingItem(item);
@@ -39,10 +41,22 @@ export default function ItemManagement({
     })
   };
 
+  const filteredItems = useMemo(() => {
+    if (!searchQuery) {
+      return stockItems;
+    }
+    const lowercasedQuery = searchQuery.toLowerCase();
+    return stockItems.filter(item =>
+      item.name.toLowerCase().includes(lowercasedQuery) ||
+      item.specifications.toLowerCase().includes(lowercasedQuery) ||
+      (item.barcode && item.barcode.toLowerCase().includes(lowercasedQuery))
+    );
+  }, [stockItems, searchQuery]);
+
   return (
     <Card className="shadow-lg">
       <CardHeader>
-        <div className="flex justify-between items-center">
+        <div className="flex justify-between items-start sm:items-center flex-col sm:flex-row gap-4">
             <div>
                 <CardTitle>Gerenciamento de Itens</CardTitle>
                 <CardDescription>Adicione, edite ou remova itens do seu estoque.</CardDescription>
@@ -54,6 +68,17 @@ export default function ItemManagement({
         </div>
       </CardHeader>
       <CardContent>
+        <div className="mb-4">
+            <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                    placeholder="Pesquisar por nome, especificações, código..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                />
+            </div>
+        </div>
         <Table>
           <TableHeader>
             <TableRow>
@@ -65,8 +90,8 @@ export default function ItemManagement({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {stockItems.length > 0 ? (
-              stockItems.map(item => (
+            {filteredItems.length > 0 ? (
+              filteredItems.map(item => (
                 <TableRow key={item.id} onClick={() => handleEdit(item)} className="cursor-pointer">
                   <TableCell className="text-muted-foreground">{item.id}</TableCell>
                   <TableCell className="font-medium">{item.name}</TableCell>
@@ -106,7 +131,7 @@ export default function ItemManagement({
             ) : (
               <TableRow>
                 <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
-                  Nenhum item cadastrado.
+                  Nenhum item encontrado.
                 </TableCell>
               </TableRow>
             )}
