@@ -58,9 +58,7 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: 
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
     }
-    if (codeReaderRef.current) {
-      codeReaderRef.current.reset();
-    }
+    codeReaderRef.current.reset();
   }, []);
 
   useEffect(() => {
@@ -77,25 +75,44 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: 
     }
   }, [isOpen, editingItem, form, stopCamera]);
 
+   // Effect to get camera permission
+   useEffect(() => {
+    if (isScanning && hasCameraPermission === null) {
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+        .then(stream => {
+          stream.getTracks().forEach(track => track.stop()); // Stop immediately, we just wanted permission
+          setHasCameraPermission(true);
+        })
+        .catch(error => {
+          console.error('Error getting camera permission:', error);
+          setHasCameraPermission(false);
+          setIsScanning(false);
+           toast({
+              variant: 'destructive',
+              title: 'Acesso à Câmera Negado',
+              description: 'Por favor, habilite a permissão da câmera nas configurações do seu navegador.',
+          });
+        });
+    }
+   }, [isScanning, hasCameraPermission, toast]);
+
    // Unified Camera & Scanner Effect
    useEffect(() => {
     const codeReader = codeReaderRef.current;
     let isMounted = true;
 
     const startCameraAndScanner = async () => {
-        if (!isScanning || !videoRef.current) {
+        if (!isScanning || !videoRef.current || !hasCameraPermission) {
             return;
         }
 
         try {
-            // Start Camera
             const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
             if (!isMounted) {
                 stream.getTracks().forEach(track => track.stop());
                 return;
             }
             streamRef.current = stream;
-            setHasCameraPermission(true);
 
             if (videoRef.current) {
                 videoRef.current.srcObject = stream;
@@ -103,7 +120,6 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: 
                 await videoRef.current.play();
             }
 
-            // Start Barcode Scanner (only if not in OCR mode)
             if (!isOcrMode && isMounted) {
                 const hints = new Map();
                 const formats = [
@@ -112,7 +128,6 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: 
                 ];
                 hints.set(DecodeHintType.POSSIBLE_FORMATS, formats);
                 hints.set(DecodeHintType.TRY_HARDER, true);
-                codeReader.setHints(hints);
 
                 await codeReader.decodeFromStream(stream, videoRef.current, (result, err) => {
                     if (result && isMounted) {
@@ -124,26 +139,21 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: 
                             description: `Código: ${result.getText()}`,
                         });
                     }
-                    if (err && !(err instanceof NotFoundException)) {
+                    if (err && !(err instanceof NotFoundException) && isMounted) {
                         console.error('Barcode scan error:', err);
                     }
                 });
             }
         } catch (error) {
-            console.error('Error accessing camera:', error);
+            console.error('Error starting camera stream:', error);
             if (isMounted) {
                 setHasCameraPermission(false);
                 setIsScanning(false);
-                toast({
-                    variant: 'destructive',
-                    title: 'Acesso à Câmera Negado',
-                    description: 'Por favor, habilite a permissão da câmera.',
-                });
             }
         }
     };
 
-    if (isScanning) {
+    if (isScanning && hasCameraPermission) {
         startCameraAndScanner();
     } else {
         stopCamera();
@@ -153,7 +163,7 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: 
         isMounted = false;
         stopCamera();
     };
- }, [isScanning, isOcrMode, form, toast, stopCamera]);
+ }, [isScanning, isOcrMode, hasCameraPermission, form, toast, stopCamera]);
 
 
  const handleOcrCapture = async () => {
@@ -305,7 +315,7 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: 
                 <X className="mr-2" />
                 Cancelar
             </Button>
-            <Button onClick={() => { setIsOcrMode(true); }}>
+            <Button onClick={() => { setIsOcrMode(true); }} disabled={hasCameraPermission !== true}>
                 <ScanText className="mr-2" />
                 Usar Foto (OCR)
             </Button>
@@ -351,7 +361,7 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: 
                 <X className="mr-2" />
                 Voltar
             </Button>
-            <Button onClick={handleOcrCapture} disabled={isOcrLoading || hasCameraPermission === false}>
+            <Button onClick={handleOcrCapture} disabled={isOcrLoading || hasCameraPermission !== true}>
                 {isOcrLoading ? <Loader2 className="mr-2 animate-spin" /> : <Camera className="mr-2" />}
                 {isOcrLoading ? "Lendo..." : "Ler com IA"}
             </Button>
