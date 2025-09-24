@@ -301,10 +301,15 @@ export default function StockReleaseClient({
                                                 <CommandGroup>
                                                 {stockItems.map((item) => (
                                                     <CommandItem
-                                                    value={item.name}
+                                                    value={item.id}
                                                     key={item.id}
-                                                    onSelect={() => {
-                                                        form.setValue("item", item);
+                                                    onSelect={(currentValue) => {
+                                                        const selectedItem = stockItems.find(
+                                                            (i) => i.id.toLowerCase() === currentValue.toLowerCase()
+                                                        );
+                                                        if (selectedItem) {
+                                                            form.setValue("item", selectedItem);
+                                                        }
                                                         setComboboxOpen(false);
                                                     }}
                                                     >
@@ -571,3 +576,5 @@ export default function StockReleaseClient({
 </>
   );
 }
+
+    
