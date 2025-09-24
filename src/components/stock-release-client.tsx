@@ -39,6 +39,7 @@ const formSchema = z.object({
     { required_error: "Selecione um item da lista." }
   ),
   quantity: z.coerce.number().min(1, "A quantidade deve ser pelo menos 1."),
+  unit: z.string().min(1, "A unidade é obrigatória."),
   requestedBy: z.string().min(1, 'O campo "Quem" é obrigatório.'),
   requestedFor: z.string().min(1, 'O campo "Para Quem" é obrigatório.'),
   aiDescription: z.string().optional(),
@@ -70,6 +71,7 @@ export default function StockReleaseClient() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       quantity: 1,
+      unit: "un",
       requestedBy: "",
       requestedFor: "",
       aiDescription: "",
@@ -204,6 +206,7 @@ export default function StockReleaseClient() {
       date: new Date().toISOString(),
       item: values.item,
       quantity: values.quantity,
+      unit: values.unit,
       requestedBy: values.requestedBy,
       requestedFor: values.requestedFor,
     };
@@ -215,6 +218,7 @@ export default function StockReleaseClient() {
     });
     form.reset({
       quantity: 1,
+      unit: "un",
       requestedBy: "",
       requestedFor: "",
       aiDescription: "",
@@ -225,6 +229,7 @@ export default function StockReleaseClient() {
   const handleClear = () => {
       form.reset({
         quantity: 1,
+        unit: "un",
         requestedBy: "",
         requestedFor: "",
         aiDescription: "",
@@ -315,7 +320,7 @@ export default function StockReleaseClient() {
                                     control={form.control}
                                     name="item"
                                     render={({ field }) => (
-                                    <FormItem className="flex flex-col">
+                                    <FormItem className="flex flex-col sm:col-span-2">
                                         <FormLabel>Item</FormLabel>
                                         <Popover open={comboboxOpen} onOpenChange={setComboboxOpen}>
                                         <PopoverTrigger asChild>
@@ -337,7 +342,7 @@ export default function StockReleaseClient() {
                                             </Button>
                                             </FormControl>
                                         </PopoverTrigger>
-                                        <PopoverContent className="w-full p-0">
+                                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
                                             <Command>
                                                 <CommandInput placeholder="Procurar item..." />
                                                 <CommandList>
@@ -370,24 +375,39 @@ export default function StockReleaseClient() {
                                     </FormItem>
                                     )}
                                 />
-                                <FormField
-                                    control={form.control}
-                                    name="quantity"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Quantidade</FormLabel>
-                                            <FormControl>
-                                                <Input type="number" min="1" {...field} />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
+                                <div className="flex gap-4">
+                                     <FormField
+                                        control={form.control}
+                                        name="quantity"
+                                        render={({ field }) => (
+                                            <FormItem className="w-24">
+                                                <FormLabel>Quantidade</FormLabel>
+                                                <FormControl>
+                                                    <Input type="number" min="1" {...field} />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={form.control}
+                                        name="unit"
+                                        render={({ field }) => (
+                                            <FormItem className="flex-1">
+                                                <FormLabel>Unidade</FormLabel>
+                                                <FormControl>
+                                                    <Input placeholder="Ex: un, pç, cx" {...field} />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                </div>
                                 <div className="space-y-1">
                                     <Label>ID do Item</Label>
                                     <Input value={form.watch("item")?.id || '—'} readOnly className="bg-muted" />
                                 </div>
-                                 <div className="space-y-1">
+                                 <div className="space-y-1 sm:col-span-2">
                                     <Label>Especificações</Label>
                                     <Input value={form.watch("item")?.specifications || '—'} readOnly className="bg-muted" />
                                 </div>
@@ -493,7 +513,7 @@ export default function StockReleaseClient() {
                                     <TableRow key={record.id}>
                                         <TableCell className="text-muted-foreground">{new Date(record.date).toLocaleDateString('pt-BR')}</TableCell>
                                         <TableCell className="font-medium">{record.item.name}</TableCell>
-                                        <TableCell className="text-center">{record.quantity}</TableCell>
+                                        <TableCell className="text-center">{`${record.quantity} ${record.unit}`}</TableCell>
                                         <TableCell>{record.requestedBy}</TableCell>
                                         <TableCell>{record.requestedFor}</TableCell>
                                     </TableRow>
@@ -546,7 +566,5 @@ export default function StockReleaseClient() {
     </>
   );
 }
-
-
 
     

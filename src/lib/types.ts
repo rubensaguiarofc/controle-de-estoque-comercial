@@ -9,6 +9,9 @@ export type WithdrawalRecord = {
   date: string;
   item: StockItem;
   quantity: number;
+  unit: string;
   requestedBy: string; // Quem
   requestedFor:string; // Para Quem
 };
+
+    
