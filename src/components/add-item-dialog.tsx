@@ -86,6 +86,7 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: 
               BarcodeFormat.UPC_E, BarcodeFormat.CODE_128, BarcodeFormat.QR_CODE,
             ];
             hints.set(DecodeHintType.POSSIBLE_FORMATS, formats);
+            hints.set(DecodeHintType.TRY_HARDER, true);
             codeReader.setHints(hints);
 
             codeReader.decodeFromStream(stream, videoRef.current, (result, err) => {
