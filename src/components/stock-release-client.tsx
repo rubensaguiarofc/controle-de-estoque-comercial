@@ -319,7 +319,8 @@ export default function StockReleaseClient({
                                                         field.value?.id === item.id ? "opacity-100" : "opacity-0"
                                                         )}
                                                     />
-                                                    {item.name}
+                                                    <span className="font-mono text-xs mr-2 text-muted-foreground">{item.id}</span>
+                                                    <span>{item.name}</span>
                                                     </CommandItem>
                                                 ))}
                                                 </CommandGroup>
@@ -577,4 +578,3 @@ export default function StockReleaseClient({
   );
 }
 
-    
