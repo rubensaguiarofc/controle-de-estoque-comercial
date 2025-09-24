@@ -67,30 +67,9 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: 
     const startScanning = async () => {
       if (!isScanning || !videoRef.current) return;
 
-      const hints = new Map();
-      const formats = [
-        BarcodeFormat.EAN_13, BarcodeFormat.EAN_8, BarcodeFormat.UPC_A,
-        BarcodeFormat.UPC_E, BarcodeFormat.CODE_128, BarcodeFormat.QR_CODE,
-      ];
-      hints.set(DecodeHintType.POSSIBLE_FORMATS, formats);
-      codeReader.setHints(hints);
-
       try {
-        const videoInputDevices = await codeReader.listVideoInputDevices();
-        let selectedDeviceId = videoInputDevices[0]?.deviceId;
-        
-        const rearCamera = videoInputDevices.find(device => 
-            device.label.toLowerCase().includes('back') || 
-            device.label.toLowerCase().includes('rear')
-        );
-        
-        if (rearCamera) {
-            selectedDeviceId = rearCamera.deviceId;
-        }
-
         stream = await navigator.mediaDevices.getUserMedia({
           video: {
-            deviceId: selectedDeviceId,
             facingMode: 'environment',
           }
         });
@@ -98,9 +77,17 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: 
 
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
-          // Attach an event listener to ensure the video is playing before decoding
           videoRef.current.onloadedmetadata = () => {
             videoRef.current?.play().catch(e => console.error("Video play failed", e));
+            
+            const hints = new Map();
+            const formats = [
+              BarcodeFormat.EAN_13, BarcodeFormat.EAN_8, BarcodeFormat.UPC_A,
+              BarcodeFormat.UPC_E, BarcodeFormat.CODE_128, BarcodeFormat.QR_CODE,
+            ];
+            hints.set(DecodeHintType.POSSIBLE_FORMATS, formats);
+            codeReader.setHints(hints);
+
             codeReader.decodeFromStream(stream, videoRef.current, (result, err) => {
               if (result) {
                 form.setValue('barcode', result.getText());
@@ -112,7 +99,6 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: 
               }
               if (err && !(err instanceof NotFoundException)) {
                 console.error('Barcode scan error:', err);
-                // Optionally show a toast for non-NotFound errors
               }
             });
           };
