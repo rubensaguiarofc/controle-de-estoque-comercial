@@ -61,80 +61,81 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: 
   }, [isOpen, editingItem, form]);
 
   useEffect(() => {
-    if (!isScanning) {
-        if (videoRef.current && videoRef.current.srcObject) {
-            const stream = videoRef.current.srcObject as MediaStream;
-            stream.getTracks().forEach(track => track.stop());
-            videoRef.current.srcObject = null;
-        }
-        codeReaderRef.current.reset();
-        return;
-    };
-
-    const hints = new Map();
-    const formats = [
-        BarcodeFormat.EAN_13,
-        BarcodeFormat.EAN_8,
-        BarcodeFormat.UPC_A,
-        BarcodeFormat.UPC_E,
-        BarcodeFormat.CODE_128,
-        BarcodeFormat.QR_CODE,
-    ];
-    hints.set(DecodeHintType.POSSIBLE_FORMATS, formats);
-    codeReaderRef.current.setHints(hints);
-
-    const constraints: MediaStreamConstraints = {
-      video: { facingMode: 'environment' }
-    };
-
+    const codeReader = codeReaderRef.current;
     let stream: MediaStream;
 
-    const startCamera = async () => {
-        try {
-            stream = await navigator.mediaDevices.getUserMedia(constraints);
-            setHasCameraPermission(true);
+    const startScanning = async () => {
+      if (!isScanning || !videoRef.current) return;
 
-            if (videoRef.current) {
-                videoRef.current.srcObject = stream;
-                
-                codeReaderRef.current.decodeFromStream(stream, videoRef.current, (result, err) => {
-                    if (result) {
-                        form.setValue('barcode', result.getText());
-                        setIsScanning(false);
-                        toast({
-                            title: "Código de Barras Escaneado",
-                            description: `Código: ${result.getText()}`,
-                        });
-                    }
-                    if (err && !(err instanceof NotFoundException)) {
-                        console.error('Barcode scan error:', err);
-                        toast({
-                            variant: 'destructive',
-                            title: 'Erro ao Escanear',
-                            description: 'Não foi possível ler o código de barras.',
-                        });
-                    }
-                });
-            }
-        } catch (error) {
-            console.error('Error accessing camera:', error);
-            setHasCameraPermission(false);
-            setIsScanning(false);
-            toast({
-                variant: 'destructive',
-                title: 'Acesso à Câmera Negado',
-                description: 'Por favor, habilite a permissão da câmera nas configurações do seu navegador.',
-            });
+      const hints = new Map();
+      const formats = [
+        BarcodeFormat.EAN_13, BarcodeFormat.EAN_8, BarcodeFormat.UPC_A,
+        BarcodeFormat.UPC_E, BarcodeFormat.CODE_128, BarcodeFormat.QR_CODE,
+      ];
+      hints.set(DecodeHintType.POSSIBLE_FORMATS, formats);
+      codeReader.setHints(hints);
+
+      try {
+        const videoInputDevices = await codeReader.listVideoInputDevices();
+        let selectedDeviceId = videoInputDevices[0]?.deviceId;
+        
+        const rearCamera = videoInputDevices.find(device => 
+            device.label.toLowerCase().includes('back') || 
+            device.label.toLowerCase().includes('rear')
+        );
+        
+        if (rearCamera) {
+            selectedDeviceId = rearCamera.deviceId;
         }
+
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            deviceId: selectedDeviceId,
+            facingMode: 'environment',
+          }
+        });
+        setHasCameraPermission(true);
+
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          // Attach an event listener to ensure the video is playing before decoding
+          videoRef.current.onloadedmetadata = () => {
+            videoRef.current?.play().catch(e => console.error("Video play failed", e));
+            codeReader.decodeFromStream(stream, videoRef.current, (result, err) => {
+              if (result) {
+                form.setValue('barcode', result.getText());
+                setIsScanning(false);
+                toast({
+                  title: "Código de Barras Escaneado",
+                  description: `Código: ${result.getText()}`,
+                });
+              }
+              if (err && !(err instanceof NotFoundException)) {
+                console.error('Barcode scan error:', err);
+                // Optionally show a toast for non-NotFound errors
+              }
+            });
+          };
+        }
+      } catch (error) {
+        console.error('Error accessing camera or starting scanner:', error);
+        setHasCameraPermission(false);
+        setIsScanning(false);
+        toast({
+          variant: 'destructive',
+          title: 'Acesso à Câmera Negado',
+          description: 'Por favor, habilite a permissão da câmera nas configurações do seu navegador.',
+        });
+      }
     };
 
-    startCamera();
+    startScanning();
 
     return () => {
-        if (stream) {
-            stream.getTracks().forEach(track => track.stop());
-        }
-        codeReaderRef.current.reset();
+      codeReader.reset();
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
     };
 }, [isScanning, form, toast]);
 
