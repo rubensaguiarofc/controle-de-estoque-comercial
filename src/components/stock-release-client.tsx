@@ -2,10 +2,13 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Check, ChevronsUpDown, FileUp, Loader2, Wand2, ChevronLeft, ChevronRight, PlusCircle } from "lucide-react";
+import { Check, ChevronsUpDown, FileUp, Loader2, Wand2, ChevronLeft, ChevronRight, PlusCircle, Calendar as CalendarIcon, X } from "lucide-react";
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import { format } from "date-fns";
+import { ptBR } from 'date-fns/locale';
+
 
 import { autofillFromDescription } from "@/app/actions";
 import { MOCK_STOCK_ITEMS as INITIAL_STOCK_ITEMS } from "@/lib/mock-data";
@@ -24,6 +27,7 @@ import { useToast } from "@/hooks/use-toast";
 import { StockReleaseLogo } from "./icons";
 import { Separator } from "./ui/separator";
 import { AddItemDialog } from "./add-item-dialog";
+import { Calendar } from "./ui/calendar";
 
 const formSchema = z.object({
   item: z.object(
@@ -55,6 +59,12 @@ export default function StockReleaseClient() {
   const [isAddItemDialogOpen, setAddItemDialogOpen] = useState(false);
 
   const [currentPage, setCurrentPage] = useState(1);
+  const [currentDate, setCurrentDate] = useState("");
+
+  const [dateFilter, setDateFilter] = useState<Date | undefined>();
+  const [requesterFilter, setRequesterFilter] = useState('');
+  const [destinationFilter, setDestinationFilter] = useState('');
+
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -65,6 +75,10 @@ export default function StockReleaseClient() {
       aiDescription: "",
     },
   });
+
+  useEffect(() => {
+    setCurrentDate(format(new Date(), "eeee, dd 'de' MMMM 'de' yyyy", { locale: ptBR }));
+  }, []);
 
   useEffect(() => {
     try {
@@ -95,14 +109,30 @@ export default function StockReleaseClient() {
       }
     }
   }, [history, stockItems, isInitialLoad]);
+
+  const filteredHistory = useMemo(() => {
+    setCurrentPage(1);
+    return history.filter(record => {
+      const recordDate = new Date(record.date);
+      const isDateMatch = !dateFilter || (
+        recordDate.getFullYear() === dateFilter.getFullYear() &&
+        recordDate.getMonth() === dateFilter.getMonth() &&
+        recordDate.getDate() === dateFilter.getDate()
+      );
+      const isRequesterMatch = !requesterFilter || record.requestedBy.toLowerCase().includes(requesterFilter.toLowerCase());
+      const isDestinationMatch = !destinationFilter || record.requestedFor.toLowerCase().includes(destinationFilter.toLowerCase());
+
+      return isDateMatch && isRequesterMatch && isDestinationMatch;
+    });
+  }, [history, dateFilter, requesterFilter, destinationFilter]);
   
   const paginatedHistory = useMemo(() => {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
     const endIndex = startIndex + ITEMS_PER_PAGE;
-    return history.slice(startIndex, endIndex);
-  }, [history, currentPage]);
+    return filteredHistory.slice(startIndex, endIndex);
+  }, [filteredHistory, currentPage]);
 
-  const totalPages = Math.ceil(history.length / ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(filteredHistory.length / ITEMS_PER_PAGE);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -220,6 +250,12 @@ export default function StockReleaseClient() {
     })
   }, [stockItems, toast, form]);
 
+  const clearFilters = () => {
+    setDateFilter(undefined);
+    setRequesterFilter('');
+    setDestinationFilter('');
+  }
+
   return (
     <>
     <div className="flex flex-col gap-8">
@@ -234,7 +270,7 @@ export default function StockReleaseClient() {
                     <div className="flex justify-between items-center">
                       <div>
                         <CardTitle>Registrar Retirada</CardTitle>
-                        <CardDescription>Preencha os detalhes abaixo ou use a IA para preenchimento automático.</CardDescription>
+                        <CardDescription>{currentDate}</CardDescription>
                       </div>
                        <Button variant="outline" onClick={() => setAddItemDialogOpen(true)}>
                           <PlusCircle className="mr-2" />
@@ -394,9 +430,53 @@ export default function StockReleaseClient() {
             <Card className="lg:col-span-2 shadow-lg">
                 <CardHeader>
                     <CardTitle>Histórico de Retiradas</CardTitle>
-                    <CardDescription>Visualize as retiradas de itens mais recentes.</CardDescription>
+                    <CardDescription>Visualize e filtre as retiradas de itens.</CardDescription>
                 </CardHeader>
                 <CardContent>
+                    <div className="grid sm:grid-cols-2 gap-4 mb-4 p-4 border rounded-lg">
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
+                                variant={"outline"}
+                                className={cn(
+                                    "w-full justify-start text-left font-normal",
+                                    !dateFilter && "text-muted-foreground"
+                                )}
+                                >
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {dateFilter ? format(dateFilter, "PPP", { locale: ptBR }) : <span>Filtrar por data</span>}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0">
+                                <Calendar
+                                mode="single"
+                                selected={dateFilter}
+                                onSelect={setDateFilter}
+                                initialFocus
+                                locale={ptBR}
+                                />
+                            </PopoverContent>
+                        </Popover>
+                        <div className="relative">
+                         <Input 
+                            placeholder="Quem retirou..."
+                            value={requesterFilter}
+                            onChange={(e) => setRequesterFilter(e.target.value)}
+                         />
+                        </div>
+                        <div className="relative">
+                         <Input 
+                            placeholder="Para quem (destino)..."
+                            value={destinationFilter}
+                            onChange={(e) => setDestinationFilter(e.target.value)}
+                         />
+                        </div>
+                         <Button variant="ghost" onClick={clearFilters} className="w-full">
+                            <X className="mr-2 h-4 w-4"/>
+                            Limpar Filtros
+                        </Button>
+                    </div>
+
                     <Table>
                         <TableHeader>
                             <TableRow>
@@ -411,7 +491,7 @@ export default function StockReleaseClient() {
                             {paginatedHistory.length > 0 ? (
                                 paginatedHistory.map((record) => (
                                     <TableRow key={record.id}>
-                                        <TableCell className="text-muted-foreground">{new Date(record.date).toLocaleDateString()}</TableCell>
+                                        <TableCell className="text-muted-foreground">{new Date(record.date).toLocaleDateString('pt-BR')}</TableCell>
                                         <TableCell className="font-medium">{record.item.name}</TableCell>
                                         <TableCell className="text-center">{record.quantity}</TableCell>
                                         <TableCell>{record.requestedBy}</TableCell>
@@ -421,7 +501,7 @@ export default function StockReleaseClient() {
                             ) : (
                                 <TableRow>
                                     <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
-                                        Nenhum registro encontrado.
+                                        Nenhum registro encontrado para os filtros aplicados.
                                     </TableCell>
                                 </TableRow>
                             )}
@@ -467,3 +547,6 @@ export default function StockReleaseClient() {
   );
 }
 
+
+
+    
