@@ -67,20 +67,20 @@ export default function ItemManagement({
           <TableBody>
             {stockItems.length > 0 ? (
               stockItems.map(item => (
-                <TableRow key={item.id}>
+                <TableRow key={item.id} onClick={() => handleEdit(item)} className="cursor-pointer">
                   <TableCell className="text-muted-foreground">{item.id}</TableCell>
                   <TableCell className="font-medium">{item.name}</TableCell>
                   <TableCell>{item.specifications}</TableCell>
                   <TableCell className="font-mono text-sm">{item.barcode || 'N/A'}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex gap-2 justify-end">
-                      <Button variant="ghost" size="icon" onClick={() => handleEdit(item)}>
+                      <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleEdit(item); }}>
                         <Edit className="h-4 w-4" />
                         <span className="sr-only">Editar</span>
                       </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={(e) => e.stopPropagation()}>
                                 <Trash className="h-4 w-4" />
                                 <span className="sr-only">Excluir</span>
                             </Button>
