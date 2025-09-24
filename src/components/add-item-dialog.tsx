@@ -207,7 +207,7 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: 
             toast({
                 variant: 'destructive',
                 title: 'OCR Falhou',
-                description: 'Não foi possível ler o código. Tente uma foto melhor ou digite manually.',
+                description: 'Não foi possível ler o código. Tente uma foto melhor ou digite manualmente.',
             });
         }
     } catch (aiError) {
@@ -224,7 +224,12 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: 
 
 
   const onSubmit = (values: FormValues) => {
-    onAddItem(values);
+    const uppercaseValues = {
+      ...values,
+      name: values.name.toUpperCase(),
+      specifications: values.specifications.toUpperCase(),
+    };
+    onAddItem(uppercaseValues);
   };
   
   const dialogTitle = editingItem ? "Editar Item" : "Cadastrar Novo Item";
@@ -399,5 +404,3 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: 
     </Dialog>
   );
 }
-
-    

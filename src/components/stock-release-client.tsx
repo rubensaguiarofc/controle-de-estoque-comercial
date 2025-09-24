@@ -232,8 +232,8 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
   const onSubmit = (values: FormValues) => {
     const withdrawalItem: StockItem = {
       id: values.item.id || `NEW-${Date.now()}`, // Create a temporary ID if it's a new item
-      name: values.item.name,
-      specifications: values.item.specifications,
+      name: values.item.name.toUpperCase(),
+      specifications: values.item.specifications.toUpperCase(),
       barcode: values.item.barcode,
     };
     
@@ -242,7 +242,7 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
       date: new Date().toISOString(),
       item: withdrawalItem,
       quantity: values.quantity,
-      unit: values.unit,
+      unit: values.unit.toUpperCase(),
       requestedBy: values.requestedBy.toUpperCase(),
       requestedFor: values.requestedFor.toUpperCase(),
     };
@@ -632,6 +632,7 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
     </div>
         <Dialog open={isSearchScannerOpen} onOpenChange={setSearchScannerOpen}>
     <DialogContent>
+        <Form {...form}>
         <div className="flex flex-col items-center gap-4">
             <DialogHeader>
                 <DialogTitle className="text-center">Buscar Item por Código de Barras</DialogTitle>
@@ -659,6 +660,7 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
                 Cancelar
             </Button>
         </div>
+        </Form>
     </DialogContent>
 </Dialog>
 </div>
@@ -668,5 +670,3 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
 
 StockReleaseClient.displayName = 'StockReleaseClient';
 export default StockReleaseClient;
-
-    
