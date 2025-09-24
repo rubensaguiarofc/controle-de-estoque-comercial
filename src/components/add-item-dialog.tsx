@@ -62,26 +62,19 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: 
     if (!isScanning) return;
 
     const codeReader = new BrowserMultiFormatReader();
-    let selectedDeviceId: string;
+    const constraints: MediaStreamConstraints = {
+      video: { facingMode: 'environment' }
+    };
 
     const startScanning = async () => {
         try {
-            const videoInputDevices = await codeReader.listVideoInputDevices();
-            if (videoInputDevices.length === 0) {
-                throw new Error("Nenhuma câmera encontrada.");
-            }
-            
-            // Prefer a câmera traseira ('environment')
-            const rearCamera = videoInputDevices.find(device => device.label.toLowerCase().includes('back') || device.label.toLowerCase().includes('rear') );
-            selectedDeviceId = rearCamera ? rearCamera.deviceId : videoInputDevices[0].deviceId;
-
+            const stream = await navigator.mediaDevices.getUserMedia(constraints);
             setHasCameraPermission(true);
 
             if (videoRef.current) {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: selectedDeviceId } });
                 videoRef.current.srcObject = stream;
                 
-                codeReader.decodeFromVideoElement(videoRef.current, (result, err) => {
+                codeReader.decodeFromStream(stream, videoRef.current, (result, err) => {
                     if (result) {
                         form.setValue('barcode', result.getText());
                         setIsScanning(false);
