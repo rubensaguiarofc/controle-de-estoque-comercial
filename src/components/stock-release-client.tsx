@@ -3,7 +3,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Check, ChevronsUpDown, Loader2, ChevronLeft, ChevronRight, PlusCircle, Calendar as CalendarIcon, X, Camera, Trash } from "lucide-react";
-import { useEffect, useState, useMemo, useCallback, useRef } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef, forwardRef, useImperativeHandle } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { format } from "date-fns";
@@ -58,12 +58,12 @@ interface StockReleaseClientProps {
   onSetIsAddItemDialogOpen: (isOpen: boolean) => void;
 }
 
-export default function StockReleaseClient({ 
-    stockItems, 
-    history, 
-    onUpdateHistory, 
-    onSetIsAddItemDialogOpen 
-}: StockReleaseClientProps) {
+export interface StockReleaseClientRef {
+  setFormItem: (item: StockItem) => void;
+}
+
+const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientProps>(
+  ({ stockItems, history, onUpdateHistory, onSetIsAddItemDialogOpen }, ref) => {
   const { toast } = useToast();
   const [comboboxOpen, setComboboxOpen] = useState(false);
   const [isSearchScannerOpen, setSearchScannerOpen] = useState(false);
@@ -88,6 +88,12 @@ export default function StockReleaseClient({
       requestedFor: "",
     },
   });
+
+  useImperativeHandle(ref, () => ({
+    setFormItem(item: StockItem) {
+      form.setValue('item', item);
+    }
+  }));
 
   useEffect(() => {
     setCurrentDate(format(new Date(), "eeee, dd 'de' MMMM 'de' yyyy", { locale: ptBR }));
@@ -576,5 +582,8 @@ export default function StockReleaseClient({
 </Dialog>
 </>
   );
-}
+  }
+);
 
+StockReleaseClient.displayName = 'StockReleaseClient';
+export default StockReleaseClient;

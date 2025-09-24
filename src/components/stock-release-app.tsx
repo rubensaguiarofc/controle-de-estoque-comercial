@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import type { StockItem, WithdrawalRecord } from "@/lib/types";
 import { MOCK_STOCK_ITEMS } from "@/lib/mock-data";
 import { useToast } from "@/hooks/use-toast";
@@ -22,6 +22,9 @@ export default function StockReleaseApp() {
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [isAddItemDialogOpen, setAddItemDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<StockItem | null>(null);
+
+  const releaseClientRef = useRef<{ setFormItem: (item: StockItem) => void }>(null);
+
 
   useEffect(() => {
     try {
@@ -91,6 +94,17 @@ export default function StockReleaseApp() {
     setAddItemDialogOpen(isOpen);
   }
 
+  const handleSelectItemForRelease = (item: StockItem) => {
+    if (releaseClientRef.current) {
+      releaseClientRef.current.setFormItem(item);
+    }
+    setView('release');
+    toast({
+      title: "Item Selecionado",
+      description: `"${item.name}" pronto para registrar a saída.`,
+    });
+  };
+
   return (
     <div className="flex flex-col gap-8">
         <header className="flex items-center gap-3">
@@ -105,6 +119,7 @@ export default function StockReleaseApp() {
             </TabsList>
             <TabsContent value="release" className="mt-6">
                 <StockReleaseClient
+                    ref={releaseClientRef}
                     stockItems={stockItems}
                     history={history}
                     onUpdateHistory={setHistory}
@@ -117,6 +132,7 @@ export default function StockReleaseApp() {
                     onSetStockItems={setStockItems}
                     onSetIsAddItemDialogOpen={setAddItemDialogOpen}
                     onSetEditingItem={setEditingItem}
+                    onSelectItemForRelease={handleSelectItemForRelease}
                 />
             </TabsContent>
         </Tabs>

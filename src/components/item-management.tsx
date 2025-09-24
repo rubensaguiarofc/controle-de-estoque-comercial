@@ -6,7 +6,7 @@ import type { StockItem } from '@/lib/types';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
-import { Edit, Trash, PlusCircle, Search } from 'lucide-react';
+import { Edit, Trash, PlusCircle, Search, CheckCircle } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from './ui/input';
@@ -16,6 +16,7 @@ interface ItemManagementProps {
   onSetStockItems: (items: StockItem[]) => void;
   onSetIsAddItemDialogOpen: (isOpen: boolean) => void;
   onSetEditingItem: (item: StockItem | null) => void;
+  onSelectItemForRelease: (item: StockItem) => void;
 }
 
 export default function ItemManagement({
@@ -23,6 +24,7 @@ export default function ItemManagement({
   onSetStockItems,
   onSetIsAddItemDialogOpen,
   onSetEditingItem,
+  onSelectItemForRelease,
 }: ItemManagementProps) {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
@@ -39,6 +41,10 @@ export default function ItemManagement({
         title: "Item Excluído",
         description: "O item foi removido do seu estoque.",
     })
+  };
+
+  const handleRowClick = (item: StockItem) => {
+    onSelectItemForRelease(item);
   };
 
   const filteredItems = useMemo(() => {
@@ -58,8 +64,8 @@ export default function ItemManagement({
       <CardHeader>
         <div className="flex justify-between items-start sm:items-center flex-col sm:flex-row gap-4">
             <div>
-                <CardTitle>Gerenciamento de Itens</CardTitle>
-                <CardDescription>Adicione, edite ou remova itens do seu estoque.</CardDescription>
+                <CardTitle>Biblioteca de Itens</CardTitle>
+                <CardDescription>Clique em um item para selecioná-lo para retirada, ou use os botões para gerenciar.</CardDescription>
             </div>
             <Button variant="outline" onClick={() => { onSetEditingItem(null); onSetIsAddItemDialogOpen(true)}}>
               <PlusCircle className="mr-2" />
@@ -92,13 +98,17 @@ export default function ItemManagement({
           <TableBody>
             {filteredItems.length > 0 ? (
               filteredItems.map(item => (
-                <TableRow key={item.id} onClick={() => handleEdit(item)} className="cursor-pointer">
+                <TableRow key={item.id} onClick={() => handleRowClick(item)} className="cursor-pointer">
                   <TableCell className="text-muted-foreground">{item.id}</TableCell>
                   <TableCell className="font-medium">{item.name}</TableCell>
                   <TableCell>{item.specifications}</TableCell>
                   <TableCell className="font-mono text-sm">{item.barcode || 'N/A'}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex gap-2 justify-end">
+                       <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleRowClick(item); }}>
+                        <CheckCircle className="h-4 w-4 text-primary" />
+                        <span className="sr-only">Selecionar</span>
+                      </Button>
                       <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleEdit(item); }}>
                         <Edit className="h-4 w-4" />
                         <span className="sr-only">Editar</span>
