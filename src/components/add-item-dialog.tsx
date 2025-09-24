@@ -43,6 +43,7 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: 
   
   const codeReaderRef = useRef(new BrowserMultiFormatReader());
   const ocrStreamRef = useRef<MediaStream | null>(null);
+  const scannerStreamRef = useRef<MediaStream | null>(null);
 
 
   const form = useForm<FormValues>({
@@ -54,11 +55,16 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: 
     },
   });
 
-  const stopOcrCamera = useCallback(() => {
+  const stopAllCameras = useCallback(() => {
+    if (scannerStreamRef.current) {
+      scannerStreamRef.current.getTracks().forEach(track => track.stop());
+      scannerStreamRef.current = null;
+    }
     if (ocrStreamRef.current) {
       ocrStreamRef.current.getTracks().forEach(track => track.stop());
       ocrStreamRef.current = null;
     }
+    codeReaderRef.current.reset();
   }, []);
 
   useEffect(() => {
@@ -71,26 +77,39 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: 
     } else {
       setIsScanning(false);
       setIsOcrMode(false);
-      stopOcrCamera();
+      stopAllCameras();
     }
-  }, [isOpen, editingItem, form, stopOcrCamera]);
+  }, [isOpen, editingItem, form, stopAllCameras]);
 
   // Barcode Scanner Effect
   useEffect(() => {
+    let isMounted = true;
     const codeReader = codeReaderRef.current;
-    let stream: MediaStream | null = null;
 
     const startScanning = async () => {
-      if (!isScanning || !videoRef.current || isOcrMode) return;
+      if (!isScanning || !videoRef.current || isOcrMode) {
+        if(scannerStreamRef.current) {
+          scannerStreamRef.current.getTracks().forEach(track => track.stop());
+          scannerStreamRef.current = null;
+          codeReader.reset();
+        }
+        return;
+      }
 
       try {
-        stream = await navigator.mediaDevices.getUserMedia({
+        const stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: 'environment' }
         });
+        if (!isMounted) {
+          stream.getTracks().forEach(track => track.stop());
+          return;
+        };
+        scannerStreamRef.current = stream;
         setHasCameraPermission(true);
 
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
+          videoRef.current.setAttribute('playsinline', 'true');
           await videoRef.current.play();
             
           const hints = new Map();
@@ -131,9 +150,11 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: 
     startScanning();
 
     return () => {
+      isMounted = false;
       codeReader.reset();
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
+      if (scannerStreamRef.current) {
+        scannerStreamRef.current.getTracks().forEach(track => track.stop());
+        scannerStreamRef.current = null;
       }
     };
 }, [isScanning, isOcrMode, form, toast]);
@@ -141,15 +162,21 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: 
 
  // OCR Camera Effect
  useEffect(() => {
+    let isMounted = true;
     const startOcrCamera = async () => {
         if (!isOcrMode || !ocrVideoRef.current) return;
         
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+            if (!isMounted) {
+              stream.getTracks().forEach(track => track.stop());
+              return;
+            }
             setHasCameraPermission(true);
             ocrStreamRef.current = stream;
             if (ocrVideoRef.current) {
                 ocrVideoRef.current.srcObject = stream;
+                ocrVideoRef.current.setAttribute('playsinline', 'true');
                 await ocrVideoRef.current.play();
             }
         } catch (error) {
@@ -163,67 +190,66 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: 
             });
         }
     };
-
+    
     if (isOcrMode) {
         startOcrCamera();
-    } else {
-        stopOcrCamera();
+    } else if (ocrStreamRef.current){
+        ocrStreamRef.current.getTracks().forEach(track => track.stop());
+        ocrStreamRef.current = null;
     }
 
     return () => {
-        stopOcrCamera();
+        isMounted = false;
+        if (ocrStreamRef.current) {
+          ocrStreamRef.current.getTracks().forEach(track => track.stop());
+          ocrStreamRef.current = null;
+        }
     };
- }, [isOcrMode, toast, stopOcrCamera]);
+ }, [isOcrMode, toast]);
 
 
  const handleOcrCapture = async () => {
     if (!ocrVideoRef.current || !ocrStreamRef.current) return;
     setIsOcrLoading(true);
 
-    const videoTrack = ocrStreamRef.current.getVideoTracks()[0];
-    const imageCapture = new (window as any).ImageCapture(videoTrack);
+    const canvas = document.createElement('canvas');
+    canvas.width = ocrVideoRef.current.videoWidth;
+    canvas.height = ocrVideoRef.current.videoHeight;
+    const context = canvas.getContext('2d');
+    if (!context) {
+        toast({ variant: 'destructive', title: 'Erro ao Capturar', description: 'Não foi possível inicializar o canvas.' });
+        setIsOcrLoading(false);
+        return;
+    }
+    context.drawImage(ocrVideoRef.current, 0, 0, canvas.width, canvas.height);
+
+    const photoDataUri = canvas.toDataURL('image/jpeg');
 
     try {
-        const blob = await imageCapture.takePhoto();
-        const reader = new FileReader();
-        reader.readAsDataURL(blob);
-        reader.onloadend = async () => {
-            const photoDataUri = reader.result as string;
-            try {
-                const result = await readBarcodeFromImage({ photoDataUri });
-                if (result.barcode) {
-                    form.setValue('barcode', result.barcode);
-                    toast({
-                        title: "OCR bem-sucedido!",
-                        description: `Código lido: ${result.barcode}`,
-                    });
-                    setIsOcrMode(false);
-                    setIsScanning(false);
-                } else {
-                    toast({
-                        variant: 'destructive',
-                        title: 'OCR Falhou',
-                        description: 'Não foi possível ler o código. Tente novamente ou digite manualmente.',
-                    });
-                }
-            } catch (aiError) {
-                console.error("AI OCR error:", aiError);
-                toast({
-                    variant: 'destructive',
-                    title: 'Erro na IA',
-                    description: 'Ocorreu um erro ao processar a imagem.',
-                });
-            } finally {
-                setIsOcrLoading(false);
-            }
-        };
-    } catch (captureError) {
-        console.error('Photo capture error:', captureError);
+        const result = await readBarcodeFromImage({ photoDataUri });
+        if (result.barcode && /^\d+$/.test(result.barcode)) {
+            form.setValue('barcode', result.barcode);
+            toast({
+                title: "OCR bem-sucedido!",
+                description: `Código lido: ${result.barcode}`,
+            });
+            setIsOcrMode(false);
+            setIsScanning(false);
+        } else {
+            toast({
+                variant: 'destructive',
+                title: 'OCR Falhou',
+                description: 'Não foi possível ler o código numérico. Tente novamente ou digite manualmente.',
+            });
+        }
+    } catch (aiError) {
+        console.error("AI OCR error:", aiError);
         toast({
             variant: 'destructive',
-            title: 'Erro ao Capturar',
-            description: 'Não foi possível tirar a foto.',
+            title: 'Erro na IA',
+            description: 'Ocorreu um erro ao processar a imagem.',
         });
+    } finally {
         setIsOcrLoading(false);
     }
 };
@@ -312,7 +338,7 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: 
             </DialogDescription>
         </DialogHeader>
         <div className="relative w-full aspect-video bg-black rounded-md overflow-hidden">
-            <video ref={videoRef} className="w-full h-full object-cover" autoPlay muted playsInline />
+            <video ref={videoRef} className="w-full h-full object-cover" />
             <div className="absolute inset-0 flex items-center justify-center p-8">
                 <div className="w-full max-w-xs h-24 border-4 border-dashed border-primary rounded-lg opacity-75"/>
             </div>
@@ -331,7 +357,7 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: 
                 <X className="mr-2" />
                 Cancelar
             </Button>
-            <Button onClick={() => setIsOcrMode(true)}>
+            <Button onClick={() => { setIsOcrMode(true); }}>
                 <ScanText className="mr-2" />
                 Usar Foto (OCR)
             </Button>
@@ -348,7 +374,7 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: 
             </DialogDescription>
         </DialogHeader>
         <div className="relative w-full aspect-video bg-black rounded-md overflow-hidden">
-            <video ref={ocrVideoRef} className="w-full h-full object-cover" autoPlay muted playsInline />
+            <video ref={ocrVideoRef} className="w-full h-full object-cover" />
             <div className="absolute inset-0 flex items-center justify-center p-8">
                 <div className="w-full max-w-xs h-32 border-4 border-dashed border-primary rounded-lg opacity-75"/>
             </div>
@@ -377,14 +403,19 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: 
                 <X className="mr-2" />
                 Voltar
             </Button>
-            <Button onClick={handleOcrCapture} disabled={isOcrLoading}>
+            <Button onClick={handleOcrCapture} disabled={isOcrLoading || hasCameraPermission === false}>
                 {isOcrLoading ? <Loader2 className="mr-2 animate-spin" /> : <Camera className="mr-2" />}
                 {isOcrLoading ? "Lendo..." : "Ler com IA"}
             </Button>
              <Button onClick={() => {
+                const barcodeValue = form.getValues('barcode');
+                if (!barcodeValue) {
+                  toast({ variant: 'destructive', title: "Campo Vazio", description: "Digite um código de barras para salvar."});
+                  return;
+                }
                 setIsOcrMode(false);
                 setIsScanning(false);
-                toast({ title: "Código de Barras Salvo", description: `Código ${form.getValues('barcode')} foi salvo.`});
+                toast({ title: "Código de Barras Salvo", description: `Código ${barcodeValue} foi salvo.`});
              }}>
                 Salvar Manualmente
             </Button>
@@ -396,7 +427,8 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: 
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[480px]">
         {!isScanning ? renderMainForm() : (isOcrMode ? renderOcrMode() : renderScanner())}
-      </a-dialogContent>
+      </DialogContent>
     </Dialog>
   );
 }
+
