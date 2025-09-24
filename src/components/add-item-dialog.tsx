@@ -111,7 +111,7 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: 
         try {
             const constraints = {
                 video: {
-                    facingMode: 'environment',
+                    facingMode: 'environment' as const,
                     focusMode: 'continuous' as const,
                 }
             };
@@ -151,6 +151,8 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: 
                         console.error('Barcode scan error:', err);
                     }
                 });
+            } else {
+                codeReader.reset();
             }
         } catch (error) {
             console.error('Error starting camera stream:', error);
@@ -175,7 +177,7 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: 
 
 
  const handleOcrCapture = async () => {
-    if (!videoRef.current || !streamRef.current) return;
+    if (!videoRef.current || !videoRef.current.srcObject) return;
     setIsOcrLoading(true);
 
     const canvas = document.createElement('canvas');
@@ -205,7 +207,7 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: 
             toast({
                 variant: 'destructive',
                 title: 'OCR Falhou',
-                description: 'Não foi possível ler o código. Tente uma foto melhor ou digite manualmente.',
+                description: 'Não foi possível ler o código. Tente uma foto melhor ou digite manually.',
             });
         }
     } catch (aiError) {
@@ -235,7 +237,7 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: 
         <DialogTitle>{dialogTitle}</DialogTitle>
         <DialogDescription>{dialogDescription}</DialogDescription>
       </DialogHeader>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
+      <div className="space-y-4 py-4">
         <FormField
           control={form.control}
           name="name"
@@ -281,13 +283,13 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: 
             </FormItem>
           )}
         />
+        </div>
         <DialogFooter className="sm:justify-end gap-2 pt-4">
             <div className="flex gap-2">
                 <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Cancelar</Button>
-                <Button type="submit">Salvar Item</Button>
+                <Button type="button" onClick={form.handleSubmit(onSubmit)}>Salvar Item</Button>
             </div>
         </DialogFooter>
-      </form>
     </>
   );
 
@@ -391,9 +393,11 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: 
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[480px]">
         <Form {...form}>
-          {!isScanning ? renderMainForm() : (isOcrMode ? renderOcrMode() : renderScanner())}
+            {!isScanning ? renderMainForm() : (isOcrMode ? renderOcrMode() : renderScanner())}
         </Form>
       </DialogContent>
     </Dialog>
   );
 }
+
+    
