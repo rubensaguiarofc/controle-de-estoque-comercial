@@ -229,61 +229,59 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: 
         <DialogTitle>{dialogTitle}</DialogTitle>
         <DialogDescription>{dialogDescription}</DialogDescription>
       </DialogHeader>
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
-          <FormField
-            control={form.control}
-            name="name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Nome do Item</FormLabel>
-                <FormControl>
-                  <Input placeholder="Ex: Mouse sem fio" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="specifications"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Especificações</FormLabel>
-                <FormControl>
-                  <Input placeholder="Ex: 8000 DPI, USB-C" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="barcode"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Código de Barras (Opcional)</FormLabel>
-                <div className="flex gap-2">
-                  <FormControl>
-                    <Input placeholder="Escaneie ou digite o código" {...field} />
-                  </FormControl>
-                  <Button type="button" variant="outline" size="icon" onClick={() => { setIsScanning(true); setIsOcrMode(false); }}>
-                    <Camera className="h-4 w-4" />
-                    <span className="sr-only">Escanear código de barras</span>
-                  </Button>
-                </div>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <DialogFooter className="sm:justify-end gap-2 pt-4">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
+        <FormField
+          control={form.control}
+          name="name"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Nome do Item</FormLabel>
+              <FormControl>
+                <Input placeholder="Ex: Mouse sem fio" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="specifications"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Especificações</FormLabel>
+              <FormControl>
+                <Input placeholder="Ex: 8000 DPI, USB-C" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="barcode"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Código de Barras (Opcional)</FormLabel>
               <div className="flex gap-2">
-                  <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Cancelar</Button>
-                  <Button type="submit">Salvar Item</Button>
+                <FormControl>
+                  <Input placeholder="Escaneie ou digite o código" {...field} />
+                </FormControl>
+                <Button type="button" variant="outline" size="icon" onClick={() => { setIsScanning(true); setIsOcrMode(false); }}>
+                  <Camera className="h-4 w-4" />
+                  <span className="sr-only">Escanear código de barras</span>
+                </Button>
               </div>
-          </DialogFooter>
-        </form>
-      </Form>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <DialogFooter className="sm:justify-end gap-2 pt-4">
+            <div className="flex gap-2">
+                <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Cancelar</Button>
+                <Button type="submit">Salvar Item</Button>
+            </div>
+        </DialogFooter>
+      </form>
     </>
   );
 
@@ -386,10 +384,10 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[480px]">
-        {!isScanning ? renderMainForm() : (isOcrMode ? renderOcrMode() : renderScanner())}
+        <Form {...form}>
+          {!isScanning ? renderMainForm() : (isOcrMode ? renderOcrMode() : renderScanner())}
+        </Form>
       </DialogContent>
     </Dialog>
   );
 }
-
-    
