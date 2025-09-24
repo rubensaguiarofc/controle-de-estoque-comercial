@@ -2,27 +2,23 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Check, ChevronsUpDown, Loader2, ChevronLeft, ChevronRight, PlusCircle, Calendar as CalendarIcon, X, Camera, Trash } from "lucide-react";
-import { useEffect, useState, useMemo, useCallback, useRef, forwardRef, useImperativeHandle } from "react";
+import { ChevronLeft, ChevronRight, PlusCircle, Calendar as CalendarIcon, X, Trash } from "lucide-react";
+import { useEffect, useState, useMemo, useRef, forwardRef, useImperativeHandle } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { format } from "date-fns";
 import { ptBR } from 'date-fns/locale';
-import { BrowserMultiFormatReader, NotFoundException } from '@zxing/library';
-
 
 import type { StockItem, WithdrawalRecord } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { Separator } from "./ui/separator";
 import { Calendar } from "./ui/calendar";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
@@ -60,7 +56,6 @@ export interface StockReleaseClientRef {
 const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientProps>(
   ({ stockItems, history, onUpdateHistory, onSetIsAddItemDialogOpen }, ref) => {
   const { toast } = useToast();
-  const [comboboxOpen, setComboboxOpen] = useState(false);
   const [isSearchScannerOpen, setSearchScannerOpen] = useState(false);
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const searchVideoRef = useRef<HTMLVideoElement>(null);
@@ -189,7 +184,7 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
   const handleItemNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newName = e.target.value;
     form.setValue('item.name', newName);
-    const existingItem = stockItems.find(item => item.name === newName);
+    const existingItem = stockItems.find(item => item.name.toLowerCase() === newName.toLowerCase());
     if (existingItem) {
       form.setValue('item', existingItem);
     } else {
@@ -500,5 +495,3 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
 
 StockReleaseClient.displayName = 'StockReleaseClient';
 export default StockReleaseClient;
-
-    
