@@ -1,13 +1,14 @@
+
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Check, ChevronsUpDown, FileUp, Loader2, Wand2, ChevronLeft, ChevronRight } from "lucide-react";
-import { useEffect, useState, useMemo } from "react";
+import { Check, ChevronsUpDown, FileUp, Loader2, Wand2, ChevronLeft, ChevronRight, PlusCircle } from "lucide-react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
 import { autofillFromDescription } from "@/app/actions";
-import { MOCK_STOCK_ITEMS } from "@/lib/mock-data";
+import { MOCK_STOCK_ITEMS as INITIAL_STOCK_ITEMS } from "@/lib/mock-data";
 import type { StockItem, WithdrawalRecord } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -22,6 +23,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { StockReleaseLogo } from "./icons";
 import { Separator } from "./ui/separator";
+import { AddItemDialog } from "./add-item-dialog";
 
 const formSchema = z.object({
   item: z.object(
@@ -45,10 +47,12 @@ const ITEMS_PER_PAGE = 5;
 export default function StockReleaseClient() {
   const { toast } = useToast();
   const [history, setHistory] = useState<WithdrawalRecord[]>([]);
+  const [stockItems, setStockItems] = useState<StockItem[]>([]);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [comboboxOpen, setComboboxOpen] = useState(false);
+  const [isAddItemDialogOpen, setAddItemDialogOpen] = useState(false);
 
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -68,8 +72,14 @@ export default function StockReleaseClient() {
       if (storedHistory) {
         setHistory(JSON.parse(storedHistory));
       }
+      const storedStockItems = localStorage.getItem("stockItems");
+      if (storedStockItems) {
+        setStockItems(JSON.parse(storedStockItems));
+      } else {
+        setStockItems(INITIAL_STOCK_ITEMS);
+      }
     } catch (error) {
-      console.error("Failed to parse withdrawal history from localStorage", error);
+      console.error("Failed to parse data from localStorage", error);
     } finally {
       setIsInitialLoad(false);
     }
@@ -79,11 +89,12 @@ export default function StockReleaseClient() {
     if (!isInitialLoad) {
       try {
         localStorage.setItem("withdrawalHistory", JSON.stringify(history));
+        localStorage.setItem("stockItems", JSON.stringify(stockItems));
       } catch (error) {
-        console.error("Failed to save withdrawal history to localStorage", error);
+        console.error("Failed to save data to localStorage", error);
       }
     }
-  }, [history, isInitialLoad]);
+  }, [history, stockItems, isInitialLoad]);
   
   const paginatedHistory = useMemo(() => {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -130,7 +141,7 @@ export default function StockReleaseClient() {
       const result = await autofillFromDescription(description, photoDataUri);
 
       if (result.itemName) {
-        const matchedItem = MOCK_STOCK_ITEMS.find(
+        const matchedItem = stockItems.find(
           (item) => item.name.toLowerCase().includes(result.itemName!.toLowerCase())
         );
         if (matchedItem) {
@@ -195,7 +206,22 @@ export default function StockReleaseClient() {
       });
   };
 
+  const handleAddItem = useCallback((newItem: Omit<StockItem, 'id'>) => {
+    const newIdNumber = (stockItems.length + 1).toString().padStart(3, '0');
+    const newId = `ITM-${newIdNumber}`;
+    const itemWithId = { ...newItem, id: newId };
+    
+    setStockItems(prev => [...prev, itemWithId]);
+    form.setValue('item', itemWithId);
+    setAddItemDialogOpen(false);
+    toast({
+      title: "Item Adicionado",
+      description: `${newItem.name} foi adicionado ao estoque.`,
+    })
+  }, [stockItems, toast, form]);
+
   return (
+    <>
     <div className="flex flex-col gap-8">
         <header className="flex items-center gap-3">
             <StockReleaseLogo className="h-8 w-8 text-primary" />
@@ -205,8 +231,16 @@ export default function StockReleaseClient() {
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 items-start">
             <Card className="lg:col-span-3 shadow-lg">
                 <CardHeader>
-                    <CardTitle>Registrar Retirada</CardTitle>
-                    <CardDescription>Preencha os detalhes abaixo ou use a IA para preenchimento automático.</CardDescription>
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <CardTitle>Registrar Retirada</CardTitle>
+                        <CardDescription>Preencha os detalhes abaixo ou use a IA para preenchimento automático.</CardDescription>
+                      </div>
+                       <Button variant="outline" onClick={() => setAddItemDialogOpen(true)}>
+                          <PlusCircle className="mr-2" />
+                          Cadastrar Item
+                      </Button>
+                    </div>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-6">
                     <div className="space-y-4 rounded-lg border bg-card p-4">
@@ -259,7 +293,7 @@ export default function StockReleaseClient() {
                                                 )}
                                             >
                                                 {field.value
-                                                ? MOCK_STOCK_ITEMS.find(
+                                                ? stockItems.find(
                                                     (item) => item.id === field.value.id
                                                     )?.name
                                                 : "Selecione um item"}
@@ -273,7 +307,7 @@ export default function StockReleaseClient() {
                                                 <CommandList>
                                                     <CommandEmpty>Nenhum item encontrado.</CommandEmpty>
                                                     <CommandGroup>
-                                                    {MOCK_STOCK_ITEMS.map((item) => (
+                                                    {stockItems.map((item) => (
                                                         <CommandItem
                                                         value={item.name}
                                                         key={item.id}
@@ -424,5 +458,12 @@ export default function StockReleaseClient() {
             </Card>
         </div>
     </div>
+    <AddItemDialog
+        isOpen={isAddItemDialogOpen}
+        onOpenChange={setAddItemDialogOpen}
+        onAddItem={handleAddItem}
+    />
+    </>
   );
 }
+
