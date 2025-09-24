@@ -2,7 +2,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Check, ChevronsUpDown, FileUp, Loader2, Wand2, ChevronLeft, ChevronRight, PlusCircle, Calendar as CalendarIcon, X, Camera } from "lucide-react";
+import { Check, ChevronsUpDown, Loader2, ChevronLeft, ChevronRight, PlusCircle, Calendar as CalendarIcon, X, Camera } from "lucide-react";
 import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -11,7 +11,6 @@ import { ptBR } from 'date-fns/locale';
 import { BrowserMultiFormatReader, NotFoundException } from '@zxing/library';
 
 
-import { autofillFromDescription } from "@/app/actions";
 import { MOCK_STOCK_ITEMS as INITIAL_STOCK_ITEMS } from "@/lib/mock-data";
 import type { StockItem, WithdrawalRecord } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -23,7 +22,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { StockReleaseLogo } from "./icons";
 import { Separator } from "./ui/separator";
@@ -47,7 +45,6 @@ const formSchema = z.object({
   unit: z.string().min(1, "A unidade é obrigatória."),
   requestedBy: z.string().min(1, 'O campo "Quem" é obrigatório.'),
   requestedFor: z.string().min(1, 'O campo "Para Quem" é obrigatório.'),
-  aiDescription: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -59,8 +56,6 @@ export default function StockReleaseClient() {
   const [history, setHistory] = useState<WithdrawalRecord[]>([]);
   const [stockItems, setStockItems] = useState<StockItem[]>([]);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
-  const [isAiLoading, setIsAiLoading] = useState(false);
-  const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [comboboxOpen, setComboboxOpen] = useState(false);
   const [isAddItemDialogOpen, setAddItemDialogOpen] = useState(false);
   const [isSearchScannerOpen, setSearchScannerOpen] = useState(false);
@@ -83,7 +78,6 @@ export default function StockReleaseClient() {
       unit: "un",
       requestedBy: "",
       requestedFor: "",
-      aiDescription: "",
     },
   });
 
@@ -145,70 +139,6 @@ export default function StockReleaseClient() {
 
   const totalPages = Math.ceil(filteredHistory.length / ITEMS_PER_PAGE);
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setPhotoFile(file);
-    }
-  };
-
-  const fileToDataUri = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-  };
-
-  const handleAutofill = async () => {
-    const description = form.getValues("aiDescription") || "";
-    if (!description && !photoFile) {
-      toast({
-        variant: "destructive",
-        title: "Entrada Faltando",
-        description: "Forneça uma descrição ou uma foto para a análise de IA.",
-      });
-      return;
-    }
-
-    setIsAiLoading(true);
-    try {
-      let photoDataUri: string | undefined;
-      if (photoFile) {
-        photoDataUri = await fileToDataUri(photoFile);
-      }
-
-      const result = await autofillFromDescription(description, photoDataUri);
-
-      if (result.itemName) {
-        const matchedItem = stockItems.find(
-          (item) => item.name.toLowerCase().includes(result.itemName!.toLowerCase())
-        );
-        if (matchedItem) {
-          form.setValue("item", matchedItem);
-        }
-      }
-      if (result.quem) form.setValue("requestedBy", result.quem, { shouldValidate: true });
-      if (result.paraQuem) form.setValue("requestedFor", result.paraQuem, { shouldValidate: true });
-
-      toast({
-        title: "Análise Concluída",
-        description: "Os campos foram preenchidos com base nos dados fornecidos.",
-      });
-
-    } catch (error) {
-      console.error("AI autofill failed", error);
-      toast({
-        variant: "destructive",
-        title: "Erro na Análise",
-        description: "Não foi possível analisar os dados. Tente novamente.",
-      });
-    } finally {
-      setIsAiLoading(false);
-    }
-  };
-
   const onSubmit = (values: FormValues) => {
     const newRecord: WithdrawalRecord = {
       id: crypto.randomUUID(),
@@ -230,9 +160,7 @@ export default function StockReleaseClient() {
       unit: "un",
       requestedBy: "",
       requestedFor: "",
-      aiDescription: "",
     });
-    setPhotoFile(null);
   };
   
   const handleClear = () => {
@@ -241,9 +169,7 @@ export default function StockReleaseClient() {
         unit: "un",
         requestedBy: "",
         requestedFor: "",
-        aiDescription: "",
       });
-      setPhotoFile(null);
       toast({
           title: "Campos Limpos",
           description: "Todos os campos de entrada foram redefinidos.",
@@ -360,35 +286,6 @@ export default function StockReleaseClient() {
                     </div>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-6">
-                    <div className="space-y-4 rounded-lg border bg-card p-4">
-                        <div className="flex items-center justify-between">
-                            <h3 className="font-semibold text-foreground">Assistente de IA</h3>
-                            <Button onClick={handleAutofill} disabled={isAiLoading} size="sm">
-                                {isAiLoading ? (
-                                    <Loader2 className="animate-spin" />
-                                ) : (
-                                    <Wand2 />
-                                )}
-                                Analisar
-                            </Button>
-                        </div>
-                        <Textarea
-                            {...form.register("aiDescription")}
-                            placeholder="Cole a descrição do item ou requisição aqui..."
-                            className="bg-background"
-                        />
-                         <div className="flex items-center gap-4">
-                            <label htmlFor="photo-upload" className={cn(buttonVariants({ variant: 'outline' }), "cursor-pointer")}>
-                                <FileUp className="mr-2" />
-                                {photoFile ? 'Mudar Foto' : 'Carregar Foto'}
-                            </label>
-                            <input id="photo-upload" type="file" className="hidden" accept="image/*" onChange={handleFileChange} />
-                            {photoFile && <span className="text-sm text-muted-foreground truncate">{photoFile.name}</span>}
-                        </div>
-                    </div>
-                    
-                    <Separator />
-
                     <Form {...form}>
                         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                             <div className="grid sm:grid-cols-2 gap-4">
@@ -679,4 +576,3 @@ export default function StockReleaseClient() {
   );
 }
 
-    
