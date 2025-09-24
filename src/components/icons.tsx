@@ -24,7 +24,7 @@ export function SaidaMarisLogo(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-export function A6Logo(props: React.ComponentProps<typeof Image>) {
+export function A6Logo(props: Omit<React.ComponentProps<typeof Image>, 'src' | 'alt'>) {
   return (
     <Image
       src="/a6-logo.png"
