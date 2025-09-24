@@ -2,6 +2,7 @@ export type StockItem = {
   id: string;
   name: string;
   specifications: string;
+  barcode?: string;
 };
 
 export type WithdrawalRecord = {

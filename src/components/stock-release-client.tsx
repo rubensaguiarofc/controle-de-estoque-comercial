@@ -2,12 +2,13 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Check, ChevronsUpDown, FileUp, Loader2, Wand2, ChevronLeft, ChevronRight, PlusCircle, Calendar as CalendarIcon, X } from "lucide-react";
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { Check, ChevronsUpDown, FileUp, Loader2, Wand2, ChevronLeft, ChevronRight, PlusCircle, Calendar as CalendarIcon, X, Camera } from "lucide-react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { format } from "date-fns";
 import { ptBR } from 'date-fns/locale';
+import { BrowserMultiFormatReader, NotFoundException } from '@zxing/library';
 
 
 import { autofillFromDescription } from "@/app/actions";
@@ -28,6 +29,9 @@ import { StockReleaseLogo } from "./icons";
 import { Separator } from "./ui/separator";
 import { AddItemDialog } from "./add-item-dialog";
 import { Calendar } from "./ui/calendar";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./ui/dialog";
+import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
+
 
 const formSchema = z.object({
   item: z.object(
@@ -35,6 +39,7 @@ const formSchema = z.object({
       id: z.string(),
       name: z.string(),
       specifications: z.string(),
+      barcode: z.string().optional(),
     },
     { required_error: "Selecione um item da lista." }
   ),
@@ -58,6 +63,10 @@ export default function StockReleaseClient() {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [comboboxOpen, setComboboxOpen] = useState(false);
   const [isAddItemDialogOpen, setAddItemDialogOpen] = useState(false);
+  const [isSearchScannerOpen, setSearchScannerOpen] = useState(false);
+  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
+  const searchVideoRef = useRef<HTMLVideoElement>(null);
+
 
   const [currentPage, setCurrentPage] = useState(1);
   const [currentDate, setCurrentDate] = useState("");
@@ -241,10 +250,10 @@ export default function StockReleaseClient() {
       });
   };
 
-  const handleAddItem = useCallback((newItem: Omit<StockItem, 'id'>) => {
-    const newIdNumber = (stockItems.length + 1).toString().padStart(3, '0');
+  const handleAddItem = useCallback((newItem: Omit<StockItem, 'id' | 'barcode'> & { barcode?: string }) => {
+    const newIdNumber = (stockItems.length > 0 ? Math.max(...stockItems.map(item => parseInt(item.id.split('-')[1]))) + 1 : 1).toString().padStart(3, '0');
     const newId = `ITM-${newIdNumber}`;
-    const itemWithId = { ...newItem, id: newId };
+    const itemWithId: StockItem = { ...newItem, id: newId, barcode: newItem.barcode || '' };
     
     setStockItems(prev => [...prev, itemWithId]);
     form.setValue('item', itemWithId);
@@ -260,6 +269,73 @@ export default function StockReleaseClient() {
     setRequesterFilter('');
     setDestinationFilter('');
   }
+  
+    useEffect(() => {
+    if (!isSearchScannerOpen || !searchVideoRef.current) return;
+
+    const codeReader = new BrowserMultiFormatReader();
+    
+    const startScanning = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+            setHasCameraPermission(true);
+
+            if (searchVideoRef.current) {
+                searchVideoRef.current.srcObject = stream;
+                
+                codeReader.decodeFromVideoDevice(undefined, searchVideoRef.current, (result, err) => {
+                    if (result) {
+                        const scannedBarcode = result.getText();
+                        const foundItem = stockItems.find(item => item.barcode === scannedBarcode);
+
+                        if (foundItem) {
+                            form.setValue('item', foundItem);
+                             toast({
+                                title: "Item Encontrado",
+                                description: `Item "${foundItem.name}" selecionado.`,
+                            });
+                        } else {
+                             toast({
+                                variant: 'destructive',
+                                title: 'Item Não Encontrado',
+                                description: `Nenhum item com o código de barras "${scannedBarcode}" foi encontrado.`,
+                            });
+                        }
+                        setSearchScannerOpen(false);
+                    }
+                    if (err && !(err instanceof NotFoundException)) {
+                        console.error('Barcode scan error:', err);
+                        toast({
+                            variant: 'destructive',
+                            title: 'Erro ao Escanear',
+                            description: 'Não foi possível ler o código de barras.',
+                        });
+                    }
+                });
+            }
+        } catch (error) {
+            console.error('Error accessing camera:', error);
+            setHasCameraPermission(false);
+            setSearchScannerOpen(false);
+            toast({
+                variant: 'destructive',
+                title: 'Acesso à Câmera Negado',
+                description: 'Por favor, habilite a permissão da câmera nas configurações do seu navegador.',
+            });
+        }
+    };
+
+    startScanning();
+
+    return () => {
+        codeReader.reset();
+        if (searchVideoRef.current && searchVideoRef.current.srcObject) {
+            const stream = searchVideoRef.current.srcObject as MediaStream;
+            stream.getTracks().forEach(track => track.stop());
+        }
+    };
+}, [isSearchScannerOpen, stockItems, form, toast]);
+
 
   return (
     <>
@@ -322,6 +398,7 @@ export default function StockReleaseClient() {
                                     render={({ field }) => (
                                     <FormItem className="flex flex-col sm:col-span-2">
                                         <FormLabel>Item</FormLabel>
+                                        <div className="flex gap-2">
                                         <Popover open={comboboxOpen} onOpenChange={setComboboxOpen}>
                                         <PopoverTrigger asChild>
                                             <FormControl>
@@ -371,6 +448,11 @@ export default function StockReleaseClient() {
                                             </Command>
                                         </PopoverContent>
                                         </Popover>
+                                        <Button type="button" variant="outline" size="icon" onClick={() => setSearchScannerOpen(true)}>
+                                          <Camera className="h-4 w-4" />
+                                          <span className="sr-only">Escanear para buscar</span>
+                                        </Button>
+                                        </div>
                                         <FormMessage />
                                     </FormItem>
                                     )}
@@ -563,6 +645,36 @@ export default function StockReleaseClient() {
         onOpenChange={setAddItemDialogOpen}
         onAddItem={handleAddItem}
     />
+     <Dialog open={isSearchScannerOpen} onOpenChange={setSearchScannerOpen}>
+        <DialogContent>
+            <div className="flex flex-col items-center gap-4">
+                <DialogHeader>
+                    <DialogTitle className="text-center">Buscar Item por Código de Barras</DialogTitle>
+                    <DialogDescription className="text-center">
+                        Aponte a câmera para o código de barras do item.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="relative w-full aspect-video bg-black rounded-md overflow-hidden">
+                    <video ref={searchVideoRef} className="w-full h-full object-cover" autoPlay muted playsInline />
+                    <div className="absolute inset-0 flex items-center justify-center p-8">
+                       <div className="w-full max-w-xs h-24 border-4 border-dashed border-primary rounded-lg opacity-75"/>
+                    </div>
+                </div>
+                 {hasCameraPermission === false && (
+                    <Alert variant="destructive">
+                        <AlertTitle>Acesso à Câmera Necessário</AlertTitle>
+                        <AlertDescription>
+                            Por favor, permita o acesso à câmera para usar esta funcionalidade.
+                        </AlertDescription>
+                    </Alert>
+                )}
+                <Button variant="destructive" onClick={() => setSearchScannerOpen(false)}>
+                    <X className="mr-2" />
+                    Cancelar
+                </Button>
+            </div>
+        </DialogContent>
+    </Dialog>
     </>
   );
 }

@@ -2,7 +2,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Barcode, Camera, Loader2, X } from "lucide-react";
+import { Camera, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -112,8 +112,7 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem }: AddItemDialog
     onAddItem({
       name: values.name,
       specifications: values.specifications,
-      // You might want to use the barcode value somewhere,
-      // for now it's just in the form.
+      barcode: values.barcode,
     });
   };
 
