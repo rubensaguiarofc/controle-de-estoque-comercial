@@ -109,7 +109,13 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: 
         }
 
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+            const constraints = {
+                video: {
+                    facingMode: 'environment',
+                    focusMode: 'continuous' as const,
+                }
+            };
+            const stream = await navigator.mediaDevices.getUserMedia(constraints);
             if (!isMounted) {
                 stream.getTracks().forEach(track => track.stop());
                 return;
