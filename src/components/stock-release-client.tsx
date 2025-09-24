@@ -11,7 +11,6 @@ import { ptBR } from 'date-fns/locale';
 import { BrowserMultiFormatReader, NotFoundException } from '@zxing/library';
 
 
-import { MOCK_STOCK_ITEMS as INITIAL_STOCK_ITEMS } from "@/lib/mock-data";
 import type { StockItem, WithdrawalRecord } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -51,13 +50,23 @@ type FormValues = z.infer<typeof formSchema>;
 
 const ITEMS_PER_PAGE = 5;
 
-export default function StockReleaseClient() {
+interface StockReleaseClientProps {
+  stockItems: StockItem[];
+  history: WithdrawalRecord[];
+  onAddItem: (newItem: Omit<StockItem, 'id' | 'barcode'> & { barcode?: string }) => void;
+  onUpdateHistory: (history: WithdrawalRecord[]) => void;
+  onSetIsAddItemDialogOpen: (isOpen: boolean) => void;
+}
+
+export default function StockReleaseClient({ 
+    stockItems, 
+    history, 
+    onAddItem, 
+    onUpdateHistory, 
+    onSetIsAddItemDialogOpen 
+}: StockReleaseClientProps) {
   const { toast } = useToast();
-  const [history, setHistory] = useState<WithdrawalRecord[]>([]);
-  const [stockItems, setStockItems] = useState<StockItem[]>([]);
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [comboboxOpen, setComboboxOpen] = useState(false);
-  const [isAddItemDialogOpen, setAddItemDialogOpen] = useState(false);
   const [isSearchScannerOpen, setSearchScannerOpen] = useState(false);
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const searchVideoRef = useRef<HTMLVideoElement>(null);
@@ -84,36 +93,6 @@ export default function StockReleaseClient() {
   useEffect(() => {
     setCurrentDate(format(new Date(), "eeee, dd 'de' MMMM 'de' yyyy", { locale: ptBR }));
   }, []);
-
-  useEffect(() => {
-    try {
-      const storedHistory = localStorage.getItem("withdrawalHistory");
-      if (storedHistory) {
-        setHistory(JSON.parse(storedHistory));
-      }
-      const storedStockItems = localStorage.getItem("stockItems");
-      if (storedStockItems) {
-        setStockItems(JSON.parse(storedStockItems));
-      } else {
-        setStockItems(INITIAL_STOCK_ITEMS);
-      }
-    } catch (error) {
-      console.error("Failed to parse data from localStorage", error);
-    } finally {
-      setIsInitialLoad(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!isInitialLoad) {
-      try {
-        localStorage.setItem("withdrawalHistory", JSON.stringify(history));
-        localStorage.setItem("stockItems", JSON.stringify(stockItems));
-      } catch (error) {
-        console.error("Failed to save data to localStorage", error);
-      }
-    }
-  }, [history, stockItems, isInitialLoad]);
 
   const filteredHistory = useMemo(() => {
     setCurrentPage(1);
@@ -150,7 +129,7 @@ export default function StockReleaseClient() {
       requestedFor: values.requestedFor,
     };
 
-    setHistory((prevHistory) => [newRecord, ...prevHistory]);
+    onUpdateHistory([newRecord, ...history]);
     toast({
       title: "Sucesso!",
       description: "Retirada de item registrada.",
@@ -175,20 +154,6 @@ export default function StockReleaseClient() {
           description: "Todos os campos de entrada foram redefinidos.",
       });
   };
-
-  const handleAddItem = useCallback((newItem: Omit<StockItem, 'id' | 'barcode'> & { barcode?: string }) => {
-    const newIdNumber = (stockItems.length > 0 ? Math.max(...stockItems.map(item => parseInt(item.id.split('-')[1]))) + 1 : 1).toString().padStart(3, '0');
-    const newId = `ITM-${newIdNumber}`;
-    const itemWithId: StockItem = { ...newItem, id: newId, barcode: newItem.barcode || '' };
-    
-    setStockItems(prev => [...prev, itemWithId]);
-    form.setValue('item', itemWithId);
-    setAddItemDialogOpen(false);
-    toast({
-      title: "Item Adicionado",
-      description: `${newItem.name} foi adicionado ao estoque.`,
-    })
-  }, [stockItems, toast, form]);
 
   const clearFilters = () => {
     setDateFilter(undefined);
@@ -265,139 +230,98 @@ export default function StockReleaseClient() {
 
   return (
     <>
-    <div className="flex flex-col gap-8">
-        <header className="flex items-center gap-3">
-            <StockReleaseLogo className="h-8 w-8 text-primary" />
-            <h1 className="text-3xl font-bold text-foreground tracking-tight">StockRelease</h1>
-        </header>
-
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 items-start">
-            <Card className="lg:col-span-3 shadow-lg">
-                <CardHeader>
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <CardTitle>Registrar Retirada</CardTitle>
-                        <CardDescription>{currentDate}</CardDescription>
-                      </div>
-                       <Button variant="outline" onClick={() => setAddItemDialogOpen(true)}>
-                          <PlusCircle className="mr-2" />
-                          Cadastrar Item
-                      </Button>
+    <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 items-start">
+        <Card className="lg:col-span-3 shadow-lg">
+            <CardHeader>
+                <div className="flex justify-between items-center">
+                    <div>
+                    <CardTitle>Registrar Retirada</CardTitle>
+                    <CardDescription>{currentDate}</CardDescription>
                     </div>
-                </CardHeader>
-                <CardContent className="flex flex-col gap-6">
-                    <Form {...form}>
-                        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                            <div className="grid sm:grid-cols-2 gap-4">
-                               <FormField
-                                    control={form.control}
-                                    name="item"
-                                    render={({ field }) => (
-                                    <FormItem className="flex flex-col sm:col-span-2">
-                                        <FormLabel>Item</FormLabel>
-                                        <div className="flex gap-2">
-                                        <Popover open={comboboxOpen} onOpenChange={setComboboxOpen}>
-                                        <PopoverTrigger asChild>
-                                            <FormControl>
-                                            <Button
-                                                variant="outline"
-                                                role="combobox"
-                                                className={cn(
-                                                "w-full justify-between",
-                                                !field.value && "text-muted-foreground"
-                                                )}
-                                            >
-                                                {field.value
-                                                ? stockItems.find(
-                                                    (item) => item.id === field.value.id
-                                                    )?.name
-                                                : "Selecione um item"}
-                                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                            </Button>
-                                            </FormControl>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                                            <Command>
-                                                <CommandInput placeholder="Procurar item..." />
-                                                <CommandList>
-                                                    <CommandEmpty>Nenhum item encontrado.</CommandEmpty>
-                                                    <CommandGroup>
-                                                    {stockItems.map((item) => (
-                                                        <CommandItem
-                                                        value={item.name}
-                                                        key={item.id}
-                                                        onSelect={() => {
-                                                            form.setValue("item", item);
-                                                            setComboboxOpen(false);
-                                                        }}
-                                                        >
-                                                        <Check
-                                                            className={cn(
-                                                            "mr-2 h-4 w-4",
-                                                            field.value?.id === item.id ? "opacity-100" : "opacity-0"
-                                                            )}
-                                                        />
-                                                        {item.name}
-                                                        </CommandItem>
-                                                    ))}
-                                                    </CommandGroup>
-                                                </CommandList>
-                                            </Command>
-                                        </PopoverContent>
-                                        </Popover>
-                                        <Button type="button" variant="outline" size="icon" onClick={() => setSearchScannerOpen(true)}>
-                                          <Camera className="h-4 w-4" />
-                                          <span className="sr-only">Escanear para buscar</span>
+                    <Button variant="outline" onClick={() => onSetIsAddItemDialogOpen(true)}>
+                        <PlusCircle className="mr-2" />
+                        Cadastrar Item
+                    </Button>
+                </div>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-6">
+                <Form {...form}>
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                        <div className="grid sm:grid-cols-2 gap-4">
+                            <FormField
+                                control={form.control}
+                                name="item"
+                                render={({ field }) => (
+                                <FormItem className="flex flex-col sm:col-span-2">
+                                    <FormLabel>Item</FormLabel>
+                                    <div className="flex gap-2">
+                                    <Popover open={comboboxOpen} onOpenChange={setComboboxOpen}>
+                                    <PopoverTrigger asChild>
+                                        <FormControl>
+                                        <Button
+                                            variant="outline"
+                                            role="combobox"
+                                            className={cn(
+                                            "w-full justify-between",
+                                            !field.value && "text-muted-foreground"
+                                            )}
+                                        >
+                                            {field.value
+                                            ? stockItems.find(
+                                                (item) => item.id === field.value.id
+                                                )?.name
+                                            : "Selecione um item"}
+                                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                         </Button>
-                                        </div>
-                                        <FormMessage />
-                                    </FormItem>
-                                    )}
-                                />
-                                <div className="flex gap-4">
-                                     <FormField
-                                        control={form.control}
-                                        name="quantity"
-                                        render={({ field }) => (
-                                            <FormItem className="w-24">
-                                                <FormLabel>Quantidade</FormLabel>
-                                                <FormControl>
-                                                    <Input type="number" min="1" {...field} />
-                                                </FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
+                                        </FormControl>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                                        <Command>
+                                            <CommandInput placeholder="Procurar item..." />
+                                            <CommandList>
+                                                <CommandEmpty>Nenhum item encontrado.</CommandEmpty>
+                                                <CommandGroup>
+                                                {stockItems.map((item) => (
+                                                    <CommandItem
+                                                    value={item.name}
+                                                    key={item.id}
+                                                    onSelect={() => {
+                                                        form.setValue("item", item);
+                                                        setComboboxOpen(false);
+                                                    }}
+                                                    >
+                                                    <Check
+                                                        className={cn(
+                                                        "mr-2 h-4 w-4",
+                                                        field.value?.id === item.id ? "opacity-100" : "opacity-0"
+                                                        )}
+                                                    />
+                                                    {item.name}
+                                                    </CommandItem>
+                                                ))}
+                                                </CommandGroup>
+                                            </CommandList>
+                                        </Command>
+                                    </PopoverContent>
+                                    </Popover>
+                                    <Button type="button" variant="outline" size="icon" onClick={() => setSearchScannerOpen(true)}>
+                                        <Camera className="h-4 w-4" />
+                                        <span className="sr-only">Escanear para buscar</span>
+                                    </Button>
+                                    </div>
+                                    <FormMessage />
+                                </FormItem>
+                                )}
+                            />
+                            <div className="flex gap-4">
                                     <FormField
-                                        control={form.control}
-                                        name="unit"
-                                        render={({ field }) => (
-                                            <FormItem className="flex-1">
-                                                <FormLabel>Unidade</FormLabel>
-                                                <FormControl>
-                                                    <Input placeholder="Ex: un, pç, cx" {...field} />
-                                                </FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
-                                </div>
-                                <div className="space-y-1">
-                                    <Label>ID do Item</Label>
-                                    <Input value={form.watch("item")?.id || '—'} readOnly className="bg-muted" />
-                                </div>
-                                 <div className="space-y-1 sm:col-span-2">
-                                    <Label>Especificações</Label>
-                                    <Input value={form.watch("item")?.specifications || '—'} readOnly className="bg-muted" />
-                                </div>
-                                <FormField
                                     control={form.control}
-                                    name="requestedBy"
+                                    name="quantity"
                                     render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Quem (Retirou)</FormLabel>
+                                        <FormItem className="w-24">
+                                            <FormLabel>Quantidade</FormLabel>
                                             <FormControl>
-                                                <Input placeholder="Nome do responsável" {...field} />
+                                                <Input type="number" min="1" {...field} />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -405,174 +329,202 @@ export default function StockReleaseClient() {
                                 />
                                 <FormField
                                     control={form.control}
-                                    name="requestedFor"
+                                    name="unit"
                                     render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Para Quem (Destino)</FormLabel>
+                                        <FormItem className="flex-1">
+                                            <FormLabel>Unidade</FormLabel>
                                             <FormControl>
-                                                <Input placeholder="Nome ou departamento" {...field} />
+                                                <Input placeholder="Ex: un, pç, cx" {...field} />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
                                     )}
                                 />
                             </div>
-                            <CardFooter className="px-0 pt-6 flex justify-end gap-2">
-                                <Button type="button" variant="outline" onClick={handleClear}>Limpar</Button>
-                                <Button type="submit">Salvar Retirada</Button>
-                            </CardFooter>
-                        </form>
-                    </Form>
-                </CardContent>
-            </Card>
-
-            <Card className="lg:col-span-2 shadow-lg">
-                <CardHeader>
-                    <CardTitle>Histórico de Retiradas</CardTitle>
-                    <CardDescription>Visualize e filtre as retiradas de itens.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="grid sm:grid-cols-2 gap-4 mb-4 p-4 border rounded-lg">
-                        <Popover>
-                            <PopoverTrigger asChild>
-                                <Button
-                                variant={"outline"}
-                                className={cn(
-                                    "w-full justify-start text-left font-normal",
-                                    !dateFilter && "text-muted-foreground"
+                            <div className="space-y-1">
+                                <Label>ID do Item</Label>
+                                <Input value={form.watch("item")?.id || '—'} readOnly className="bg-muted" />
+                            </div>
+                                <div className="space-y-1 sm:col-span-2">
+                                <Label>Especificações</Label>
+                                <Input value={form.watch("item")?.specifications || '—'} readOnly className="bg-muted" />
+                            </div>
+                            <FormField
+                                control={form.control}
+                                name="requestedBy"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Quem (Retirou)</FormLabel>
+                                        <FormControl>
+                                            <Input placeholder="Nome do responsável" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
                                 )}
-                                >
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {dateFilter ? format(dateFilter, "PPP", { locale: ptBR }) : <span>Filtrar por data</span>}
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0">
-                                <Calendar
-                                mode="single"
-                                selected={dateFilter}
-                                onSelect={setDateFilter}
-                                initialFocus
-                                locale={ptBR}
-                                />
-                            </PopoverContent>
-                        </Popover>
-                        <div className="relative">
-                         <Input 
-                            placeholder="Quem retirou..."
-                            value={requesterFilter}
-                            onChange={(e) => setRequesterFilter(e.target.value)}
-                         />
+                            />
+                            <FormField
+                                control={form.control}
+                                name="requestedFor"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Para Quem (Destino)</FormLabel>
+                                        <FormControl>
+                                            <Input placeholder="Nome ou departamento" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
                         </div>
-                        <div className="relative">
-                         <Input 
-                            placeholder="Para quem (destino)..."
-                            value={destinationFilter}
-                            onChange={(e) => setDestinationFilter(e.target.value)}
-                         />
-                        </div>
-                         <Button variant="ghost" onClick={clearFilters} className="w-full">
-                            <X className="mr-2 h-4 w-4"/>
-                            Limpar Filtros
+                        <CardFooter className="px-0 pt-6 flex justify-end gap-2">
+                            <Button type="button" variant="outline" onClick={handleClear}>Limpar</Button>
+                            <Button type="submit">Salvar Retirada</Button>
+                        </CardFooter>
+                    </form>
+                </Form>
+            </CardContent>
+        </Card>
+
+        <Card className="lg:col-span-2 shadow-lg">
+            <CardHeader>
+                <CardTitle>Histórico de Retiradas</CardTitle>
+                <CardDescription>Visualize e filtre as retiradas de itens.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="grid sm:grid-cols-2 gap-4 mb-4 p-4 border rounded-lg">
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button
+                            variant={"outline"}
+                            className={cn(
+                                "w-full justify-start text-left font-normal",
+                                !dateFilter && "text-muted-foreground"
+                            )}
+                            >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {dateFilter ? format(dateFilter, "PPP", { locale: ptBR }) : <span>Filtrar por data</span>}
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0">
+                            <Calendar
+                            mode="single"
+                            selected={dateFilter}
+                            onSelect={setDateFilter}
+                            initialFocus
+                            locale={ptBR}
+                            />
+                        </PopoverContent>
+                    </Popover>
+                    <div className="relative">
+                        <Input 
+                        placeholder="Quem retirou..."
+                        value={requesterFilter}
+                        onChange={(e) => setRequesterFilter(e.target.value)}
+                        />
+                    </div>
+                    <div className="relative">
+                        <Input 
+                        placeholder="Para quem (destino)..."
+                        value={destinationFilter}
+                        onChange={(e) => setDestinationFilter(e.target.value)}
+                        />
+                    </div>
+                        <Button variant="ghost" onClick={clearFilters} className="w-full">
+                        <X className="mr-2 h-4 w-4"/>
+                        Limpar Filtros
+                    </Button>
+                </div>
+
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead className="w-[100px]">Data</TableHead>
+                            <TableHead>Item</TableHead>
+                            <TableHead className="text-center">Qtd.</TableHead>
+                            <TableHead>Quem</TableHead>
+                            <TableHead>Para Quem</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {paginatedHistory.length > 0 ? (
+                            paginatedHistory.map((record) => (
+                                <TableRow key={record.id}>
+                                    <TableCell className="text-muted-foreground">{new Date(record.date).toLocaleDateString('pt-BR')}</TableCell>
+                                    <TableCell className="font-medium">{record.item.name}</TableCell>
+                                    <TableCell className="text-center">{`${record.quantity} ${record.unit}`}</TableCell>
+                                    <TableCell>{record.requestedBy}</TableCell>
+                                    <TableCell>{record.requestedFor}</TableCell>
+                                </TableRow>
+                            ))
+                        ) : (
+                            <TableRow>
+                                <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
+                                    Nenhum registro encontrado para os filtros aplicados.
+                                </TableCell>
+                            </TableRow>
+                        )}
+                    </TableBody>
+                </Table>
+            </CardContent>
+                {totalPages > 1 && (
+                <CardFooter className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">
+                        Página {currentPage} de {totalPages}
+                    </span>
+                    <div className="flex gap-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                            disabled={currentPage === 1}
+                        >
+                            <ChevronLeft />
+                            Anterior
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                            disabled={currentPage === totalPages}
+                        >
+                            Próxima
+                            <ChevronRight />
                         </Button>
                     </div>
-
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead className="w-[100px]">Data</TableHead>
-                                <TableHead>Item</TableHead>
-                                <TableHead className="text-center">Qtd.</TableHead>
-                                <TableHead>Quem</TableHead>
-                                <TableHead>Para Quem</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {paginatedHistory.length > 0 ? (
-                                paginatedHistory.map((record) => (
-                                    <TableRow key={record.id}>
-                                        <TableCell className="text-muted-foreground">{new Date(record.date).toLocaleDateString('pt-BR')}</TableCell>
-                                        <TableCell className="font-medium">{record.item.name}</TableCell>
-                                        <TableCell className="text-center">{`${record.quantity} ${record.unit}`}</TableCell>
-                                        <TableCell>{record.requestedBy}</TableCell>
-                                        <TableCell>{record.requestedFor}</TableCell>
-                                    </TableRow>
-                                ))
-                            ) : (
-                                <TableRow>
-                                    <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
-                                        Nenhum registro encontrado para os filtros aplicados.
-                                    </TableCell>
-                                </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
-                </CardContent>
-                 {totalPages > 1 && (
-                    <CardFooter className="flex items-center justify-between">
-                         <span className="text-sm text-muted-foreground">
-                            Página {currentPage} de {totalPages}
-                        </span>
-                        <div className="flex gap-2">
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                                disabled={currentPage === 1}
-                            >
-                                <ChevronLeft />
-                                Anterior
-                            </Button>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                                disabled={currentPage === totalPages}
-                            >
-                                Próxima
-                                <ChevronRight />
-                            </Button>
-                        </div>
-                    </CardFooter>
-                )}
-            </Card>
-        </div>
+                </CardFooter>
+            )}
+        </Card>
     </div>
-    <AddItemDialog
-        isOpen={isAddItemDialogOpen}
-        onOpenChange={setAddItemDialogOpen}
-        onAddItem={handleAddItem}
-    />
-     <Dialog open={isSearchScannerOpen} onOpenChange={setSearchScannerOpen}>
-        <DialogContent>
-            <div className="flex flex-col items-center gap-4">
-                <DialogHeader>
-                    <DialogTitle className="text-center">Buscar Item por Código de Barras</DialogTitle>
-                    <DialogDescription className="text-center">
-                        Aponte a câmera para o código de barras do item.
-                    </DialogDescription>
-                </DialogHeader>
-                <div className="relative w-full aspect-video bg-black rounded-md overflow-hidden">
-                    <video ref={searchVideoRef} className="w-full h-full object-cover" autoPlay muted playsInline />
-                    <div className="absolute inset-0 flex items-center justify-center p-8">
-                       <div className="w-full max-w-xs h-24 border-4 border-dashed border-primary rounded-lg opacity-75"/>
-                    </div>
+        <Dialog open={isSearchScannerOpen} onOpenChange={setSearchScannerOpen}>
+    <DialogContent>
+        <div className="flex flex-col items-center gap-4">
+            <DialogHeader>
+                <DialogTitle className="text-center">Buscar Item por Código de Barras</DialogTitle>
+                <DialogDescription className="text-center">
+                    Aponte a câmera para o código de barras do item.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="relative w-full aspect-video bg-black rounded-md overflow-hidden">
+                <video ref={searchVideoRef} className="w-full h-full object-cover" autoPlay muted playsInline />
+                <div className="absolute inset-0 flex items-center justify-center p-8">
+                    <div className="w-full max-w-xs h-24 border-4 border-dashed border-primary rounded-lg opacity-75"/>
                 </div>
-                 {hasCameraPermission === false && (
-                    <Alert variant="destructive">
-                        <AlertTitle>Acesso à Câmera Necessário</AlertTitle>
-                        <AlertDescription>
-                            Por favor, permita o acesso à câmera para usar esta funcionalidade.
-                        </AlertDescription>
-                    </Alert>
-                )}
-                <Button variant="destructive" onClick={() => setSearchScannerOpen(false)}>
-                    <X className="mr-2" />
-                    Cancelar
-                </Button>
             </div>
-        </DialogContent>
-    </Dialog>
-    </>
+                {hasCameraPermission === false && (
+                <Alert variant="destructive">
+                    <AlertTitle>Acesso à Câmera Necessário</AlertTitle>
+                    <AlertDescription>
+                        Por favor, permita o acesso à câmera para usar esta funcionalidade.
+                    </AlertDescription>
+                </Alert>
+            )}
+            <Button variant="destructive" onClick={() => setSearchScannerOpen(false)}>
+                <X className="mr-2" />
+                Cancelar
+            </Button>
+        </div>
+    </DialogContent>
+</Dialog>
+</>
   );
 }
-

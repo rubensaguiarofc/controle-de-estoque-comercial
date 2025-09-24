@@ -28,9 +28,10 @@ interface AddItemDialogProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   onAddItem: (newItem: Omit<StockItem, "id">) => void;
+  editingItem?: StockItem | null;
 }
 
-export function AddItemDialog({ isOpen, onOpenChange, onAddItem }: AddItemDialogProps) {
+export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: AddItemDialogProps) {
   const { toast } = useToast();
   const [isScanning, setIsScanning] = useState(false);
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
@@ -46,11 +47,16 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem }: AddItemDialog
   });
 
   useEffect(() => {
-    if (!isOpen) {
+    if (isOpen) {
+        if (editingItem) {
+            form.reset(editingItem);
+        } else {
+            form.reset({ name: "", specifications: "", barcode: "" });
+        }
+    } else {
       setIsScanning(false);
-      form.reset();
     }
-  }, [isOpen, form]);
+  }, [isOpen, editingItem, form]);
 
   useEffect(() => {
     if (!isScanning || !videoRef.current) return;
@@ -109,16 +115,15 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem }: AddItemDialog
 
 
   const onSubmit = (values: FormValues) => {
-    onAddItem({
-      name: values.name,
-      specifications: values.specifications,
-      barcode: values.barcode,
-    });
+    onAddItem(values);
   };
 
   const handleScanButtonClick = () => {
       setIsScanning(true);
   }
+
+  const dialogTitle = editingItem ? "Editar Item" : "Cadastrar Novo Item";
+  const dialogDescription = editingItem ? "Atualize as informações do item de estoque." : "Preencha as informações do novo item de estoque.";
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -126,9 +131,9 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem }: AddItemDialog
         {!isScanning ? (
           <>
             <DialogHeader>
-              <DialogTitle>Cadastrar Novo Item</DialogTitle>
+              <DialogTitle>{dialogTitle}</DialogTitle>
               <DialogDescription>
-                Preencha as informações do novo item de estoque.
+                {dialogDescription}
               </DialogDescription>
             </DialogHeader>
             <Form {...form}>

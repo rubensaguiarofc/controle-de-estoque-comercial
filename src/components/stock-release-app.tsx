@@ -1,0 +1,133 @@
+
+"use client";
+
+import { useEffect, useState, useCallback } from "react";
+import type { StockItem, WithdrawalRecord } from "@/lib/types";
+import { MOCK_STOCK_ITEMS } from "@/lib/mock-data";
+import { useToast } from "@/hooks/use-toast";
+
+import { StockReleaseLogo } from "./icons";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
+import StockReleaseClient from "./stock-release-client";
+import ItemManagement from "./item-management";
+import { AddItemDialog } from "./add-item-dialog";
+
+type View = 'release' | 'items';
+
+export default function StockReleaseApp() {
+  const { toast } = useToast();
+  const [view, setView] = useState<View>('release');
+  const [stockItems, setStockItems] = useState<StockItem[]>([]);
+  const [history, setHistory] = useState<WithdrawalRecord[]>([]);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [isAddItemDialogOpen, setAddItemDialogOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<StockItem | null>(null);
+
+  useEffect(() => {
+    try {
+      const storedHistory = localStorage.getItem("withdrawalHistory");
+      if (storedHistory) {
+        setHistory(JSON.parse(storedHistory));
+      }
+      const storedStockItems = localStorage.getItem("stockItems");
+      if (storedStockItems) {
+        setStockItems(JSON.parse(storedStockItems));
+      } else {
+        setStockItems(MOCK_STOCK_ITEMS);
+      }
+    } catch (error) {
+      console.error("Failed to parse data from localStorage", error);
+    } finally {
+      setIsInitialLoad(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isInitialLoad) {
+      try {
+        localStorage.setItem("withdrawalHistory", JSON.stringify(history));
+        localStorage.setItem("stockItems", JSON.stringify(stockItems));
+      } catch (error) {
+        console.error("Failed to save data to localStorage", error);
+      }
+    }
+  }, [history, stockItems, isInitialLoad]);
+
+  const handleAddItem = useCallback((newItem: Omit<StockItem, 'id' | 'barcode'> & { barcode?: string }) => {
+    const newIdNumber = (stockItems.length > 0 ? Math.max(...stockItems.map(item => parseInt(item.id.split('-')[1]))) + 1 : 1).toString().padStart(3, '0');
+    const newId = `ITM-${newIdNumber}`;
+    const itemWithId: StockItem = { ...newItem, id: newId, barcode: newItem.barcode || '' };
+    
+    setStockItems(prev => [...prev, itemWithId]);
+    setAddItemDialogOpen(false);
+    toast({
+      title: "Item Adicionado",
+      description: `${newItem.name} foi adicionado ao estoque.`,
+    })
+  }, [stockItems, toast]);
+
+  const handleUpdateItem = useCallback((updatedItem: StockItem) => {
+    setStockItems(prev => prev.map(item => item.id === updatedItem.id ? updatedItem : item));
+    setAddItemDialogOpen(false);
+    setEditingItem(null);
+    toast({
+      title: "Item Atualizado",
+      description: `${updatedItem.name} foi atualizado com sucesso.`,
+    })
+  }, [toast]);
+
+  const handleDialogSubmit = (itemData: any) => {
+    if (editingItem) {
+      handleUpdateItem({ ...editingItem, ...itemData });
+    } else {
+      handleAddItem(itemData);
+    }
+  };
+
+  const handleDialogClose = (isOpen: boolean) => {
+    if (!isOpen) {
+      setEditingItem(null);
+    }
+    setAddItemDialogOpen(isOpen);
+  }
+
+  return (
+    <div className="flex flex-col gap-8">
+        <header className="flex items-center gap-3">
+            <StockReleaseLogo className="h-8 w-8 text-primary" />
+            <h1 className="text-3xl font-bold text-foreground tracking-tight">StockRelease</h1>
+        </header>
+
+        <Tabs value={view} onValueChange={(value) => setView(value as View)} className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="release">Lançamento</TabsTrigger>
+                <TabsTrigger value="items">Itens</TabsTrigger>
+            </TabsList>
+            <TabsContent value="release" className="mt-6">
+                <StockReleaseClient
+                    stockItems={stockItems}
+                    history={history}
+                    onAddItem={handleAddItem}
+                    onUpdateHistory={setHistory}
+                    onSetIsAddItemDialogOpen={setAddItemDialogOpen}
+                />
+            </TabsContent>
+            <TabsContent value="items" className="mt-6">
+                <ItemManagement 
+                    stockItems={stockItems}
+                    onSetStockItems={setStockItems}
+                    onSetIsAddItemDialogOpen={setAddItemDialogOpen}
+                    onSetEditingItem={setEditingItem}
+                />
+            </TabsContent>
+        </Tabs>
+        
+        <AddItemDialog
+            isOpen={isAddItemDialogOpen}
+            onOpenChange={handleDialogClose}
+            onAddItem={handleDialogSubmit}
+            editingItem={editingItem}
+        />
+    </div>
+  )
+}
