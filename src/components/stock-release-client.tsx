@@ -378,6 +378,7 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
                         <TableRow>
                             <TableHead className="w-[100px]">Data</TableHead>
                             <TableHead>Item</TableHead>
+                            <TableHead>Especificações</TableHead>
                             <TableHead className="text-center">Qtd.</TableHead>
                             <TableHead className="text-center">Un.</TableHead>
                             <TableHead>Quem</TableHead>
@@ -391,6 +392,7 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
                                 <TableRow key={record.id}>
                                     <TableCell className="text-muted-foreground">{new Date(record.date).toLocaleDateString('pt-BR')}</TableCell>
                                     <TableCell className="font-medium">{record.item.name}</TableCell>
+                                    <TableCell>{record.item.specifications}</TableCell>
                                     <TableCell className="text-center">{record.quantity}</TableCell>
                                     <TableCell className="text-center">{record.unit}</TableCell>
                                     <TableCell>{record.requestedBy}</TableCell>
@@ -421,7 +423,7 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
                             ))
                         ) : (
                             <TableRow>
-                                <TableCell colSpan={7} className="text-center h-24 text-muted-foreground">
+                                <TableCell colSpan={8} className="text-center h-24 text-muted-foreground">
                                     Nenhum registro encontrado para os filtros aplicados.
                                 </TableCell>
                             </TableRow>
@@ -495,3 +497,5 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
 
 StockReleaseClient.displayName = 'StockReleaseClient';
 export default StockReleaseClient;
+
+    
