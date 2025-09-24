@@ -6,7 +6,7 @@ import { Camera, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { BrowserMultiFormatReader, NotFoundException } from '@zxing/library';
+import { BrowserMultiFormatReader, NotFoundException, BarcodeFormat, DecodeHintType } from '@zxing/library';
 
 import type { StockItem } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -70,6 +70,18 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: 
         codeReaderRef.current.reset();
         return;
     };
+
+    const hints = new Map();
+    const formats = [
+        BarcodeFormat.EAN_13,
+        BarcodeFormat.EAN_8,
+        BarcodeFormat.UPC_A,
+        BarcodeFormat.UPC_E,
+        BarcodeFormat.CODE_128,
+        BarcodeFormat.QR_CODE,
+    ];
+    hints.set(DecodeHintType.POSSIBLE_FORMATS, formats);
+    codeReaderRef.current.setHints(hints);
 
     const constraints: MediaStreamConstraints = {
       video: { facingMode: 'environment' }
@@ -217,6 +229,7 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: 
                     <div className="absolute inset-0 flex items-center justify-center p-8">
                         <div className="w-full max-w-xs h-24 border-4 border-dashed border-primary rounded-lg opacity-75"/>
                     </div>
+                    <div className="absolute top-0 left-0 right-0 h-[2px] bg-red-500 shadow-[0_0_10px_2px_#ef4444] animate-scan" />
                 </div>
                  {hasCameraPermission === false && (
                     <Alert variant="destructive">
