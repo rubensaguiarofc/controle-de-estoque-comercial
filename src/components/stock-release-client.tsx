@@ -230,8 +230,8 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
       item: withdrawalItem,
       quantity: values.quantity,
       unit: values.unit,
-      requestedBy: values.requestedBy,
-      requestedFor: values.requestedFor,
+      requestedBy: values.requestedBy.toUpperCase(),
+      requestedFor: values.requestedFor.toUpperCase(),
     };
 
     onUpdateHistory([newRecord, ...history]);
@@ -645,5 +645,3 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
 
 StockReleaseClient.displayName = 'StockReleaseClient';
 export default StockReleaseClient;
-
-    
