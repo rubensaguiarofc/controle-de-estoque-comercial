@@ -2,7 +2,7 @@
 "use client";
 
 import { useForm, UseFormReturn } from "react-hook-form";
-import { PlusCircle, ScanLine, X } from "lucide-react";
+import { PlusCircle, ScanLine } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -57,9 +57,10 @@ export function WithdrawalForm({
     if (existingItem) {
       form.setValue('item', existingItem);
     } else {
+      // Se não houver correspondência exata, limpe os outros campos do item para permitir a entrada de um novo
       form.setValue('item.id', undefined);
       form.setValue('item.specifications', '');
-      form.setValue('item.barcode', undefined);
+      form.setValue('item.barcode', '');
     }
   };
 
@@ -78,6 +79,7 @@ export function WithdrawalForm({
       title: "Item Não Encontrado",
       description: "Nenhum item com este código de barras na biblioteca.",
     });
+    setSearchScannerOpen(false);
   };
 
   return (
