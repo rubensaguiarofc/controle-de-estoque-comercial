@@ -16,14 +16,17 @@ import { HistoryPanel } from "./history-panel";
 const formSchema = z.object({
   item: z.object({
     id: z.string().optional(),
-    name: z.string().min(1, "O nome do item é obrigatório."),
-    specifications: z.string().min(1, "As especificações são obrigatórias."),
+    name: z.string().min(1, "O nome do item é obrigatório.").toUpperCase(),
+    specifications: z.string().min(1, "As especificações são obrigatórias.").toUpperCase(),
     barcode: z.string().optional(),
+  }).refine(data => !!data.id, {
+    message: "O item deve ser selecionado da biblioteca de itens cadastrados.",
+    path: ["name"], // Show error message under the name field
   }),
   quantity: z.coerce.number().min(1, "A quantidade deve ser pelo menos 1."),
-  unit: z.string().min(1, "A unidade é obrigatória."),
-  requestedBy: z.string().min(1, 'O campo "Quem" é obrigatório.'),
-  requestedFor: z.string().min(1, 'O campo "Para Quem" é obrigatório.'),
+  unit: z.string().min(1, "A unidade é obrigatória.").toUpperCase(),
+  requestedBy: z.string().min(1, 'O campo "Quem" é obrigatório.').toUpperCase(),
+  requestedFor: z.string().min(1, 'O campo "Para Quem" é obrigatório.').toUpperCase(),
 });
 
 export type WithdrawalFormValues = z.infer<typeof formSchema>;
@@ -57,7 +60,7 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
 
     useImperativeHandle(ref, () => ({
       setFormItem(item: StockItem) {
-        form.setValue('item', item);
+        form.setValue('item', item, { shouldValidate: true });
       }
     }));
 
@@ -79,8 +82,9 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
     }, [history]);
 
     const onSubmit = (values: WithdrawalFormValues) => {
+      // The schema ensures item.id exists, so we can assert it.
       const withdrawalItem: StockItem = {
-        id: values.item.id || `NEW-${Date.now()}`,
+        id: values.item.id!,
         name: values.item.name.toUpperCase(),
         specifications: values.item.specifications.toUpperCase(),
         barcode: values.item.barcode,

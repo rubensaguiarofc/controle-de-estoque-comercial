@@ -55,17 +55,17 @@ export function WithdrawalForm({
     form.setValue('item.name', newName);
     const existingItem = stockItems.find(item => item.name.toLowerCase() === newName.toLowerCase());
     if (existingItem) {
-      form.setValue('item', existingItem);
+      form.setValue('item', existingItem, { shouldValidate: true });
     } else {
       // Se não houver correspondência exata, limpe os outros campos do item para permitir a entrada de um novo
-      form.setValue('item.id', undefined);
+      form.setValue('item.id', undefined, { shouldValidate: true });
       form.setValue('item.specifications', '');
       form.setValue('item.barcode', '');
     }
   };
 
   const handleScanSuccess = (foundItem: StockItem) => {
-    form.setValue('item', foundItem);
+    form.setValue('item', foundItem, { shouldValidate: true });
     toast({
       title: "Item Encontrado",
       description: `Item "${foundItem.name}" selecionado.`,
@@ -137,7 +137,7 @@ export function WithdrawalForm({
                     <FormItem className="sm:col-span-2">
                       <FormLabel>Especificações</FormLabel>
                       <FormControl>
-                        <Input placeholder="Ex: 8000 DPI, USB-C" {...field} />
+                        <Input placeholder="Ex: 8000 DPI, USB-C" {...field} readOnly={!!form.watch('item.id')} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
