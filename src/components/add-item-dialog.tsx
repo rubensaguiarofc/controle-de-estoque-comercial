@@ -10,12 +10,11 @@ import type { StockItem } from "@/lib/types";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { AddItemForm } from "./add-item-form";
 import { BarcodeScanner } from "./barcode-scanner";
-import { OcrScanner } from "./ocr-scanner";
 import { Form } from "./ui/form";
 
 const formSchema = z.object({
-  name: z.string().min(1, "O nome do item é obrigatório."),
-  specifications: z.string().min(1, "As especificações são obrigatórias."),
+  name: z.string().min(1, "O nome do item é obrigatório.").toUpperCase(),
+  specifications: z.string().min(1, "As especificações são obrigatórias.").toUpperCase(),
   barcode: z.string().optional(),
 });
 
@@ -28,7 +27,7 @@ interface AddItemDialogProps {
   editingItem?: StockItem | null;
 }
 
-type View = "form" | "scanner" | "ocr";
+type View = "form" | "scanner";
 
 export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: AddItemDialogProps) {
   const [view, setView] = useState<View>("form");
@@ -50,12 +49,7 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: 
   }, [isOpen, editingItem, form]);
 
   const handleDialogSubmit = (values: AddItemFormValues) => {
-    const uppercaseValues = {
-      ...values,
-      name: values.name.toUpperCase(),
-      specifications: values.specifications.toUpperCase(),
-    };
-    onAddItem(uppercaseValues);
+    onAddItem(values);
   };
 
   const renderContent = () => {
@@ -67,20 +61,7 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: 
               form.setValue("barcode", barcode);
               setView("form");
             }}
-            onSwitchToOcr={() => setView("ocr")}
             onCancel={() => setView("form")}
-          />
-        );
-      case "ocr":
-        return (
-          <OcrScanner
-            form={form}
-            onBack={() => setView("scanner")}
-            onSuccess={(barcode) => {
-              form.setValue("barcode", barcode);
-              setView("form");
-            }}
-            onManualSave={() => setView("form")}
           />
         );
       case "form":

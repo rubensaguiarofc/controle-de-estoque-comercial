@@ -11,11 +11,10 @@ import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 
 interface BarcodeScannerProps {
   onScan: (barcode: string) => void;
-  onSwitchToOcr: () => void;
   onCancel: () => void;
 }
 
-export function BarcodeScanner({ onScan, onSwitchToOcr, onCancel }: BarcodeScannerProps) {
+export function BarcodeScanner({ onScan, onCancel }: BarcodeScannerProps) {
   const { toast } = useToast();
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -135,10 +134,6 @@ export function BarcodeScanner({ onScan, onSwitchToOcr, onCancel }: BarcodeScann
         <Button type="button" variant="ghost" onClick={onCancel}>
           <X className="mr-2" />
           Cancelar
-        </Button>
-        <Button type="button" onClick={onSwitchToOcr} disabled={!hasCameraPermission}>
-          <ScanText className="mr-2" />
-          Usar Foto (OCR)
         </Button>
       </div>
     </div>
