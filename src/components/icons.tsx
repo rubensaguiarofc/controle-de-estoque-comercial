@@ -1,5 +1,5 @@
+
 import type { SVGProps } from 'react';
-import Image from 'next/image';
 
 export function SaidaMarisLogo(props: SVGProps<SVGSVGElement>) {
   return (

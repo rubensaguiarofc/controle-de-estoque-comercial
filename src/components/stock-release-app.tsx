@@ -129,7 +129,10 @@ export default function StockReleaseApp() {
                     stockItems={stockItems}
                     history={history}
                     onUpdateHistory={setHistory}
-                    onSetIsAddItemDialogOpen={setAddItemDialogOpen}
+                    onSetIsAddItemDialogOpen={() => {
+                        setEditingItem(null);
+                        setAddItemDialogOpen(true);
+                    }}
                 />
             </TabsContent>
             <TabsContent value="items" className="mt-6">
