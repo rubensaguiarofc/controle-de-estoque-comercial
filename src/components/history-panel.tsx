@@ -4,8 +4,9 @@
 import { useState, useMemo } from "react";
 import { format } from "date-fns";
 import { ptBR } from 'date-fns/locale';
-import Papa from 'papaparse';
-import { Calendar as CalendarIcon, Download, Trash, X, ChevronLeft, ChevronRight } from "lucide-react";
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import { Calendar as CalendarIcon, FileDown, Trash, X, ChevronLeft, ChevronRight } from "lucide-react";
 
 import type { WithdrawalRecord } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -23,6 +24,13 @@ const ITEMS_PER_PAGE = 5;
 interface HistoryPanelProps {
   history: WithdrawalRecord[];
   onDeleteRecord: (recordId: string) => void;
+}
+
+// Extend the window interface for jspdf-autotable
+declare global {
+  interface Window {
+    jsPDF: typeof jsPDF;
+  }
 }
 
 export function HistoryPanel({ history, onDeleteRecord }: HistoryPanelProps) {
@@ -60,7 +68,7 @@ export function HistoryPanel({ history, onDeleteRecord }: HistoryPanelProps) {
     setDestinationFilter('');
   };
 
-  const handleExportToCSV = () => {
+  const handleExportToPDF = () => {
     if (history.length === 0) {
       toast({
         variant: "destructive",
@@ -69,26 +77,44 @@ export function HistoryPanel({ history, onDeleteRecord }: HistoryPanelProps) {
       });
       return;
     }
-    const dataToExport = history.map(record => ({
-      "Data": format(new Date(record.date), 'dd/MM/yyyy HH:mm:ss'),
-      "ID do Item": record.item.id,
-      "Nome do Item": record.item.name,
-      "Especificações": record.item.specifications,
-      "Código de Barras": record.item.barcode,
-      "Quantidade": record.quantity,
-      "Unidade": record.unit,
-      "Retirado Por": record.requestedBy,
-      "Destino": record.requestedFor,
-    }));
-    const csv = Papa.unparse(dataToExport);
-    const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = `historico_retiradas_${format(new Date(), 'yyyy-MM-dd')}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast({ title: "Exportação Concluída", description: "Seu arquivo CSV foi baixado." });
+  
+    const doc = new jsPDF();
+    
+    doc.setFontSize(18);
+    doc.text("Histórico de Retiradas", 14, 22);
+    doc.setFontSize(11);
+    doc.setTextColor(100);
+    doc.text(`Relatório gerado em: ${format(new Date(), 'dd/MM/yyyy HH:mm:ss')}`, 14, 30);
+  
+    (doc as any).autoTable({
+      startY: 35,
+      head: [['Data', 'Item', 'Specs', 'Qtd.', 'Quem Retirou', 'Destino']],
+      body: history.map(record => [
+        format(new Date(record.date), 'dd/MM/yy'),
+        record.item.name,
+        record.item.specifications,
+        `${record.quantity} ${record.unit}`,
+        record.requestedBy,
+        record.requestedFor,
+      ]),
+      styles: {
+        font: 'helvetica',
+        fontSize: 9,
+        cellPadding: 2.5,
+      },
+      headStyles: {
+        fillColor: [22, 163, 74], // Cor verde para o cabeçalho
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+      },
+      alternateRowStyles: {
+        fillColor: [242, 242, 242],
+      },
+    });
+  
+    doc.save(`historico_retiradas_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+  
+    toast({ title: "Exportação Concluída", description: "Seu arquivo PDF foi baixado." });
   };
 
   return (
@@ -98,9 +124,9 @@ export function HistoryPanel({ history, onDeleteRecord }: HistoryPanelProps) {
           <CardTitle>Histórico de Retiradas</CardTitle>
           <CardDescription>Visualize e filtre as retiradas.</CardDescription>
         </div>
-        <Button variant="outline" size="sm" onClick={handleExportToCSV}>
-          <Download className="mr-2 h-4 w-4" />
-          Exportar CSV
+        <Button variant="outline" size="sm" onClick={handleExportToPDF}>
+          <FileDown className="mr-2 h-4 w-4" />
+          Exportar PDF
         </Button>
       </CardHeader>
       <CardContent>
