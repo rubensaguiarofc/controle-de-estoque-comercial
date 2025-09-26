@@ -40,7 +40,7 @@ export default function StockReleaseApp() {
       } else {
         setStockItems(MOCK_STOCK_ITEMS);
       }
-    } catch (error) => {
+    } catch (error) {
       console.error("Failed to parse data from localStorage", error);
     } finally {
       setIsInitialLoad(false);
