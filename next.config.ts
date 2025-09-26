@@ -30,18 +30,6 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
-      {
-        protocol: 'https',
-        hostname: 'images.dropbox.com',
-        port: '',
-        pathname: '/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'previews.dropbox.com',
-        port: '',
-        pathname: '/**',
-      }
     ],
   },
 };

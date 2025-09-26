@@ -12,7 +12,6 @@ import StockReleaseClient from "./stock-release-client";
 import ItemManagement from "./item-management";
 import { AddItemDialog } from "./add-item-dialog";
 import { cn } from "@/lib/utils";
-import Image from "next/image";
 
 type View = 'release' | 'items';
 
@@ -117,14 +116,6 @@ export default function StockReleaseApp() {
             <SaidaMarisLogo className="h-8 w-8 text-primary" />
             <h1 className="text-3xl font-bold text-foreground tracking-tight">Saida Maris</h1>
           </div>
-          <Image
-            src="https://previews.dropbox.com/p/thumb/ACz6KqEfkwsMywEPhU2WBxU3z64JcR63w45zPYfvjmaNuSiDeFGYFD8oOdMB-LtmzffoDCchT5MpmzDyDy4CVl7YG5wcHiXmVoCGOt_myjL5IO1N7BVoTKesXIXh4f6L57cmZmnJ240lXbT1DY0XHem7SEzx_BTfFSHB4WopGZSc4XBdGy5mmFycPC_KU7hx7l_x84A3ZduKKLQ1Bhr9et5Vjo0-mQjKoVItdzrOSuvpBKSNucV_QE0h5A-g6aO__36DRl-Q1WOOIYbepvrVLEQgppJeqMSEkN0BEL-dwHccB6brTrMwuy0Jn_F3YAdJAU8/p.png"
-            alt="A6 Logo"
-            width={80}
-            height={30}
-            priority
-            className="object-contain"
-          />
         </header>
 
         <Tabs value={view} onValueChange={(value) => setView(value as View)} className="w-full">
