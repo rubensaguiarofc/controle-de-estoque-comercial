@@ -118,7 +118,7 @@ export default function StockReleaseApp() {
             <h1 className="text-3xl font-bold text-foreground tracking-tight">Saida Maris</h1>
           </div>
           <Image
-            src="https://images.dropbox.com/scl/fi/aa6enidmr966m2z9z7pnv/A6-LOGO.png?rlkey=mtgsedtm9rrp4js0nf5xwdorx&dl=1"
+            src="https://previews.dropbox.com/p/thumb/ACz6KqEfkwsMywEPhU2WBxU3z64JcR63w45zPYfvjmaNuSiDeFGYFD8oOdMB-LtmzffoDCchT5MpmzDyDy4CVl7YG5wcHiXmVoCGOt_myjL5IO1N7BVoTKesXIXh4f6L57cmZmnJ240lXbT1DY0XHem7SEzx_BTfFSHB4WopGZSc4XBdGy5mmFycPC_KU7hx7l_x84A3ZduKKLQ1Bhr9et5Vjo0-mQjKoVItdzrOSuvpBKSNucV_QE0h5A-g6aO__36DRl-Q1WOOIYbepvrVLEQgppJeqMSEkN0BEL-dwHccB6brTrMwuy0Jn_F3YAdJAU8/p.png"
             alt="A6 Logo"
             width={80}
             height={30}
