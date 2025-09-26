@@ -12,6 +12,7 @@ import StockReleaseClient from "./stock-release-client";
 import ItemManagement from "./item-management";
 import { AddItemDialog } from "./add-item-dialog";
 import { cn } from "@/lib/utils";
+import Image from "next/image";
 
 type View = 'release' | 'items';
 
@@ -39,7 +40,7 @@ export default function StockReleaseApp() {
       } else {
         setStockItems(MOCK_STOCK_ITEMS);
       }
-    } catch (error) {
+    } catch (error) => {
       console.error("Failed to parse data from localStorage", error);
     } finally {
       setIsInitialLoad(false);
@@ -116,6 +117,14 @@ export default function StockReleaseApp() {
             <SaidaMarisLogo className="h-8 w-8 text-primary" />
             <h1 className="text-3xl font-bold text-foreground tracking-tight">Saida Maris</h1>
           </div>
+          <Image
+            src="https://images.dropbox.com/scl/fi/aa6enidmr966m2z9z7pnv/A6-LOGO.png?rlkey=mtgsedtm9rrp4js0nf5xwdorx&dl=1"
+            alt="A6 Logo"
+            width={80}
+            height={30}
+            priority
+            className="object-contain"
+          />
         </header>
 
         <Tabs value={view} onValueChange={(value) => setView(value as View)} className="w-full">
