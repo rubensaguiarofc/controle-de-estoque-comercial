@@ -114,7 +114,7 @@ export default function StockReleaseApp() {
         <header className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <SaidaMarisLogo className="h-8 w-8 text-primary" />
-            <h1 className="text-3xl font-bold text-foreground tracking-tight">Saida Maris</h1>
+            <h1 className="text-3xl font-bold text-foreground tracking-tight">Controle de Estoque</h1>
           </div>
         </header>
 
