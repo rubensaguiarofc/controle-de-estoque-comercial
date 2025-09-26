@@ -7,11 +7,17 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
 import { ptBR } from 'date-fns/locale';
+import dynamic from 'next/dynamic';
 
 import type { StockItem, WithdrawalRecord } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { WithdrawalForm } from "./withdrawal-form";
-import { HistoryPanel } from "./history-panel";
+import { Skeleton } from "./ui/skeleton";
+
+const HistoryPanel = dynamic(() => import('./history-panel').then(mod => mod.HistoryPanel), {
+  ssr: false,
+  loading: () => <HistoryPanelSkeleton />,
+});
 
 const formSchema = z.object({
   item: z.object({
@@ -21,7 +27,7 @@ const formSchema = z.object({
     barcode: z.string().optional(),
   }).refine(data => !!data.id, {
     message: "O item deve ser selecionado da biblioteca de itens cadastrados.",
-    path: ["name"], // Show error message under the name field
+    path: ["name"],
   }),
   quantity: z.coerce.number().min(1, "A quantidade deve ser pelo menos 1."),
   unit: z.string().min(1, "A unidade é obrigatória.").toUpperCase(),
@@ -82,7 +88,6 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
     }, [history]);
 
     const onSubmit = (values: WithdrawalFormValues) => {
-      // The schema ensures item.id exists, so we can assert it.
       const withdrawalItem: StockItem = {
         id: values.item.id!,
         name: values.item.name.toUpperCase(),
@@ -142,3 +147,24 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
 
 StockReleaseClient.displayName = 'StockReleaseClient';
 export default StockReleaseClient;
+
+function HistoryPanelSkeleton() {
+  return (
+    <div className="lg:col-span-2 space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="space-y-2">
+          <Skeleton className="h-6 w-48" />
+          <Skeleton className="h-4 w-64" />
+        </div>
+        <Skeleton className="h-9 w-32" />
+      </div>
+      <div className="space-y-2">
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-10 w-full" />
+      </div>
+      <div className="border rounded-lg p-4">
+        <Skeleton className="h-32 w-full" />
+      </div>
+    </div>
+  );
+}

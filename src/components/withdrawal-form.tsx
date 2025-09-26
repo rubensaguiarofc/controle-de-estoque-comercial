@@ -12,7 +12,9 @@ import { Label } from "@/components/ui/label";
 import type { StockItem } from "@/lib/types";
 import type { WithdrawalFormValues } from "./stock-release-client";
 import { useState } from "react";
-import { SearchScannerDialog } from "./search-scanner-dialog";
+import dynamic from "next/dynamic";
+
+const SearchScannerDialog = dynamic(() => import('./search-scanner-dialog').then(mod => mod.SearchScannerDialog), { ssr: false });
 
 interface WithdrawalFormProps {
   form: UseFormReturn<WithdrawalFormValues>;
@@ -51,13 +53,12 @@ export function WithdrawalForm({
   };
 
   const handleItemNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newName = e.target.value;
+    const newName = e.target.value.toUpperCase();
     form.setValue('item.name', newName);
-    const existingItem = stockItems.find(item => item.name.toLowerCase() === newName.toLowerCase());
+    const existingItem = stockItems.find(item => item.name.toUpperCase() === newName);
     if (existingItem) {
       form.setValue('item', existingItem, { shouldValidate: true });
     } else {
-      // Se não houver correspondência exata, limpe os outros campos do item para permitir a entrada de um novo
       form.setValue('item.id', undefined, { shouldValidate: true });
       form.setValue('item.specifications', '');
       form.setValue('item.barcode', '');
@@ -220,13 +221,15 @@ export function WithdrawalForm({
           </Form>
         </CardContent>
       </Card>
-      <SearchScannerDialog 
-        isOpen={isSearchScannerOpen}
-        onOpenChange={setSearchScannerOpen}
-        stockItems={stockItems}
-        onSuccess={handleScanSuccess}
-        onNotFound={handleScanNotFound}
-      />
+      {isSearchScannerOpen && (
+        <SearchScannerDialog
+          isOpen={isSearchScannerOpen}
+          onOpenChange={setSearchScannerOpen}
+          stockItems={stockItems}
+          onSuccess={handleScanSuccess}
+          onNotFound={handleScanNotFound}
+        />
+      )}
     </>
   );
 }

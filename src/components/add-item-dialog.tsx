@@ -5,12 +5,18 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import dynamic from 'next/dynamic';
 
 import type { StockItem } from "@/lib/types";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { AddItemForm } from "./add-item-form";
-import { BarcodeScanner } from "./barcode-scanner";
 import { Form } from "./ui/form";
+import { Skeleton } from "./ui/skeleton";
+
+const BarcodeScanner = dynamic(() => import('./barcode-scanner').then(mod => mod.BarcodeScanner), {
+  ssr: false,
+  loading: () => <ScannerSkeleton />,
+});
 
 const formSchema = z.object({
   name: z.string().min(1, "O nome do item é obrigatório.").toUpperCase(),
@@ -87,4 +93,17 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: 
       </DialogContent>
     </Dialog>
   );
+}
+
+function ScannerSkeleton() {
+  return (
+    <div className="flex flex-col items-center gap-4">
+        <div className="space-y-2 text-center">
+            <Skeleton className="h-6 w-64 mx-auto" />
+            <Skeleton className="h-4 w-80 mx-auto" />
+        </div>
+        <Skeleton className="w-full aspect-video rounded-md" />
+        <Skeleton className="h-10 w-28" />
+    </div>
+  )
 }
