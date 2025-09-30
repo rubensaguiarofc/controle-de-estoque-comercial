@@ -2,7 +2,6 @@
 "use client";
 
 import { useRef } from 'react';
-import { useReactToPrint } from 'react-to-print';
 import { Printer, X } from 'lucide-react';
 import type { StockItem } from '@/lib/types';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -18,10 +17,9 @@ interface BarcodeDisplayDialogProps {
 export function BarcodeDisplayDialog({ item, isOpen, onOpenChange }: BarcodeDisplayDialogProps) {
   const printRef = useRef<HTMLDivElement>(null);
 
-  const handlePrint = useReactToPrint({
-    content: () => printRef.current,
-    documentTitle: `barcode-${item?.id}`,
-  });
+  const handlePrint = () => {
+    window.print();
+  };
 
   if (!item) {
     return null;
@@ -32,7 +30,7 @@ export function BarcodeDisplayDialog({ item, isOpen, onOpenChange }: BarcodeDisp
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md non-printable">
         <DialogHeader>
           <DialogTitle>Código de Barras do Item</DialogTitle>
           <DialogDescription>
@@ -65,17 +63,20 @@ export function BarcodeDisplayDialog({ item, isOpen, onOpenChange }: BarcodeDisp
       </DialogContent>
       <style jsx global>{`
         @media print {
-          body * {
-            visibility: hidden;
-          }
-          .printable-area, .printable-area * {
-            visibility: visible;
+          body > *:not(.printable-area) {
+            display: none !important;
           }
           .printable-area {
-            position: absolute;
-            left: 0;
+            position: fixed;
             top: 0;
+            left: 0;
             width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: white;
+            z-index: 9999;
           }
         }
       `}</style>
