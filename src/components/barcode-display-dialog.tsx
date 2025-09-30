@@ -4,6 +4,7 @@
 import { useRef } from 'react';
 import { Printer, X } from 'lucide-react';
 import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 import type { StockItem } from '@/lib/types';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
