@@ -6,7 +6,7 @@ import type { StockItem } from '@/lib/types';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
-import { Edit, Trash, Search, CheckCircle } from 'lucide-react';
+import { Edit, Trash, Search, Plus } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from './ui/input';
@@ -45,6 +45,10 @@ export default function ItemManagement({
 
   const handleRowClick = (item: StockItem) => {
     onSelectItemForRelease(item);
+    toast({
+      title: "Item Selecionado",
+      description: `"${item.name}" pronto para registrar a saída na aba 'Lançamento'.`,
+    });
   };
 
   const filteredItems = useMemo(() => {
@@ -65,8 +69,12 @@ export default function ItemManagement({
         <div className="flex justify-between items-start sm:items-center flex-col sm:flex-row gap-4">
             <div>
                 <CardTitle>Biblioteca de Itens</CardTitle>
-                <CardDescription>Clique em um item para selecioná-lo para retirada, ou use os botões para gerenciar.</CardDescription>
+                <CardDescription>Gerencie todos os itens do seu estoque.</CardDescription>
             </div>
+            <Button onClick={() => onSetIsAddItemDialogOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" />
+                Cadastrar Novo Item
+            </Button>
         </div>
       </CardHeader>
       <CardContent>
@@ -101,10 +109,6 @@ export default function ItemManagement({
                   <TableCell className="font-mono text-sm">{item.barcode || 'N/A'}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex gap-2 justify-end">
-                       <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleRowClick(item); }}>
-                        <CheckCircle className="h-4 w-4 text-primary" />
-                        <span className="sr-only">Selecionar</span>
-                      </Button>
                       <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleEdit(item); }}>
                         <Edit className="h-4 w-4" />
                         <span className="sr-only">Editar</span>

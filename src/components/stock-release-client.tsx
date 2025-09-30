@@ -11,6 +11,7 @@ import { ptBR } from 'date-fns/locale';
 import type { StockItem, WithdrawalRecord } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { WithdrawalForm } from "./withdrawal-form";
+import { HistoryPanel } from "./history-panel";
 
 const formSchema = z.object({
   item: z.object({
@@ -109,16 +110,30 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
       });
     };
 
+    const handleDeleteRecord = (recordId: string) => {
+      const updatedHistory = history.filter(record => record.id !== recordId);
+      onUpdateHistory(updatedHistory);
+      toast({
+        title: "Registro Excluído",
+        description: "O registro de retirada foi removido do histórico.",
+      });
+    };
+
     return (
-      <WithdrawalForm
-        form={form}
-        currentDate={currentDate}
-        stockItems={stockItems}
-        uniqueRequesters={uniqueRequesters}
-        uniqueDestinations={uniqueDestinations}
-        onSubmit={onSubmit}
-        onSetIsAddItemDialogOpen={onSetIsAddItemDialogOpen}
-      />
+      <div className="grid lg:grid-cols-5 gap-8">
+        <WithdrawalForm
+          form={form}
+          currentDate={currentDate}
+          stockItems={stockItems}
+          uniqueRequesters={uniqueRequesters}
+          uniqueDestinations={uniqueDestinations}
+          onSubmit={onSubmit}
+          onSetIsAddItemDialogOpen={onSetIsAddItemDialogOpen}
+        />
+        <div className="lg:col-span-2">
+          <HistoryPanel history={history} onDeleteRecord={handleDeleteRecord} />
+        </div>
+      </div>
     );
   }
 );

@@ -118,7 +118,7 @@ export function HistoryPanel({ history, onDeleteRecord }: HistoryPanelProps) {
   };
 
   return (
-    <Card className="lg:col-span-2 shadow-lg">
+    <Card className="shadow-lg">
       <CardHeader className="flex-row items-center justify-between">
         <div>
           <CardTitle>Histórico de Retiradas</CardTitle>

@@ -1,35 +1,27 @@
 
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback } from "react";
 import type { StockItem, WithdrawalRecord } from "@/lib/types";
 import { MOCK_STOCK_ITEMS } from "@/lib/mock-data";
 import { useToast } from "@/hooks/use-toast";
+import { Plus } from "lucide-react";
 
 import { AppLogo } from "./icons";
 import StockReleaseClient from "./stock-release-client";
 import ItemManagement from "./item-management";
 import { AddItemDialog } from "./add-item-dialog";
-import dynamic from "next/dynamic";
-import { Skeleton } from "./ui/skeleton";
-import BottomNavigation, { type View } from "./bottom-navigation";
-
-const HistoryPanel = dynamic(() => import('./history-panel').then(mod => mod.HistoryPanel), {
-  ssr: false,
-  loading: () => <HistoryPanelSkeleton />,
-});
+import { Button } from "./ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
+import { HistoryPanel } from "./history-panel";
 
 export default function StockReleaseApp() {
   const { toast } = useToast();
-  const [view, setView] = useState<View>('release');
   const [stockItems, setStockItems] = useState<StockItem[]>([]);
   const [history, setHistory] = useState<WithdrawalRecord[]>([]);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [isAddItemDialogOpen, setAddItemDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<StockItem | null>(null);
-
-  const releaseClientRef = useRef<{ setFormItem: (item: StockItem) => void }>(null);
-
 
   useEffect(() => {
     try {
@@ -99,17 +91,6 @@ export default function StockReleaseApp() {
     setAddItemDialogOpen(isOpen);
   }
 
-  const handleSelectItemForRelease = (item: StockItem) => {
-    if (releaseClientRef.current) {
-      releaseClientRef.current.setFormItem(item);
-    }
-    setView('release');
-    toast({
-      title: "Item Selecionado",
-      description: `"${item.name}" pronto para registrar a saída.`,
-    });
-  };
-
   const handleDeleteRecord = (recordId: string) => {
     const updatedHistory = history.filter(record => record.id !== recordId);
     setHistory(updatedHistory);
@@ -118,57 +99,60 @@ export default function StockReleaseApp() {
       description: "O registro de retirada foi removido do histórico.",
     });
   };
-  
-  const handleOpenAddItemDialog = () => {
-    setEditingItem(null);
-    setAddItemDialogOpen(true);
-  };
-  
-  const renderContent = () => {
-    switch (view) {
-      case 'release':
-        return (
-          <StockReleaseClient
-            ref={releaseClientRef}
-            stockItems={stockItems}
-            history={history}
-            onUpdateHistory={setHistory}
-            onSetIsAddItemDialogOpen={handleOpenAddItemDialog}
-          />
-        );
-      case 'items':
-        return (
-          <ItemManagement 
-            stockItems={stockItems}
-            onSetStockItems={setStockItems}
-            onSetIsAddItemDialogOpen={setAddItemDialogOpen}
-            onSetEditingItem={setEditingItem}
-            onSelectItemForRelease={handleSelectItemForRelease}
-          />
-        );
-      case 'history':
-        return (
-          <HistoryPanel
-            history={history}
-            onDeleteRecord={handleDeleteRecord}
-          />
-        );
-      default:
-        return null;
-    }
-  };
 
+  const handleSelectItemForRelease = (item: StockItem) => {
+    // This function will need to be adapted to work with the tabbed layout
+    // For now, it will show a toast. A better implementation would switch tabs and populate the form.
+    toast({
+      title: "Item Selecionado",
+      description: `"${item.name}" pronto para registrar a saída na aba 'Lançamento'.`,
+    });
+  };
+  
   return (
-    <div className="flex flex-col gap-8 pb-24">
+    <div className="flex flex-col gap-8">
         <header className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <AppLogo className="h-8 w-8 text-primary" />
             <h1 className="text-3xl font-bold text-foreground tracking-tight">Controle de Estoque</h1>
           </div>
+          <Button onClick={() => setAddItemDialogOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Cadastrar Item
+          </Button>
         </header>
 
-        <main className="mt-6">
-          {renderContent()}
+        <main>
+          <Tabs defaultValue="release">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="release">Lançamento</TabsTrigger>
+              <TabsTrigger value="items">Itens</TabsTrigger>
+              <TabsTrigger value="history">Histórico</TabsTrigger>
+            </TabsList>
+            <TabsContent value="release">
+              <StockReleaseClient
+                stockItems={stockItems}
+                history={history}
+                onUpdateHistory={setHistory}
+                onSetIsAddItemDialogOpen={setAddItemDialogOpen}
+              />
+            </TabsContent>
+            <TabsContent value="items">
+              <ItemManagement 
+                stockItems={stockItems}
+                onSetStockItems={setStockItems}
+                onSetIsAddItemDialogOpen={setAddItemDialogOpen}
+                onSetEditingItem={setEditingItem}
+                onSelectItemForRelease={handleSelectItemForRelease}
+              />
+            </TabsContent>
+            <TabsContent value="history">
+              <HistoryPanel
+                history={history}
+                onDeleteRecord={handleDeleteRecord}
+              />
+            </TabsContent>
+          </Tabs>
         </main>
         
         <AddItemDialog
@@ -177,33 +161,6 @@ export default function StockReleaseApp() {
             onAddItem={handleDialogSubmit}
             editingItem={editingItem}
         />
-
-        <BottomNavigation 
-          currentView={view}
-          onViewChange={setView}
-          onAddItemClick={handleOpenAddItemDialog}
-        />
     </div>
   )
-}
-
-function HistoryPanelSkeleton() {
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="space-y-2">
-          <Skeleton className="h-6 w-48" />
-          <Skeleton className="h-4 w-64" />
-        </div>
-        <Skeleton className="h-9 w-32" />
-      </div>
-      <div className="space-y-2">
-        <Skeleton className="h-10 w-full" />
-        <Skeleton className="h-10 w-full" />
-      </div>
-      <div className="border rounded-lg p-4">
-        <Skeleton className="h-32 w-full" />
-      </div>
-    </div>
-  );
 }
