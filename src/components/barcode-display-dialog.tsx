@@ -50,24 +50,26 @@ export function BarcodeDisplayDialog({ item, isOpen, onOpenChange }: BarcodeDisp
     const doc = new jsPDF({
         orientation: 'l',
         unit: 'mm',
-        format: [50, 80]
+        format: [80, 50] // [width, height]
     });
 
     const docWidth = doc.internal.pageSize.getWidth();
+    const docHeight = doc.internal.pageSize.getHeight();
     const centerX = docWidth / 2;
+    const margin = 5;
     
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    const nameLines = doc.splitTextToSize(item.name, docWidth - 10);
-    doc.text(nameLines, centerX, 10, { align: 'center' });
+    const nameLines = doc.splitTextToSize(item.name, docWidth - (margin * 2));
     const nameHeight = doc.getTextDimensions(nameLines).h;
+    doc.text(nameLines, centerX, margin + 5, { align: 'center' });
     
     doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
-    const specLines = doc.splitTextToSize(item.specifications, docWidth - 10);
-    const specY = 10 + nameHeight;
-    doc.text(specLines, centerX, specY, { align: 'center' });
+    const specLines = doc.splitTextToSize(item.specifications, docWidth - (margin * 2));
     const specHeight = doc.getTextDimensions(specLines).h;
+    const specY = margin + 5 + nameHeight;
+    doc.text(specLines, centerX, specY, { align: 'center' });
 
     try {
         // Create an in-memory canvas
@@ -75,8 +77,8 @@ export function BarcodeDisplayDialog({ item, isOpen, onOpenChange }: BarcodeDisp
         JsBarcode(tempCanvas, barcodeValue, {
             format: "CODE128",
             displayValue: false,
-            width: 2,
-            height: 50,
+            width: 2, // Controls the thickness of the bars
+            height: 40, // Controls the height of the bars
             margin: 0,
         });
 
@@ -90,7 +92,8 @@ export function BarcodeDisplayDialog({ item, isOpen, onOpenChange }: BarcodeDisp
         let imgWidth = docWidth - 20; 
         let imgHeight = imgWidth / aspectRatio;
         
-        const maxHeight = 15;
+        // Define a max height for the barcode image area
+        const maxHeight = docHeight - barcodeY - 10;
         if (imgHeight > maxHeight) {
             imgHeight = maxHeight;
             imgWidth = imgHeight * aspectRatio;
