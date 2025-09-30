@@ -6,7 +6,7 @@ import type { StockItem } from '@/lib/types';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
-import { Edit, Trash, Search, Plus } from 'lucide-react';
+import { Edit, Trash, Search, Plus, Send } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from './ui/input';
@@ -43,14 +43,6 @@ export default function ItemManagement({
     })
   };
 
-  const handleRowClick = (item: StockItem) => {
-    onSelectItemForRelease(item);
-    toast({
-      title: "Item Selecionado",
-      description: `"${item.name}" pronto para registrar a saída na aba 'Lançamento'.`,
-    });
-  };
-
   const filteredItems = useMemo(() => {
     if (!searchQuery) {
       return stockItems;
@@ -71,7 +63,7 @@ export default function ItemManagement({
                 <CardTitle>Biblioteca de Itens</CardTitle>
                 <CardDescription>Gerencie todos os itens do seu estoque.</CardDescription>
             </div>
-            <Button onClick={() => onSetIsAddItemDialogOpen(true)}>
+            <Button onClick={() => { onSetEditingItem(null); onSetIsAddItemDialogOpen(true); }}>
                 <Plus className="mr-2 h-4 w-4" />
                 Cadastrar Novo Item
             </Button>
@@ -102,13 +94,17 @@ export default function ItemManagement({
           <TableBody>
             {filteredItems.length > 0 ? (
               filteredItems.map(item => (
-                <TableRow key={item.id} onClick={() => handleRowClick(item)} className="cursor-pointer">
+                <TableRow key={item.id} >
                   <TableCell className="text-muted-foreground">{item.id}</TableCell>
                   <TableCell className="font-medium">{item.name}</TableCell>
                   <TableCell>{item.specifications}</TableCell>
                   <TableCell className="font-mono text-sm">{item.barcode || 'N/A'}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex gap-2 justify-end">
+                      <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onSelectItemForRelease(item); }}>
+                        <Send className="h-4 w-4 text-sky-500" />
+                        <span className="sr-only">Lançar</span>
+                      </Button>
                       <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleEdit(item); }}>
                         <Edit className="h-4 w-4" />
                         <span className="sr-only">Editar</span>

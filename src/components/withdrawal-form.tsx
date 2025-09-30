@@ -84,7 +84,7 @@ export function WithdrawalForm({
 
   return (
     <>
-      <Card className="lg:col-span-3 shadow-lg">
+      <Card className="shadow-lg">
         <CardHeader>
           <div className="flex justify-between items-center">
             <div>

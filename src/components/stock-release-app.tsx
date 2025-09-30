@@ -1,14 +1,14 @@
 
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import type { StockItem, WithdrawalRecord } from "@/lib/types";
 import { MOCK_STOCK_ITEMS } from "@/lib/mock-data";
 import { useToast } from "@/hooks/use-toast";
 import { Plus } from "lucide-react";
 
 import { AppLogo } from "./icons";
-import StockReleaseClient from "./stock-release-client";
+import StockReleaseClient, { type StockReleaseClientRef } from "./stock-release-client";
 import ItemManagement from "./item-management";
 import { AddItemDialog } from "./add-item-dialog";
 import { Button } from "./ui/button";
@@ -22,6 +22,8 @@ export default function StockReleaseApp() {
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [isAddItemDialogOpen, setAddItemDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<StockItem | null>(null);
+  const [activeTab, setActiveTab] = useState("release");
+  const stockReleaseClientRef = useRef<StockReleaseClientRef>(null);
 
   useEffect(() => {
     try {
@@ -101,8 +103,10 @@ export default function StockReleaseApp() {
   };
 
   const handleSelectItemForRelease = (item: StockItem) => {
-    // This function will need to be adapted to work with the tabbed layout
-    // For now, it will show a toast. A better implementation would switch tabs and populate the form.
+    setActiveTab("release");
+    setTimeout(() => {
+      stockReleaseClientRef.current?.setFormItem(item);
+    }, 0);
     toast({
       title: "Item Selecionado",
       description: `"${item.name}" pronto para registrar a saída na aba 'Lançamento'.`,
@@ -116,14 +120,14 @@ export default function StockReleaseApp() {
             <AppLogo className="h-8 w-8 text-primary" />
             <h1 className="text-3xl font-bold text-foreground tracking-tight">Controle de Estoque</h1>
           </div>
-          <Button onClick={() => setAddItemDialogOpen(true)}>
+          <Button onClick={() => { setEditingItem(null); setAddItemDialogOpen(true); }}>
             <Plus className="mr-2 h-4 w-4" />
             Cadastrar Item
           </Button>
         </header>
 
         <main>
-          <Tabs defaultValue="release">
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="release">Lançamento</TabsTrigger>
               <TabsTrigger value="items">Itens</TabsTrigger>
@@ -131,6 +135,7 @@ export default function StockReleaseApp() {
             </TabsList>
             <TabsContent value="release">
               <StockReleaseClient
+                ref={stockReleaseClientRef}
                 stockItems={stockItems}
                 history={history}
                 onUpdateHistory={setHistory}
