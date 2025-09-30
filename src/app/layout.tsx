@@ -29,7 +29,7 @@ export default function RootLayout({
             {children}
         </SidebarProvider>
         <Toaster />
-        <footer className="w-full text-center p-4 text-sm text-muted-foreground absolute bottom-0">
+        <footer className="w-full text-center p-4 text-sm text-muted-foreground fixed bottom-0 bg-slate-50 dark:bg-background">
           Alternativa Solutions. Todos os direitos reservados
         </footer>
       </body>
