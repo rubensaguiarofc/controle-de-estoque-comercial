@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { format } from "date-fns";
 import { ptBR } from 'date-fns/locale';
 import jsPDF from 'jspdf';
@@ -333,6 +333,8 @@ function ToolHistoryTab({ history, onDeleteRecord, onShowSignatures }: { history
         </div>
     );
 }
+
+    
 
     
 
