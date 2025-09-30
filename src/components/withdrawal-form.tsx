@@ -71,6 +71,7 @@ export function WithdrawalForm({
     const item = stockItems.find(i => i.id === currentItemId);
     if (item) {
       onAppendItem({ item, quantity, unit });
+      toast({ title: 'Item Adicionado', description: `"${item.name}" foi adicionado à cesta.` });
       setCurrentItemId('');
       setQuantity(1);
       setUnit('UN');
@@ -79,7 +80,7 @@ export function WithdrawalForm({
 
   const handleClear = () => {
     form.reset({ requestedBy: "", requestedFor: "" });
-    onRemoveItem('all'); // Custom logic in parent to clear all
+    withdrawalItems.forEach(item => onRemoveItem(item.item.id));
     toast({ title: "Campos Limpos", description: "Todos os campos de entrada foram redefinidos." });
   };
   
