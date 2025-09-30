@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState, useMemo, forwardRef, useImperativeHandle } from "react";
+import { useEffect, useState, forwardRef, useImperativeHandle } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -22,7 +22,8 @@ export type WithdrawalFormValues = z.infer<typeof formSchema>;
 interface StockReleaseClientProps {
   stockItems: StockItem[];
   onUpdateHistory: (callback: (history: WithdrawalRecord[]) => WithdrawalRecord[]) => void;
-  onSetIsAddItemDialogOpen: (isOpen: boolean) => void;
+  uniqueRequesters: string[];
+  uniqueDestinations: string[];
 }
 
 export interface StockReleaseClientRef {
@@ -30,10 +31,9 @@ export interface StockReleaseClientRef {
 }
 
 const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientProps>(
-  ({ stockItems, onUpdateHistory, onSetIsAddItemDialogOpen }, ref) => {
+  ({ stockItems, onUpdateHistory, uniqueRequesters, uniqueDestinations }, ref) => {
     const { toast } = useToast();
     const [currentDate, setCurrentDate] = useState("");
-    const [history, setHistory] = useState<WithdrawalRecord[]>([]);
     const [withdrawalItems, setWithdrawalItems] = useState<WithdrawalItem[]>([]);
 
     const form = useForm<WithdrawalFormValues>({
@@ -55,41 +55,21 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
     }));
     
     useEffect(() => {
-        const storedHistory = localStorage.getItem("withdrawalHistory");
-        if (storedHistory) {
-          try {
-            setHistory(JSON.parse(storedHistory));
-          } catch (e) {
-            console.error("Failed to parse history from localStorage", e);
-          }
-        }
-        setCurrentDate(format(new Date(), "eeee, dd 'de' MMMM 'de' yyyy", { locale: ptBR }));
-      }, []);
-
-    const { uniqueRequesters, uniqueDestinations } = useMemo(() => {
-      const requesters = new Set<string>();
-      const destinations = new Set<string>();
-      history.forEach(record => {
-        if (record.requestedBy) requesters.add(record.requestedBy);
-        if (record.requestedFor) destinations.add(record.requestedFor);
-      });
-      return {
-        uniqueRequesters: Array.from(requesters),
-        uniqueDestinations: Array.from(destinations),
-      };
-    }, [history]);
+      setCurrentDate(format(new Date(), "eeee, dd 'de' MMMM 'de' yyyy", { locale: ptBR }));
+    }, []);
     
     const handleAppendItem = (item: WithdrawalItem) => {
-      // Check if item is already in the cart
       const existingItemIndex = withdrawalItems.findIndex(cartItem => cartItem.item.id === item.item.id);
 
       if (existingItemIndex > -1) {
-        // Update quantity if item exists
         const updatedItems = [...withdrawalItems];
         updatedItems[existingItemIndex].quantity += item.quantity;
         setWithdrawalItems(updatedItems);
+        toast({
+          title: "Quantidade Atualizada",
+          description: `A quantidade de "${item.item.name}" foi atualizada na cesta.`,
+        });
       } else {
-        // Add new item to cart
         setWithdrawalItems(prev => [...prev, item]);
       }
     };
@@ -127,11 +107,7 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
         requestedFor: values.requestedFor.toUpperCase(),
       }));
       
-      onUpdateHistory(prevHistory => {
-        const updatedHistory = [...newRecords, ...prevHistory];
-        setHistory(updatedHistory); 
-        return updatedHistory;
-      });
+      onUpdateHistory(prevHistory => [...newRecords, ...prevHistory]);
 
       toast({ title: "Sucesso!", description: `${newRecords.length} retirada(s) foram registradas.` });
       form.reset({
@@ -151,7 +127,7 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
           uniqueDestinations={uniqueDestinations}
           onSubmit={onSubmit}
           onAppendItem={handleAppendItem}
-          onRemoveItem={handleRemoveItem}
+          onRemoveItem={onRemoveItem}
           onUpdateItemQuantity={handleUpdateItemQuantity}
         />
     );
@@ -160,3 +136,5 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
 
 StockReleaseClient.displayName = 'StockReleaseClient';
 export default StockReleaseClient;
+
+    

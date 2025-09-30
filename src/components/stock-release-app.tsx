@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import dynamic from 'next/dynamic';
 import type { StockItem, WithdrawalRecord } from "@/lib/types";
 import { MOCK_STOCK_ITEMS } from "@/lib/mock-data";
@@ -66,6 +66,19 @@ export default function StockReleaseApp() {
       }
     }
   }, [history, stockItems, isInitialLoad]);
+
+  const { uniqueRequesters, uniqueDestinations } = useMemo(() => {
+    const requesters = new Set<string>();
+    const destinations = new Set<string>();
+    history.forEach(record => {
+      if (record.requestedBy) requesters.add(record.requestedBy);
+      if (record.requestedFor) destinations.add(record.requestedFor);
+    });
+    return {
+      uniqueRequesters: Array.from(requesters),
+      uniqueDestinations: Array.from(destinations),
+    };
+  }, [history]);
 
   const handleAddItem = useCallback((newItem: Omit<StockItem, 'id'>) => {
     setStockItems(prev => {
@@ -136,7 +149,8 @@ export default function StockReleaseApp() {
             ref={stockReleaseClientRef}
             stockItems={stockItems}
             onUpdateHistory={setHistory}
-            onSetIsAddItemDialogOpen={setAddItemDialogOpen}
+            uniqueRequesters={uniqueRequesters}
+            uniqueDestinations={uniqueDestinations}
           />
         );
       case "items":
@@ -301,5 +315,7 @@ function HistorySkeleton() {
       </div>
     );
 }
+
+    
 
     
