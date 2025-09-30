@@ -76,7 +76,6 @@ export function WithdrawalForm({
     setCurrentItem(null);
     setQuantity(1);
     setUnit('UN');
-    setPopoverOpen(false);
   };
 
   const handleScanSuccess = (foundItem: StockItem) => {
@@ -148,9 +147,7 @@ export function WithdrawalForm({
                                                   const selected = stockItems.find(
                                                     (stockItem) => stockItem.id.toLowerCase() === currentValue.toLowerCase()
                                                   );
-                                                  if (selected) {
-                                                    setCurrentItem(selected);
-                                                  }
+                                                  setCurrentItem(selected || null);
                                                   setPopoverOpen(false);
                                                 }}
                                             >
