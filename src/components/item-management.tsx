@@ -10,6 +10,7 @@ import { Edit, Trash, Search, Plus, Barcode } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from './ui/input';
+import { BarcodeDisplayDialog } from './barcode-display-dialog';
 
 interface ItemManagementProps {
   stockItems: StockItem[];
@@ -26,6 +27,7 @@ export default function ItemManagement({
 }: ItemManagementProps) {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
+  const [barcodeItem, setBarcodeItem] = useState<StockItem | null>(null);
 
   const handleEdit = (item: StockItem) => {
     onSetEditingItem(item);
@@ -112,9 +114,14 @@ export default function ItemManagement({
                   <TableCell className="font-mono text-sm">{item.barcode || 'N/A'}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex gap-1 justify-end">
-                      {!item.barcode && (
+                      {item.barcode ? (
+                        <Button variant="ghost" size="icon" onClick={() => setBarcodeItem(item)}>
+                            <Barcode className="h-4 w-4" />
+                            <span className="sr-only">Visualizar código de barras</span>
+                        </Button>
+                      ) : (
                         <Button variant="ghost" size="icon" onClick={() => handleGenerateBarcode(item)}>
-                          <Barcode className="h-4 w-4" />
+                          <Barcode className="h-4 w-4 text-teal-500" />
                           <span className="sr-only">Gerar código de barras</span>
                         </Button>
                       )}
@@ -157,6 +164,13 @@ export default function ItemManagement({
         </Table>
       </CardContent>
     </Card>
+    {barcodeItem && (
+        <BarcodeDisplayDialog
+            isOpen={!!barcodeItem}
+            onOpenChange={() => setBarcodeItem(null)}
+            item={barcodeItem}
+        />
+    )}
     </>
   );
 }
