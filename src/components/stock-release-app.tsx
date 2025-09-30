@@ -85,7 +85,7 @@ export default function StockReleaseApp() {
         localStorage.setItem("withdrawalHistory", JSON.stringify(history));
         localStorage.setItem("stockItems", JSON.stringify(stockItems));
         localStorage.setItem("tools", JSON.stringify(tools));
-        localStorage.setItem("toolHistory", JSON.stringify(toolHistory));
+        localStorage.setItem("toolHistory", JSON.stringify(toolHistory.sort((a, b) => new Date(b.checkoutDate).getTime() - new Date(a.checkoutDate).getTime())));
       } catch (error) {
         console.error("Failed to save data to localStorage", error);
         toast({ variant: 'destructive', title: "Erro ao Salvar Dados", description: "Não foi possível salvar as alterações."});
@@ -166,6 +166,18 @@ export default function StockReleaseApp() {
     });
   };
 
+  const handleDeleteToolRecord = (recordId: string) => {
+    setToolHistory(prevHistory => {
+      const updatedHistory = prevHistory.filter(record => record.id !== recordId);
+      toast({
+        title: "Registro de Ferramenta Excluído",
+        description: "O registro foi removido permanentemente.",
+      });
+      return updatedHistory;
+    });
+  };
+
+
   const renderContent = () => {
     switch (activeView) {
       case "release":
@@ -189,8 +201,10 @@ export default function StockReleaseApp() {
       case "history":
         return (
           <HistoryPanel
-            history={history}
-            onDeleteRecord={handleDeleteRecord}
+            itemHistory={history}
+            toolHistory={toolHistory}
+            onDeleteItemRecord={handleDeleteRecord}
+            onDeleteToolRecord={handleDeleteToolRecord}
           />
         );
       case "tools":
@@ -360,5 +374,7 @@ function HistorySkeleton() {
       </div>
     );
 }
+
+    
 
     

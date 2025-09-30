@@ -29,8 +29,9 @@ export function ToolHistory({ tools, history, onCheckout, onReturn }: ToolHistor
   const [isCheckoutDialogOpen, setCheckoutDialogOpen] = useState(false);
   const [checkingOutTool, setCheckingOutTool] = useState<Tool | null>(null);
 
-  const toolsOut = history.filter(h => !h.returnDate).map(h => h.tool.id);
-  const availableTools = tools.filter(t => !toolsOut.includes(t.id));
+  const toolsOutRecords = history.filter(h => !h.returnDate);
+  const toolsOutIds = toolsOutRecords.map(h => h.tool.id);
+  const availableTools = tools.filter(t => !toolsOutIds.includes(t.id));
 
   const handleOpenCheckout = () => {
     if (!selectedToolId) {
@@ -108,8 +109,8 @@ export function ToolHistory({ tools, history, onCheckout, onReturn }: ToolHistor
         
         <Card className="shadow-lg">
           <CardHeader>
-            <CardTitle>Histórico de Movimentação</CardTitle>
-            <CardDescription>Visualize todas as retiradas e devoluções.</CardDescription>
+            <CardTitle>Ferramentas em Uso</CardTitle>
+            <CardDescription>Ferramentas que foram retiradas e ainda não foram devolvidas.</CardDescription>
           </CardHeader>
           <CardContent>
               <Table>
@@ -124,28 +125,23 @@ export function ToolHistory({ tools, history, onCheckout, onReturn }: ToolHistor
                       </TableRow>
                   </TableHeader>
                   <TableBody>
-                      {history.length > 0 ? history.map(record => (
+                      {toolsOutRecords.length > 0 ? toolsOutRecords.map(record => (
                           <TableRow key={record.id}>
                               <TableCell className="font-medium">{record.tool.name} <span className="text-muted-foreground text-xs">({record.tool.assetId})</span></TableCell>
                               <TableCell>{record.checkedOutBy}</TableCell>
                               <TableCell>{record.usageLocation}</TableCell>
                               <TableCell>{new Date(record.checkoutDate).toLocaleDateString('pt-BR')}</TableCell>
                               <TableCell>
-                                  {record.returnDate
-                                      ? <Badge variant="secondary">Devolvido</Badge>
-                                      : <Badge>Em uso</Badge>
-                                  }
+                                  <Badge>Em uso</Badge>
                               </TableCell>
                               <TableCell className="text-right">
-                                  {!record.returnDate && (
-                                      <Button size="sm" onClick={() => handleOpenReturnDialog(record)}>Devolver</Button>
-                                  )}
+                                  <Button size="sm" onClick={() => handleOpenReturnDialog(record)}>Devolver</Button>
                               </TableCell>
                           </TableRow>
                       )) : (
                           <TableRow>
                               <TableCell colSpan={6} className="text-center h-24 text-muted-foreground">
-                              Nenhum registro de movimentação encontrado.
+                              Nenhuma ferramenta em uso no momento.
                               </TableCell>
                           </TableRow>
                       )}
@@ -173,3 +169,5 @@ export function ToolHistory({ tools, history, onCheckout, onReturn }: ToolHistor
     </>
   );
 }
+
+    
