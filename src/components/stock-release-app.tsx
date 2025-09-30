@@ -5,15 +5,15 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import type { StockItem, WithdrawalRecord } from "@/lib/types";
 import { MOCK_STOCK_ITEMS } from "@/lib/mock-data";
 import { useToast } from "@/hooks/use-toast";
-import { Plus } from "lucide-react";
+import { Boxes, History, PackagePlus, RefreshCw } from "lucide-react";
 
-import { AppLogo } from "./icons";
 import StockReleaseClient, { type StockReleaseClientRef } from "./stock-release-client";
 import ItemManagement from "./item-management";
 import { AddItemDialog } from "./add-item-dialog";
-import { Button } from "./ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { HistoryPanel } from "./history-panel";
+import { Sidebar, SidebarContent, SidebarInset, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarTrigger } from "./ui/sidebar";
+
+type View = "release" | "items" | "history";
 
 export default function StockReleaseApp() {
   const { toast } = useToast();
@@ -22,7 +22,7 @@ export default function StockReleaseApp() {
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [isAddItemDialogOpen, setAddItemDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<StockItem | null>(null);
-  const [activeTab, setActiveTab] = useState("release");
+  const [activeView, setActiveView] = useState<View>("release");
   const stockReleaseClientRef = useRef<StockReleaseClientRef>(null);
 
   useEffect(() => {
@@ -103,7 +103,7 @@ export default function StockReleaseApp() {
   };
 
   const handleSelectItemForRelease = (item: StockItem) => {
-    setActiveTab("release");
+    setActiveView("release");
     setTimeout(() => {
       stockReleaseClientRef.current?.setFormItem(item);
     }, 0);
@@ -112,60 +112,99 @@ export default function StockReleaseApp() {
       description: `"${item.name}" pronto para registrar a saída na aba 'Lançamento'.`,
     });
   };
+
+  const renderContent = () => {
+    switch (activeView) {
+      case "release":
+        return (
+          <StockReleaseClient
+            ref={stockReleaseClientRef}
+            stockItems={stockItems}
+            history={history}
+            onUpdateHistory={setHistory}
+            onSetIsAddItemDialogOpen={setAddItemDialogOpen}
+          />
+        );
+      case "items":
+        return (
+          <ItemManagement
+            stockItems={stockItems}
+            onSetStockItems={setStockItems}
+            onSetIsAddItemDialogOpen={setAddItemDialogOpen}
+            onSetEditingItem={setEditingItem}
+            onSelectItemForRelease={handleSelectItemForRelease}
+          />
+        );
+      case "history":
+        return (
+          <HistoryPanel
+            history={history}
+            onDeleteRecord={handleDeleteRecord}
+          />
+        );
+      default:
+        return null;
+    }
+  };
+  
+  const NavButton = ({ view, label, icon: Icon }: { view: View; label: string; icon: React.ElementType }) => (
+    <div className="flex flex-col items-center gap-1">
+      <SidebarMenuButton
+          isActive={activeView === view}
+          onClick={() => setActiveView(view)}
+          className="rounded-full h-16 w-16 !p-0 flex items-center justify-center text-primary bg-white shadow-md hover:shadow-lg transition-shadow"
+      >
+          <Icon className="h-7 w-7" />
+      </SidebarMenuButton>
+      <span className="text-xs text-muted-foreground">{label}</span>
+  </div>
+  );
   
   return (
-    <div className="flex flex-col gap-8">
-        <header className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <AppLogo className="h-8 w-8 text-primary" />
+    <div className="flex min-h-[calc(100vh-80px)]">
+      <Sidebar variant="sidebar" collapsible="none" className="bg-slate-50 border-r-0">
+        <SidebarContent className="p-4 flex flex-col items-center justify-center gap-6">
+            <SidebarMenu>
+                <SidebarMenuItem>
+                    <div className="flex flex-col items-center gap-1">
+                        <SidebarMenuButton
+                            onClick={() => { setEditingItem(null); setAddItemDialogOpen(true); }}
+                            className="rounded-full h-16 w-16 !p-0 flex items-center justify-center text-primary bg-white shadow-md hover:shadow-lg transition-shadow"
+                        >
+                            <PackagePlus className="h-7 w-7 text-teal-500" />
+                        </SidebarMenuButton>
+                        <span className="text-xs text-muted-foreground">Cadastrar Itens</span>
+                    </div>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                    <NavButton view="release" label="Lançamento" icon={RefreshCw} />
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                    <NavButton view="items" label="Itens" icon={Boxes} />
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                    <NavButton view="history" label="Histórico" icon={History} />
+                </SidebarMenuItem>
+            </SidebarMenu>
+        </SidebarContent>
+      </Sidebar>
+      <SidebarInset className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+          <header className="flex items-center gap-3 mb-8">
+            <SidebarTrigger className="md:hidden" />
             <h1 className="text-3xl font-bold text-foreground tracking-tight">Controle de Estoque</h1>
-          </div>
-          <Button onClick={() => { setEditingItem(null); setAddItemDialogOpen(true); }}>
-            <Plus className="mr-2 h-4 w-4" />
-            Cadastrar Item
-          </Button>
-        </header>
+          </header>
 
-        <main>
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="release">Lançamento</TabsTrigger>
-              <TabsTrigger value="items">Itens</TabsTrigger>
-              <TabsTrigger value="history">Histórico</TabsTrigger>
-            </TabsList>
-            <TabsContent value="release">
-              <StockReleaseClient
-                ref={stockReleaseClientRef}
-                stockItems={stockItems}
-                history={history}
-                onUpdateHistory={setHistory}
-                onSetIsAddItemDialogOpen={setAddItemDialogOpen}
-              />
-            </TabsContent>
-            <TabsContent value="items">
-              <ItemManagement 
-                stockItems={stockItems}
-                onSetStockItems={setStockItems}
-                onSetIsAddItemDialogOpen={setAddItemDialogOpen}
-                onSetEditingItem={setEditingItem}
-                onSelectItemForRelease={handleSelectItemForRelease}
-              />
-            </TabsContent>
-            <TabsContent value="history">
-              <HistoryPanel
-                history={history}
-                onDeleteRecord={handleDeleteRecord}
-              />
-            </TabsContent>
-          </Tabs>
-        </main>
-        
-        <AddItemDialog
-            isOpen={isAddItemDialogOpen}
-            onOpenChange={handleDialogClose}
-            onAddItem={handleDialogSubmit}
-            editingItem={editingItem}
-        />
+          <main>
+            {renderContent()}
+          </main>
+      </SidebarInset>
+      
+      <AddItemDialog
+          isOpen={isAddItemDialogOpen}
+          onOpenChange={handleDialogClose}
+          onAddItem={handleDialogSubmit}
+          editingItem={editingItem}
+      />
     </div>
   )
 }

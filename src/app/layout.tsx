@@ -2,6 +2,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
+import { SidebarProvider } from '@/components/ui/sidebar';
 
 export const metadata: Metadata = {
   title: 'Controle de Estoque',
@@ -14,7 +15,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning className="flex flex-col min-h-screen">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -23,10 +24,12 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="font-body antialiased flex-grow bg-slate-50 dark:bg-background">
-        <main className="flex-1">{children}</main>
+      <body className="font-body antialiased bg-slate-50 dark:bg-background">
+        <SidebarProvider>
+            {children}
+        </SidebarProvider>
         <Toaster />
-        <footer className="w-full text-center p-4 mt-auto text-sm text-muted-foreground">
+        <footer className="w-full text-center p-4 text-sm text-muted-foreground absolute bottom-0">
           Alternativa Solutions. Todos os direitos reservados
         </footer>
       </body>
