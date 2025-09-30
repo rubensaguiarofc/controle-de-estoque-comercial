@@ -11,6 +11,7 @@ import { Boxes, History, PackagePlus, RefreshCw, Wrench } from "lucide-react";
 import { Sidebar, SidebarContent, SidebarInset, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarTrigger } from "./ui/sidebar";
 import { AddItemDialog } from "./add-item-dialog";
 import { Skeleton } from "./ui/skeleton";
+import { AddToolDialog } from "./add-tool-dialog";
 
 const StockReleaseClient = dynamic(() => import('./stock-release-client'), {
   loading: () => <ClientSkeleton />,
@@ -39,8 +40,15 @@ export default function StockReleaseApp() {
   const [tools, setTools] = useState<Tool[]>([]);
   const [toolHistory, setToolHistory] = useState<ToolRecord[]>([]);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
+  
+  // Item Dialog State
   const [isAddItemDialogOpen, setAddItemDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<StockItem | null>(null);
+
+  // Tool Dialog State
+  const [isAddToolDialogOpen, setAddToolDialogOpen] = useState(false);
+  const [editingTool, setEditingTool] = useState<Tool | null>(null);
+
   const [activeView, setActiveView] = useState<View>("release");
 
   useEffect(() => {
@@ -98,45 +106,55 @@ export default function StockReleaseApp() {
     };
   }, [history]);
 
-  const handleAddItem = useCallback((newItem: Omit<StockItem, 'id'>) => {
-    setStockItems(prev => {
-      const newIdNumber = (prev.length > 0 ? Math.max(...prev.map(item => parseInt(item.id.split('-')[1]))) + 1 : 1).toString().padStart(3, '0');
+  // Item Management Handlers
+  const handleItemDialogSubmit = (itemData: Omit<StockItem, 'id'>) => {
+    if (editingItem) {
+      // Update
+      setStockItems(prev => prev.map(item => item.id === editingItem.id ? { ...item, ...itemData } : item));
+      toast({ title: "Item Atualizado", description: `${itemData.name} foi atualizado.` });
+    } else {
+      // Add
+      const newIdNumber = (stockItems.length > 0 ? Math.max(...stockItems.map(item => parseInt(item.id.split('-')[1]))) + 1 : 1).toString().padStart(3, '0');
       const newId = `ITM-${newIdNumber}`;
-      const itemWithId: StockItem = { ...newItem, id: newId, barcode: newItem.barcode || '' };
-      return [...prev, itemWithId];
-    });
-    setAddItemDialogOpen(false);
-    toast({
-      title: "Item Adicionado",
-      description: `${newItem.name} foi adicionado.`,
-    })
-  }, [toast]);
-
-  const handleUpdateItem = useCallback((updatedItem: StockItem) => {
-    setStockItems(prev => prev.map(item => item.id === updatedItem.id ? updatedItem : item));
+      const itemWithId: StockItem = { ...itemData, id: newId, barcode: itemData.barcode || '' };
+      setStockItems(prev => [...prev, itemWithId]);
+      toast({ title: "Item Adicionado", description: `${itemData.name} foi adicionado.` });
+    }
     setAddItemDialogOpen(false);
     setEditingItem(null);
-    toast({
-      title: "Item Atualizado",
-      description: `${updatedItem.name} foi atualizado com sucesso.`,
-    })
-  }, [toast]);
-
-  const handleDialogSubmit = (itemData: Omit<StockItem, 'id'>) => {
-    if (editingItem) {
-      handleUpdateItem({ ...editingItem, ...itemData });
-    } else {
-      handleAddItem(itemData);
-    }
   };
 
-  const handleDialogClose = (isOpen: boolean) => {
-    if (!isOpen) {
-      setEditingItem(null);
-    }
+  const handleItemDialogClose = (isOpen: boolean) => {
+    if (!isOpen) setEditingItem(null);
     setAddItemDialogOpen(isOpen);
   }
 
+  // Tool Management Handlers
+  const handleToolDialogSubmit = (toolData: Omit<Tool, 'id'>) => {
+    if (editingTool) {
+      // Update
+      setTools(prev => prev.map(tool => tool.id === editingTool.id ? { ...tool, ...toolData } : tool));
+      toast({ title: "Ferramenta Atualizada", description: `${toolData.name} foi atualizada.` });
+    } else {
+      // Add
+      const newId = `TOOL-${Date.now()}`;
+      const toolWithId: Tool = { ...toolData, id: newId };
+      setTools(prev => [...prev, toolWithId]);
+      toast({ title: "Ferramenta Adicionada", description: `${toolData.name} foi adicionada.` });
+    }
+    setAddToolDialogOpen(false);
+    setEditingTool(null);
+  }
+
+  const handleToolDialogClose = (isOpen: boolean) => {
+    if (!isOpen) setEditingTool(null);
+    setAddToolDialogOpen(isOpen);
+  }
+
+  const handleNewWithdrawal = (newRecords: WithdrawalRecord[]) => {
+    setHistory(prev => [...newRecords, ...prev]);
+  };
+  
   const handleDeleteRecord = (recordId: string) => {
     setHistory(prevHistory => {
       const updatedHistory = prevHistory.filter(record => record.id !== recordId);
@@ -148,14 +166,6 @@ export default function StockReleaseApp() {
     });
   };
 
-  const handleNewWithdrawal = (newRecords: WithdrawalRecord[]) => {
-    setHistory(prev => [...newRecords, ...prev]);
-  };
-  
-  const handleSetStockItems = (items: StockItem[]) => {
-    setStockItems(items);
-  };
-  
   const renderContent = () => {
     switch (activeView) {
       case "release":
@@ -171,7 +181,7 @@ export default function StockReleaseApp() {
         return (
           <ItemManagement
             stockItems={stockItems}
-            onSetStockItems={handleSetStockItems}
+            onSetStockItems={setStockItems}
             onSetIsAddItemDialogOpen={setAddItemDialogOpen}
             onSetEditingItem={setEditingItem}
           />
@@ -185,7 +195,14 @@ export default function StockReleaseApp() {
         );
       case "tools":
         return (
-            <ToolManagement />
+            <ToolManagement
+              tools={tools}
+              setTools={setTools}
+              toolHistory={toolHistory}
+              setToolHistory={setToolHistory}
+              onSetEditingTool={setEditingTool}
+              onSetIsAddToolDialogOpen={setAddToolDialogOpen}
+            />
         );
       default:
         return null;
@@ -249,10 +266,18 @@ export default function StockReleaseApp() {
       
       <AddItemDialog
           isOpen={isAddItemDialogOpen}
-          onOpenChange={handleDialogClose}
-          onAddItem={handleDialogSubmit}
+          onOpenChange={handleItemDialogClose}
+          onAddItem={handleItemDialogSubmit}
           editingItem={editingItem}
       />
+
+      <AddToolDialog
+          isOpen={isAddToolDialogOpen}
+          onOpenChange={handleToolDialogClose}
+          onAddTool={handleToolDialogSubmit}
+          editingTool={editingTool}
+      />
+
     </div>
   )
 }
@@ -335,3 +360,5 @@ function HistorySkeleton() {
       </div>
     );
 }
+
+    
