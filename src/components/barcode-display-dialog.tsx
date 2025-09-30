@@ -2,14 +2,12 @@
 "use client";
 
 import { useRef } from 'react';
-import dynamic from 'next/dynamic';
 import { useReactToPrint } from 'react-to-print';
 import { Printer, X } from 'lucide-react';
 import type { StockItem } from '@/lib/types';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-
-const Barcode = dynamic(() => import('react-barcode'), { ssr: false });
+import Barcode from 'react-barcode';
 
 interface BarcodeDisplayDialogProps {
   item: StockItem | null;
