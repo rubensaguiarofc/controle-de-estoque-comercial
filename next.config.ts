@@ -1,4 +1,5 @@
 
+import { CommandItem } from 'cmdk';
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
