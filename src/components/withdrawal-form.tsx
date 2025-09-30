@@ -3,30 +3,16 @@
 
 import React, { useState } from "react";
 import { UseFormReturn } from "react-hook-form";
-import { Plus, ScanLine } from "lucide-react";
+import { ScanLine } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import type { StockItem, WithdrawalItem } from "@/lib/types";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import type { StockItem } from "@/lib/types";
 import type { WithdrawalFormValues } from "./stock-release-client";
 import dynamic from "next/dynamic";
-import { WithdrawalCart } from "./withdrawal-cart";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command"
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
-import { Label } from "./ui/label";
 
 const SearchScannerDialog = dynamic(() => import('./search-scanner-dialog').then(mod => mod.SearchScannerDialog), { ssr: false });
 
@@ -38,9 +24,6 @@ interface WithdrawalFormProps {
   uniqueDestinations: string[];
   onSubmit: (values: WithdrawalFormValues) => void;
   onSetIsAddItemDialogOpen: (isOpen: boolean) => void;
-  withdrawalItems: (WithdrawalItem & { id: string })[];
-  onAppendItem: (item: WithdrawalItem) => void;
-  onRemoveItem: (index: number) => void;
 }
 
 export function WithdrawalForm({
@@ -50,39 +33,14 @@ export function WithdrawalForm({
   uniqueRequesters,
   uniqueDestinations,
   onSubmit,
-  withdrawalItems,
-  onAppendItem,
-  onRemoveItem,
 }: WithdrawalFormProps) {
   const { toast } = useToast();
   const [isSearchScannerOpen, setSearchScannerOpen] = useState(false);
-  const [popoverOpen, setPopoverOpen] = useState(false);
-
-  const handleAddItemToCart = (itemId: string) => {
-    const itemToAdd = stockItems.find(item => item.id === itemId);
-    if (!itemToAdd) {
-      toast({ variant: 'destructive', title: 'Item não encontrado' });
-      return;
-    }
-
-    const isAlreadyInCart = withdrawalItems.some(item => item.id === itemToAdd.id);
-    if (isAlreadyInCart) {
-      toast({ variant: 'destructive', title: 'Item já adicionado' });
-      return;
-    }
-    onAppendItem({ ...itemToAdd, quantity: 1, unit: 'UN' });
-    toast({ title: 'Item Adicionado', description: `"${itemToAdd.name}" foi adicionado à cesta.`});
-  };
-
+  
   const handleScanSuccess = (foundItem: StockItem) => {
-    const isAlreadyInCart = withdrawalItems.some(item => item.id === foundItem.id);
-    if (!isAlreadyInCart) {
-        onAppendItem({ ...foundItem, quantity: 1, unit: 'UN' });
-        toast({ title: "Item Adicionado", description: `Item "${foundItem.name}" adicionado à lista.` });
-    } else {
-        toast({ variant: 'destructive', title: "Item já adicionado", description: "Este item já está na lista de retirada."});
-    }
+    form.setValue('selectedItem', foundItem.id);
     setSearchScannerOpen(false);
+    toast({ title: "Item Encontrado", description: `Item "${foundItem.name}" selecionado.` });
   };
 
   const handleScanNotFound = () => {
@@ -93,9 +51,9 @@ export function WithdrawalForm({
     });
     setSearchScannerOpen(false);
   };
-
+  
   const handleClear = () => {
-    form.reset({ withdrawalItems: [], requestedBy: "", requestedFor: "" });
+    form.reset({ selectedItem: "", quantity: 1, unit: "UN", requestedBy: "", requestedFor: "" });
     toast({ title: "Campos Limpos", description: "Todos os campos de entrada foram redefinidos." });
   };
   
@@ -117,45 +75,58 @@ export function WithdrawalForm({
               </div>
             </CardHeader>
             <CardContent className="flex flex-col gap-6">
-                <div className="space-y-2">
-                    <Label>Itens para Retirada</Label>
-                    <div className="p-4 border rounded-lg space-y-4 bg-muted/20">
-                      <WithdrawalCart items={withdrawalItems} onRemove={onRemoveItem} />
-                      <FormMessage>{form.formState.errors.withdrawalItems?.message || form.formState.errors.withdrawalItems?.root?.message}</FormMessage>
-                    </div>
-
-                    <div className="flex items-end gap-2 pt-2">
-                      <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
-                        <PopoverTrigger asChild>
-                            <Button type="button" variant="outline" className="w-full justify-start">
-                                Selecione um item para adicionar...
-                            </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                            <Command>
-                                <CommandInput placeholder="Buscar item..." />
-                                <CommandList>
-                                    <CommandEmpty>Nenhum item encontrado.</CommandEmpty>
-                                    <CommandGroup>
-                                        {stockItems.map((item) => (
-                                            <CommandItem
-                                                key={item.id}
-                                                value={item.id}
-                                                onSelect={(currentValue) => {
-                                                  handleAddItemToCart(currentValue);
-                                                  setPopoverOpen(false);
-                                                }}
-                                            >
-                                                {item.name}
-                                            </CommandItem>
-                                        ))}
-                                    </CommandGroup>
-                                </CommandList>
-                            </Command>
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-                </div>
+              <div className="grid sm:grid-cols-[1fr_80px_100px] gap-4 items-end">
+                <FormField
+                  control={form.control}
+                  name="selectedItem"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Item</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione um item" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {stockItems.map((item) => (
+                            <SelectItem key={item.id} value={item.id}>
+                              {item.name} - {item.specifications}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="quantity"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Qtd.</FormLabel>
+                      <FormControl>
+                        <Input type="number" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                 <FormField
+                  control={form.control}
+                  name="unit"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Unidade</FormLabel>
+                      <FormControl>
+                        <Input placeholder="UN, KG, PC..." {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
 
               <div className="grid sm:grid-cols-2 gap-4">
                 <FormField

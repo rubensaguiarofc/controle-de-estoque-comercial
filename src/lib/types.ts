@@ -14,9 +14,3 @@ export type WithdrawalRecord = {
   requestedBy: string; // Quem
   requestedFor:string; // Para Quem
 };
-
-export type WithdrawalItem = StockItem & {
-  quantity: number;
-  unit: string;
-};
-    

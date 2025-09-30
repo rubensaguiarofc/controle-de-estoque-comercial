@@ -2,25 +2,20 @@
 "use client";
 
 import { useEffect, useState, useMemo, forwardRef, useImperativeHandle } from "react";
-import { useForm, useFieldArray } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
 import { ptBR } from 'date-fns/locale';
 
-import type { StockItem, WithdrawalRecord, WithdrawalItem } from "@/lib/types";
+import type { StockItem, WithdrawalRecord } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { WithdrawalForm } from "./withdrawal-form";
 
 const formSchema = z.object({
-  withdrawalItems: z.array(z.object({
-    id: z.string(),
-    name: z.string(),
-    specifications: z.string(),
-    barcode: z.string().optional(),
-    quantity: z.coerce.number().min(1),
-    unit: z.string().min(1),
-  })).min(1, "Adicione pelo menos um item à retirada."),
+  selectedItem: z.string().min(1, "Selecione um item da lista."),
+  quantity: z.coerce.number().min(1, "A quantidade deve ser pelo menos 1."),
+  unit: z.string().min(1, "A unidade é obrigatória."),
   requestedBy: z.string().min(1, 'O campo "Quem" é obrigatório.').toUpperCase(),
   requestedFor: z.string().min(1, 'O campo "Para Quem" é obrigatório.').toUpperCase(),
 });
@@ -46,28 +41,20 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
     const form = useForm<WithdrawalFormValues>({
       resolver: zodResolver(formSchema),
       defaultValues: {
-        withdrawalItems: [],
+        selectedItem: "",
+        quantity: 1,
+        unit: 'UN',
         requestedBy: "",
         requestedFor: "",
       },
     });
 
-    const { fields, append, remove } = useFieldArray({
-      control: form.control,
-      name: "withdrawalItems"
-    });
-
     useImperativeHandle(ref, () => ({
       setFormItem(item: StockItem) {
-        const existingItemIndex = fields.findIndex(field => field.id === item.id);
-        if (existingItemIndex === -1) {
-            append({ ...item, quantity: 1, unit: 'UN' });
-        } else {
-            toast({ variant: 'destructive', title: "Item já adicionado", description: "Este item já está na lista de retirada."});
-        }
+        form.setValue('selectedItem', item.id);
       }
     }));
-
+    
     useEffect(() => {
         const storedHistory = localStorage.getItem("withdrawalHistory");
         if (storedHistory) {
@@ -94,30 +81,37 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
     }, [history]);
 
     const onSubmit = (values: WithdrawalFormValues) => {
-      const newRecords: WithdrawalRecord[] = values.withdrawalItems.map(item => ({
+      const selectedItem = stockItems.find(item => item.id === values.selectedItem);
+      if (!selectedItem) {
+        toast({
+          variant: "destructive",
+          title: "Erro",
+          description: "O item selecionado não foi encontrado.",
+        });
+        return;
+      }
+
+      const newRecord: WithdrawalRecord = {
         id: crypto.randomUUID(),
         date: new Date().toISOString(),
-        item: {
-          id: item.id,
-          name: item.name,
-          specifications: item.specifications,
-          barcode: item.barcode,
-        },
-        quantity: item.quantity,
-        unit: item.unit.toUpperCase(),
+        item: selectedItem,
+        quantity: values.quantity,
+        unit: values.unit.toUpperCase(),
         requestedBy: values.requestedBy.toUpperCase(),
         requestedFor: values.requestedFor.toUpperCase(),
-      }));
+      };
       
       onUpdateHistory(prevHistory => {
-        const updatedHistory = [...newRecords, ...prevHistory];
-        setHistory(updatedHistory);
+        const updatedHistory = [newRecord, ...prevHistory];
+        setHistory(updatedHistory); 
         return updatedHistory;
       });
 
-      toast({ title: "Sucesso!", description: "Retirada de múltiplos itens registrada." });
+      toast({ title: "Sucesso!", description: "Sua retirada foi registrada." });
       form.reset({
-        withdrawalItems: [],
+        selectedItem: "",
+        quantity: 1,
+        unit: 'UN',
         requestedBy: "",
         requestedFor: "",
       });
@@ -132,9 +126,6 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
           uniqueDestinations={uniqueDestinations}
           onSubmit={onSubmit}
           onSetIsAddItemDialogOpen={onSetIsAddItemDialogOpen}
-          withdrawalItems={fields as (WithdrawalItem & {id: string})[]}
-          onAppendItem={(item) => append(item)}
-          onRemoveItem={remove}
         />
     );
   }
