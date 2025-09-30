@@ -6,7 +6,7 @@ import { format } from "date-fns";
 import { ptBR } from 'date-fns/locale';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-import { Calendar as CalendarIcon, FileDown, Trash, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { Calendar as CalendarIcon, FileDown, Trash, X, ChevronLeft, ChevronRight, PenSquare } from "lucide-react";
 
 import type { WithdrawalRecord, ToolRecord } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -20,6 +20,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Badge } from "./ui/badge";
+import { SignatureDisplayDialog } from "./signature-display-dialog";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -40,6 +41,7 @@ declare global {
 export function HistoryPanel({ itemHistory, toolHistory, onDeleteItemRecord, onDeleteToolRecord }: HistoryPanelProps) {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("items");
+  const [signatureRecord, setSignatureRecord] = useState<ToolRecord | null>(null);
 
   const handleExportToPDF = () => {
     if (activeTab === 'items' && itemHistory.length === 0) {
@@ -94,6 +96,7 @@ export function HistoryPanel({ itemHistory, toolHistory, onDeleteItemRecord, onD
   };
 
   return (
+    <>
     <Card className="shadow-lg">
       <CardHeader className="flex-row items-start justify-between">
         <div>
@@ -115,11 +118,17 @@ export function HistoryPanel({ itemHistory, toolHistory, onDeleteItemRecord, onD
                 <ItemHistoryTab history={itemHistory} onDeleteRecord={onDeleteItemRecord} />
             </TabsContent>
             <TabsContent value="tools" className="mt-4">
-                <ToolHistoryTab history={toolHistory} onDeleteRecord={onDeleteToolRecord} />
+                <ToolHistoryTab history={toolHistory} onDeleteRecord={onDeleteToolRecord} onShowSignatures={setSignatureRecord} />
             </TabsContent>
         </Tabs>
       </CardContent>
     </Card>
+     <SignatureDisplayDialog 
+        record={signatureRecord}
+        isOpen={!!signatureRecord}
+        onOpenChange={(isOpen) => !isOpen && setSignatureRecord(null)}
+      />
+    </>
   );
 }
 
@@ -203,7 +212,7 @@ function ItemHistoryTab({ history, onDeleteRecord }: { history: WithdrawalRecord
 }
 
 // Sub-component for Tool History
-function ToolHistoryTab({ history, onDeleteRecord }: { history: ToolRecord[], onDeleteRecord: (id: string) => void }) {
+function ToolHistoryTab({ history, onDeleteRecord, onShowSignatures }: { history: ToolRecord[], onDeleteRecord: (id: string) => void, onShowSignatures: (record: ToolRecord) => void }) {
     // Similar filtering and pagination logic can be applied here if needed
     return (
         <Table>
@@ -214,6 +223,7 @@ function ToolHistoryTab({ history, onDeleteRecord }: { history: ToolRecord[], on
                     <TableHead>Data Retirada</TableHead>
                     <TableHead>Data Devolução</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Assinaturas</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
             </TableHeader>
@@ -230,6 +240,12 @@ function ToolHistoryTab({ history, onDeleteRecord }: { history: ToolRecord[], on
                                 : <Badge>Em uso</Badge>
                             }
                         </TableCell>
+                        <TableCell>
+                            <Button variant="ghost" size="icon" onClick={() => onShowSignatures(record)}>
+                                <PenSquare className="h-4 w-4" />
+                                <span className="sr-only">Ver assinaturas</span>
+                            </Button>
+                        </TableCell>
                         <TableCell className="text-right">
                           <AlertDialog>
                             <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="text-destructive hover:text-destructive"><Trash className="h-4 w-4" /></Button></AlertDialogTrigger>
@@ -242,7 +258,7 @@ function ToolHistoryTab({ history, onDeleteRecord }: { history: ToolRecord[], on
                     </TableRow>
                 )) : (
                     <TableRow>
-                        <TableCell colSpan={6} className="text-center h-24 text-muted-foreground">
+                        <TableCell colSpan={7} className="text-center h-24 text-muted-foreground">
                         Nenhum registro de movimentação de ferramentas.
                         </TableCell>
                     </TableRow>

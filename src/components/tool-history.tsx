@@ -2,6 +2,7 @@
 "use client";
 
 import { useState } from 'react';
+import { PenSquare } from 'lucide-react';
 import type { Tool, ToolRecord } from '@/lib/types';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
@@ -11,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Badge } from './ui/badge';
 import { ReturnToolDialog } from './return-tool-dialog';
 import { CheckoutToolDialog } from './checkout-tool-dialog';
+import { SignatureDisplayDialog } from './signature-display-dialog';
 
 interface ToolHistoryProps {
   tools: Tool[];
@@ -28,6 +30,8 @@ export function ToolHistory({ tools, history, onCheckout, onReturn }: ToolHistor
 
   const [isCheckoutDialogOpen, setCheckoutDialogOpen] = useState(false);
   const [checkingOutTool, setCheckingOutTool] = useState<Tool | null>(null);
+
+  const [signatureRecord, setSignatureRecord] = useState<ToolRecord | null>(null);
 
   const toolsOutRecords = history.filter(h => !h.returnDate);
   const toolsOutIds = toolsOutRecords.map(h => h.tool.id);
@@ -121,6 +125,7 @@ export function ToolHistory({ tools, history, onCheckout, onReturn }: ToolHistor
                           <TableHead>Local</TableHead>
                           <TableHead>Data Retirada</TableHead>
                           <TableHead>Status</TableHead>
+                          <TableHead>Assinatura</TableHead>
                           <TableHead className="text-right">Ação</TableHead>
                       </TableRow>
                   </TableHeader>
@@ -134,13 +139,19 @@ export function ToolHistory({ tools, history, onCheckout, onReturn }: ToolHistor
                               <TableCell>
                                   <Badge>Em uso</Badge>
                               </TableCell>
+                              <TableCell>
+                                <Button variant="ghost" size="icon" onClick={() => setSignatureRecord(record)}>
+                                  <PenSquare className="h-4 w-4" />
+                                  <span className="sr-only">Ver assinatura</span>
+                                </Button>
+                              </TableCell>
                               <TableCell className="text-right">
                                   <Button size="sm" onClick={() => handleOpenReturnDialog(record)}>Devolver</Button>
                               </TableCell>
                           </TableRow>
                       )) : (
                           <TableRow>
-                              <TableCell colSpan={6} className="text-center h-24 text-muted-foreground">
+                              <TableCell colSpan={7} className="text-center h-24 text-muted-foreground">
                               Nenhuma ferramenta em uso no momento.
                               </TableCell>
                           </TableRow>
@@ -166,6 +177,11 @@ export function ToolHistory({ tools, history, onCheckout, onReturn }: ToolHistor
           onConfirm={handleConfirmCheckout}
         />
       )}
+      <SignatureDisplayDialog 
+        record={signatureRecord}
+        isOpen={!!signatureRecord}
+        onOpenChange={(isOpen) => !isOpen && setSignatureRecord(null)}
+      />
     </>
   );
 }
