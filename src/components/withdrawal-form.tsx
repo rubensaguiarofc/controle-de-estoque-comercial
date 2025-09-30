@@ -143,10 +143,15 @@ export function WithdrawalForm({
                                         {stockItems.map((item) => (
                                             <CommandItem
                                                 key={item.id}
-                                                value={`${item.name} ${item.specifications}`}
-                                                onSelect={() => {
-                                                    setCurrentItem(item);
-                                                    setPopoverOpen(false);
+                                                value={item.id}
+                                                onSelect={(currentValue) => {
+                                                  const selected = stockItems.find(
+                                                    (stockItem) => stockItem.id.toLowerCase() === currentValue.toLowerCase()
+                                                  );
+                                                  if (selected) {
+                                                    setCurrentItem(selected);
+                                                  }
+                                                  setPopoverOpen(false);
                                                 }}
                                             >
                                                 {item.name}
