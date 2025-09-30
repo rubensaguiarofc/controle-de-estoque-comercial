@@ -2,7 +2,7 @@
 "use client";
 
 import { useForm, UseFormReturn } from "react-hook-form";
-import { PlusCircle, ScanLine } from "lucide-react";
+import { ScanLine } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,8 +32,7 @@ export function WithdrawalForm({
   stockItems,
   uniqueRequesters,
   uniqueDestinations,
-  onSubmit,
-  onSetIsAddItemDialogOpen
+  onSubmit
 }: WithdrawalFormProps) {
   const { toast } = useToast();
   const [isSearchScannerOpen, setSearchScannerOpen] = useState(false);
@@ -92,10 +91,6 @@ export function WithdrawalForm({
               <CardTitle>Registrar Retirada</CardTitle>
               <CardDescription>{currentDate}</CardDescription>
             </div>
-            <Button type="button" variant="outline" onClick={() => onSetIsAddItemDialogOpen(true)}>
-              <PlusCircle className="mr-2" />
-              Cadastrar Item
-            </Button>
           </div>
         </CardHeader>
         <CardContent className="flex flex-col gap-6">

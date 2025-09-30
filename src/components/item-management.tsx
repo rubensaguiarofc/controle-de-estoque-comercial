@@ -6,7 +6,7 @@ import type { StockItem } from '@/lib/types';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
-import { Edit, Trash, PlusCircle, Search, CheckCircle } from 'lucide-react';
+import { Edit, Trash, Search, CheckCircle } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from './ui/input';
@@ -67,10 +67,6 @@ export default function ItemManagement({
                 <CardTitle>Biblioteca de Itens</CardTitle>
                 <CardDescription>Clique em um item para selecioná-lo para retirada, ou use os botões para gerenciar.</CardDescription>
             </div>
-            <Button variant="outline" onClick={() => { onSetEditingItem(null); onSetIsAddItemDialogOpen(true)}}>
-              <PlusCircle className="mr-2" />
-              Cadastrar Item
-            </Button>
         </div>
       </CardHeader>
       <CardContent>

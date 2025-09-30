@@ -6,21 +6,18 @@ import type { StockItem, WithdrawalRecord } from "@/lib/types";
 import { MOCK_STOCK_ITEMS } from "@/lib/mock-data";
 import { useToast } from "@/hooks/use-toast";
 
-import { SaidaMarisLogo } from "./icons";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
+import { AppLogo } from "./icons";
 import StockReleaseClient from "./stock-release-client";
 import ItemManagement from "./item-management";
 import { AddItemDialog } from "./add-item-dialog";
-import { cn } from "@/lib/utils";
 import dynamic from "next/dynamic";
 import { Skeleton } from "./ui/skeleton";
+import BottomNavigation, { type View } from "./bottom-navigation";
 
 const HistoryPanel = dynamic(() => import('./history-panel').then(mod => mod.HistoryPanel), {
   ssr: false,
   loading: () => <HistoryPanelSkeleton />,
 });
-
-type View = 'release' | 'items' | 'history';
 
 export default function StockReleaseApp() {
   const { toast } = useToast();
@@ -122,58 +119,69 @@ export default function StockReleaseApp() {
     });
   };
   
-  const tabTriggerStyle = "pb-2 text-muted-foreground data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary";
-
+  const handleOpenAddItemDialog = () => {
+    setEditingItem(null);
+    setAddItemDialogOpen(true);
+  };
+  
+  const renderContent = () => {
+    switch (view) {
+      case 'release':
+        return (
+          <StockReleaseClient
+            ref={releaseClientRef}
+            stockItems={stockItems}
+            history={history}
+            onUpdateHistory={setHistory}
+            onSetIsAddItemDialogOpen={handleOpenAddItemDialog}
+          />
+        );
+      case 'items':
+        return (
+          <ItemManagement 
+            stockItems={stockItems}
+            onSetStockItems={setStockItems}
+            onSetIsAddItemDialogOpen={setAddItemDialogOpen}
+            onSetEditingItem={setEditingItem}
+            onSelectItemForRelease={handleSelectItemForRelease}
+          />
+        );
+      case 'history':
+        return (
+          <HistoryPanel
+            history={history}
+            onDeleteRecord={handleDeleteRecord}
+          />
+        );
+      default:
+        return null;
+    }
+  };
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-8 pb-24">
         <header className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <SaidaMarisLogo className="h-8 w-8 text-primary" />
+            <AppLogo className="h-8 w-8 text-primary" />
             <h1 className="text-3xl font-bold text-foreground tracking-tight">Controle de Estoque</h1>
           </div>
         </header>
 
-        <Tabs value={view} onValueChange={(value) => setView(value as View)} className="w-full">
-            <TabsList className="bg-transparent p-0 justify-start gap-6 border-b">
-                <TabsTrigger value="release" className={cn(tabTriggerStyle, 'rounded-none shadow-none px-0')}>Lançamento</TabsTrigger>
-                <TabsTrigger value="items" className={cn(tabTriggerStyle, 'rounded-none shadow-none px-0')}>Itens</TabsTrigger>
-                <TabsTrigger value="history" className={cn(tabTriggerStyle, 'rounded-none shadow-none px-0')}>Histórico</TabsTrigger>
-            </TabsList>
-            <TabsContent value="release" className="mt-6">
-                <StockReleaseClient
-                    ref={releaseClientRef}
-                    stockItems={stockItems}
-                    history={history}
-                    onUpdateHistory={setHistory}
-                    onSetIsAddItemDialogOpen={() => {
-                        setEditingItem(null);
-                        setAddItemDialogOpen(true);
-                    }}
-                />
-            </TabsContent>
-            <TabsContent value="items" className="mt-6">
-                <ItemManagement 
-                    stockItems={stockItems}
-                    onSetStockItems={setStockItems}
-                    onSetIsAddItemDialogOpen={setAddItemDialogOpen}
-                    onSetEditingItem={setEditingItem}
-                    onSelectItemForRelease={handleSelectItemForRelease}
-                />
-            </TabsContent>
-            <TabsContent value="history" className="mt-6">
-                <HistoryPanel
-                  history={history}
-                  onDeleteRecord={handleDeleteRecord}
-                />
-            </TabsContent>
-        </Tabs>
+        <main className="mt-6">
+          {renderContent()}
+        </main>
         
         <AddItemDialog
             isOpen={isAddItemDialogOpen}
             onOpenChange={handleDialogClose}
             onAddItem={handleDialogSubmit}
             editingItem={editingItem}
+        />
+
+        <BottomNavigation 
+          currentView={view}
+          onViewChange={setView}
+          onAddItemClick={handleOpenAddItemDialog}
         />
     </div>
   )
