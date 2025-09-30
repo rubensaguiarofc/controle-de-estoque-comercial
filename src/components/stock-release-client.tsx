@@ -133,7 +133,7 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
           onSubmit={onSubmit}
           onSetIsAddItemDialogOpen={onSetIsAddItemDialogOpen}
           withdrawalItems={fields as (WithdrawalItem & {id: string})[]}
-          onAppendItem={append}
+          onAppendItem={(item) => append(item)}
           onRemoveItem={remove}
         />
     );

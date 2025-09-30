@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { UseFormReturn, FieldArrayWithId } from "react-hook-form";
+import { UseFormReturn } from "react-hook-form";
 import { Plus, ScanLine } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -38,7 +38,7 @@ interface WithdrawalFormProps {
   uniqueDestinations: string[];
   onSubmit: (values: WithdrawalFormValues) => void;
   onSetIsAddItemDialogOpen: (isOpen: boolean) => void;
-  withdrawalItems: FieldArrayWithId<WithdrawalFormValues, "withdrawalItems", "id">[];
+  withdrawalItems: (WithdrawalItem & { id: string })[];
   onAppendItem: (item: WithdrawalItem) => void;
   onRemoveItem: (index: number) => void;
 }
@@ -57,30 +57,26 @@ export function WithdrawalForm({
   const { toast } = useToast();
   const [isSearchScannerOpen, setSearchScannerOpen] = useState(false);
   const [popoverOpen, setPopoverOpen] = useState(false);
-  const [currentItem, setCurrentItem] = useState<StockItem | null>(null);
-  const [quantity, setQuantity] = useState(1);
-  const [unit, setUnit] = useState('UN');
 
-  const handleAddItemToCart = () => {
-    if (!currentItem) {
-      toast({ variant: 'destructive', title: 'Nenhum item selecionado' });
+  const handleAddItemToCart = (itemId: string) => {
+    const itemToAdd = stockItems.find(item => item.id === itemId);
+    if (!itemToAdd) {
+      toast({ variant: 'destructive', title: 'Item não encontrado' });
       return;
     }
-    const existingItemIndex = withdrawalItems.findIndex(field => field.id === currentItem.id);
-    if (existingItemIndex !== -1) {
+
+    const isAlreadyInCart = withdrawalItems.some(item => item.id === itemToAdd.id);
+    if (isAlreadyInCart) {
       toast({ variant: 'destructive', title: 'Item já adicionado' });
       return;
     }
-
-    onAppendItem({ ...currentItem, quantity, unit });
-    setCurrentItem(null);
-    setQuantity(1);
-    setUnit('UN');
+    onAppendItem({ ...itemToAdd, quantity: 1, unit: 'UN' });
+    toast({ title: 'Item Adicionado', description: `"${itemToAdd.name}" foi adicionado à cesta.`});
   };
 
   const handleScanSuccess = (foundItem: StockItem) => {
-    const existingItemIndex = withdrawalItems.findIndex(field => field.id === foundItem.id);
-    if (existingItemIndex === -1) {
+    const isAlreadyInCart = withdrawalItems.some(item => item.id === foundItem.id);
+    if (!isAlreadyInCart) {
         onAppendItem({ ...foundItem, quantity: 1, unit: 'UN' });
         toast({ title: "Item Adicionado", description: `Item "${foundItem.name}" adicionado à lista.` });
     } else {
@@ -121,16 +117,18 @@ export function WithdrawalForm({
               </div>
             </CardHeader>
             <CardContent className="flex flex-col gap-6">
-                <div className="space-y-4">
+                <div className="space-y-2">
                     <Label>Itens para Retirada</Label>
                     <div className="p-4 border rounded-lg space-y-4 bg-muted/20">
                       <WithdrawalCart items={withdrawalItems} onRemove={onRemoveItem} />
-                      <div className="flex items-end gap-2 pt-2">
-                        
+                      <FormMessage>{form.formState.errors.withdrawalItems?.message || form.formState.errors.withdrawalItems?.root?.message}</FormMessage>
+                    </div>
+
+                    <div className="flex items-end gap-2 pt-2">
                       <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
                         <PopoverTrigger asChild>
                             <Button type="button" variant="outline" className="w-full justify-start">
-                                {currentItem ? currentItem.name : 'Selecione um item...'}
+                                Selecione um item para adicionar...
                             </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
@@ -144,10 +142,7 @@ export function WithdrawalForm({
                                                 key={item.id}
                                                 value={item.id}
                                                 onSelect={(currentValue) => {
-                                                  const selected = stockItems.find(
-                                                    (stockItem) => stockItem.id.toLowerCase() === currentValue.toLowerCase()
-                                                  );
-                                                  setCurrentItem(selected || null);
+                                                  handleAddItemToCart(currentValue);
                                                   setPopoverOpen(false);
                                                 }}
                                             >
@@ -159,27 +154,6 @@ export function WithdrawalForm({
                             </Command>
                         </PopoverContent>
                       </Popover>
-
-                        <div className="flex gap-2">
-                            <Input
-                                type="number"
-                                value={quantity}
-                                onChange={(e) => setQuantity(Number(e.target.value))}
-                                className="w-20"
-                                placeholder="Qtd"
-                            />
-                            <Input
-                                value={unit}
-                                onChange={(e) => setUnit(e.target.value.toUpperCase())}
-                                className="w-20"
-                                placeholder="Un"
-                            />
-                            <Button type="button" size="icon" onClick={handleAddItemToCart} disabled={!currentItem}>
-                                <Plus />
-                            </Button>
-                        </div>
-                      </div>
-                      <FormMessage>{form.formState.errors.withdrawalItems?.message}</FormMessage>
                     </div>
                 </div>
 
