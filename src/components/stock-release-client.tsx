@@ -29,7 +29,7 @@ export type WithdrawalFormValues = z.infer<typeof formSchema>;
 
 interface StockReleaseClientProps {
   stockItems: StockItem[];
-  onUpdateHistory: (history: WithdrawalRecord[]) => void;
+  onUpdateHistory: (callback: (history: WithdrawalRecord[]) => WithdrawalRecord[]) => void;
   onSetIsAddItemDialogOpen: (isOpen: boolean) => void;
 }
 
@@ -57,10 +57,8 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
       name: "withdrawalItems"
     });
 
-    // Note: This imperative handle might need adjustment for multi-item logic
     useImperativeHandle(ref, () => ({
       setFormItem(item: StockItem) {
-        // This now adds the item to the list instead of setting a single one
         const existingItemIndex = fields.findIndex(field => field.id === item.id);
         if (existingItemIndex === -1) {
             append({ ...item, quantity: 1, unit: 'UN' });
@@ -111,9 +109,11 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
         requestedFor: values.requestedFor.toUpperCase(),
       }));
       
-      const updatedHistory = [...newRecords, ...history];
-      onUpdateHistory(updatedHistory);
-      setHistory(updatedHistory);
+      onUpdateHistory(prevHistory => {
+        const updatedHistory = [...newRecords, ...prevHistory];
+        setHistory(updatedHistory);
+        return updatedHistory;
+      });
 
       toast({ title: "Sucesso!", description: "Retirada de múltiplos itens registrada." });
       form.reset({
@@ -132,7 +132,7 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
           uniqueDestinations={uniqueDestinations}
           onSubmit={onSubmit}
           onSetIsAddItemDialogOpen={onSetIsAddItemDialogOpen}
-          withdrawalItems={fields}
+          withdrawalItems={fields as (WithdrawalItem & {id: string})[]}
           onAppendItem={append}
           onRemoveItem={remove}
         />

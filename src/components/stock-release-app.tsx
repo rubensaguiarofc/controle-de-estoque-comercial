@@ -56,17 +56,18 @@ export default function StockReleaseApp() {
   }, [history, stockItems, isInitialLoad]);
 
   const handleAddItem = useCallback((newItem: Omit<StockItem, 'id'>) => {
-    const newIdNumber = (stockItems.length > 0 ? Math.max(...stockItems.map(item => parseInt(item.id.split('-')[1]))) + 1 : 1).toString().padStart(3, '0');
-    const newId = `ITM-${newIdNumber}`;
-    const itemWithId: StockItem = { ...newItem, id: newId, barcode: newItem.barcode || '' };
-    
-    setStockItems(prev => [...prev, itemWithId]);
+    setStockItems(prev => {
+      const newIdNumber = (prev.length > 0 ? Math.max(...prev.map(item => parseInt(item.id.split('-')[1]))) + 1 : 1).toString().padStart(3, '0');
+      const newId = `ITM-${newIdNumber}`;
+      const itemWithId: StockItem = { ...newItem, id: newId, barcode: newItem.barcode || '' };
+      return [...prev, itemWithId];
+    });
     setAddItemDialogOpen(false);
     toast({
       title: "Item Adicionado",
       description: `${newItem.name} foi adicionado ao estoque.`,
     })
-  }, [stockItems, toast]);
+  }, [toast]);
 
   const handleUpdateItem = useCallback((updatedItem: StockItem) => {
     setStockItems(prev => prev.map(item => item.id === updatedItem.id ? updatedItem : item));
@@ -94,11 +95,13 @@ export default function StockReleaseApp() {
   }
 
   const handleDeleteRecord = (recordId: string) => {
-    const updatedHistory = history.filter(record => record.id !== recordId);
-    setHistory(updatedHistory);
-    toast({
-      title: "Registro Excluído",
-      description: "O registro de retirada foi removido do histórico.",
+    setHistory(prevHistory => {
+      const updatedHistory = prevHistory.filter(record => record.id !== recordId);
+      toast({
+        title: "Registro Excluído",
+        description: "O registro de retirada foi removido do histórico.",
+      });
+      return updatedHistory;
     });
   };
 

@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { UseFormReturn } from "react-hook-form";
+import { UseFormReturn, useFieldArray, FieldArrayWithId } from "react-hook-form";
 import { Plus, ScanLine } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -38,7 +38,7 @@ interface WithdrawalFormProps {
   uniqueDestinations: string[];
   onSubmit: (values: WithdrawalFormValues) => void;
   onSetIsAddItemDialogOpen: (isOpen: boolean) => void;
-  withdrawalItems: (StockItem & { quantity: number; unit: string; })[];
+  withdrawalItems: FieldArrayWithId<WithdrawalFormValues, "withdrawalItems", "id">[];
   onAppendItem: (item: WithdrawalItem) => void;
   onRemoveItem: (index: number) => void;
 }
@@ -144,8 +144,9 @@ export function WithdrawalForm({
                                             <CommandItem
                                                 key={item.id}
                                                 value={item.name}
-                                                onSelect={() => {
-                                                    setCurrentItem(item);
+                                                onSelect={(currentValue) => {
+                                                    const selected = stockItems.find(i => i.name.toLowerCase() === currentValue.toLowerCase())
+                                                    setCurrentItem(selected || null);
                                                     setPopoverOpen(false);
                                                 }}
                                             >
