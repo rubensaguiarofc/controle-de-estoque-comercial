@@ -6,50 +6,53 @@ import type { Tool, ToolRecord } from '@/lib/types';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Input } from './ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Plus } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Badge } from './ui/badge';
 import { ReturnToolDialog } from './return-tool-dialog';
+import { CheckoutToolDialog } from './checkout-tool-dialog';
 
 interface ToolHistoryProps {
   tools: Tool[];
   history: ToolRecord[];
-  onCheckout: (tool: Tool, checkedOutBy: string, usageLocation: string) => void;
+  onCheckout: (tool: Tool, checkedOutBy: string, usageLocation: string, checkoutSignature: string) => void;
   onReturn: (recordId: string, isDamaged: boolean, damageDescription?: string, damagePhoto?: string, signature?: string) => void;
 }
 
 export function ToolHistory({ tools, history, onCheckout, onReturn }: ToolHistoryProps) {
   const { toast } = useToast();
   const [selectedToolId, setSelectedToolId] = useState('');
-  const [checkedOutBy, setCheckedOutBy] = useState('');
-  const [usageLocation, setUsageLocation] = useState('');
-
+  
   const [isReturnDialogOpen, setReturnDialogOpen] = useState(false);
   const [returningRecord, setReturningRecord] = useState<ToolRecord | null>(null);
+
+  const [isCheckoutDialogOpen, setCheckoutDialogOpen] = useState(false);
+  const [checkingOutTool, setCheckingOutTool] = useState<Tool | null>(null);
 
   const toolsOut = history.filter(h => !h.returnDate).map(h => h.tool.id);
   const availableTools = tools.filter(t => !toolsOut.includes(t.id));
 
-  const handleCheckout = () => {
-    if (!selectedToolId || !checkedOutBy || !usageLocation) {
-      toast({
-        variant: "destructive",
-        title: "Campos obrigatórios",
-        description: "Preencha todos os campos para registrar a retirada.",
-      });
+  const handleOpenCheckout = () => {
+    if (!selectedToolId) {
+      toast({ variant: 'destructive', title: 'Nenhuma ferramenta selecionada' });
       return;
     }
-    const tool = tools.find(t => t.id === selectedToolId);
+    const tool = availableTools.find(t => t.id === selectedToolId);
     if (tool) {
-      onCheckout(tool, checkedOutBy, usageLocation);
-      toast({ title: "Retirada Registrada", description: `${tool.name} retirada por ${checkedOutBy}.`});
-      setSelectedToolId('');
-      setCheckedOutBy('');
-      setUsageLocation('');
+        setCheckingOutTool(tool);
+        setCheckoutDialogOpen(true);
     }
   };
+
+  const handleConfirmCheckout = (data: { checkedOutBy: string; usageLocation: string; signature: string }) => {
+    if (checkingOutTool) {
+        onCheckout(checkingOutTool, data.checkedOutBy, data.usageLocation, data.signature);
+        toast({ title: 'Retirada Registrada', description: `${checkingOutTool.name} retirada por ${data.checkedOutBy}.`});
+    }
+    setCheckoutDialogOpen(false);
+    setCheckingOutTool(null);
+    setSelectedToolId('');
+  }
 
   const handleOpenReturnDialog = (record: ToolRecord) => {
     setReturningRecord(record);
@@ -77,12 +80,12 @@ export function ToolHistory({ tools, history, onCheckout, onReturn }: ToolHistor
         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle>Registrar Retirada de Ferramenta</CardTitle>
-            <CardDescription>Selecione a ferramenta, o responsável e o local de uso.</CardDescription>
+            <CardDescription>Selecione a ferramenta disponível e clique em retirar.</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid sm:grid-cols-[1fr_1fr_1fr_auto] gap-2 items-end">
+            <div className="grid sm:grid-cols-[1fr_auto] gap-2 items-end">
               <div className="space-y-2">
-                  <label className="text-sm font-medium">Ferramenta</label>
+                  <label className="text-sm font-medium">Ferramenta Disponível</label>
                   <Select onValueChange={setSelectedToolId} value={selectedToolId}>
                       <SelectTrigger>
                           <SelectValue placeholder="Selecione uma ferramenta" />
@@ -96,25 +99,8 @@ export function ToolHistory({ tools, history, onCheckout, onReturn }: ToolHistor
                       </SelectContent>
                   </Select>
               </div>
-              <div className="space-y-2">
-                  <label className="text-sm font-medium">Retirado por</label>
-                  <Input
-                      placeholder="Nome do responsável"
-                      value={checkedOutBy}
-                      onChange={(e) => setCheckedOutBy(e.target.value)}
-                  />
-              </div>
-              <div className="space-y-2">
-                  <label className="text-sm font-medium">Local de Uso</label>
-                  <Input
-                      placeholder="Ex: OBRA-01, OFICINA"
-                      value={usageLocation}
-                      onChange={(e) => setUsageLocation(e.target.value)}
-                  />
-              </div>
-              <Button size="icon" onClick={handleCheckout}>
-                <Plus className="h-4 w-4" />
-                <span className="sr-only">Adicionar</span>
+              <Button onClick={handleOpenCheckout}>
+                Retirar Ferramenta
               </Button>
             </div>
           </CardContent>
@@ -174,6 +160,14 @@ export function ToolHistory({ tools, history, onCheckout, onReturn }: ToolHistor
           onOpenChange={setReturnDialogOpen}
           record={returningRecord}
           onConfirm={handleConfirmReturn}
+        />
+      )}
+      {checkingOutTool && (
+        <CheckoutToolDialog
+          isOpen={isCheckoutDialogOpen}
+          onOpenChange={setCheckoutDialogOpen}
+          tool={checkingOutTool}
+          onConfirm={handleConfirmCheckout}
         />
       )}
     </>

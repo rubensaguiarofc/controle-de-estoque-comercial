@@ -25,13 +25,14 @@ export default function ToolManagement({
   onSetIsAddToolDialogOpen
 }: ToolManagementProps) {
 
-  const handleCheckout = (tool: Tool, checkedOutBy: string, usageLocation: string) => {
+  const handleCheckout = (tool: Tool, checkedOutBy: string, usageLocation: string, checkoutSignature: string) => {
     const newRecord: ToolRecord = {
       id: `TR-${Date.now()}`,
       tool,
       checkoutDate: new Date().toISOString(),
       checkedOutBy: checkedOutBy.toUpperCase(),
       usageLocation: usageLocation.toUpperCase(),
+      checkoutSignature,
     };
     setToolHistory([newRecord, ...toolHistory]);
   };
@@ -45,7 +46,7 @@ export default function ToolManagement({
           isDamaged,
           damageDescription: damageDescription?.toUpperCase(),
           damagePhoto,
-          signature
+          returnSignature: signature
         } 
       : rec
     ));

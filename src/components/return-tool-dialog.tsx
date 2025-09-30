@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import SignatureCanvas from 'react-signature-canvas';
 import { Camera, Eraser, Undo } from 'lucide-react';
 import type { ToolRecord } from '@/lib/types';
@@ -29,6 +29,16 @@ export function ReturnToolDialog({ isOpen, onOpenChange, record, onConfirm }: Re
   const signaturePadRef = useRef<SignatureCanvas>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    // Reset state when dialog opens or record changes
+    if (isOpen) {
+      setIsDamaged(undefined);
+      setDamageDescription('');
+      setDamagePhoto('');
+      signaturePadRef.current?.clear();
+    }
+  }, [isOpen, record]);
+
   const handleClearSignature = () => signaturePadRef.current?.clear();
   
   const handleSave = () => {
@@ -46,6 +56,15 @@ export function ReturnToolDialog({ isOpen, onOpenChange, record, onConfirm }: Re
             variant: 'destructive',
             title: 'Campo Obrigatório',
             description: 'Por favor, informe se a ferramenta foi devolvida com avaria.',
+        });
+        return;
+    }
+
+    if (isDamaged && !damageDescription) {
+        toast({
+            variant: 'destructive',
+            title: 'Campo Obrigatório',
+            description: 'Por favor, descreva a avaria encontrada na ferramenta.',
         });
         return;
     }
@@ -73,13 +92,6 @@ export function ReturnToolDialog({ isOpen, onOpenChange, record, onConfirm }: Re
   };
 
   const handleDialogClose = (open: boolean) => {
-    if (!open) {
-      // Reset state when closing
-      setIsDamaged(undefined);
-      setDamageDescription('');
-      setDamagePhoto('');
-      signaturePadRef.current?.clear();
-    }
     onOpenChange(open);
   };
 
@@ -99,6 +111,7 @@ export function ReturnToolDialog({ isOpen, onOpenChange, record, onConfirm }: Re
             <RadioGroup
               onValueChange={(value) => setIsDamaged(value === 'yes')}
               className="flex gap-4"
+              value={isDamaged === undefined ? '' : (isDamaged ? 'yes' : 'no')}
             >
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="yes" id="damage-yes" />
@@ -115,7 +128,7 @@ export function ReturnToolDialog({ isOpen, onOpenChange, record, onConfirm }: Re
             <div className="space-y-4 p-4 border rounded-md animate-in fade-in-50">
               <h4 className="font-medium text-destructive">Detalhes da Avaria</h4>
               <div className="space-y-2">
-                <Label htmlFor="damage-description">Descrição da Avaria</Label>
+                <Label htmlFor="damage-description">Descrição da Avaria (Obrigatório)</Label>
                 <Textarea
                   id="damage-description"
                   placeholder="Ex: Cabo quebrado, não liga mais..."
@@ -182,4 +195,3 @@ export function ReturnToolDialog({ isOpen, onOpenChange, record, onConfirm }: Re
     </Dialog>
   );
 }
-

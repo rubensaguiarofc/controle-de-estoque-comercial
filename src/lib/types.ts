@@ -33,9 +33,10 @@ export type ToolRecord = {
   checkoutDate: string;
   checkedOutBy: string;
   usageLocation: string;
+  checkoutSignature: string; // Data URI da assinatura de retirada
   returnDate?: string;
   isDamaged?: boolean;
   damageDescription?: string;
   damagePhoto?: string; // Data URI da foto
-  signature?: string; // Data URI da assinatura
+  returnSignature?: string; // Data URI da assinatura de devolução
 };
