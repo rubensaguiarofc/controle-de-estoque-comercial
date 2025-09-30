@@ -2,16 +2,28 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import dynamic from 'next/dynamic';
 import type { StockItem, WithdrawalRecord } from "@/lib/types";
 import { MOCK_STOCK_ITEMS } from "@/lib/mock-data";
 import { useToast } from "@/hooks/use-toast";
 import { Boxes, History, PackagePlus, RefreshCw } from "lucide-react";
 
-import StockReleaseClient, { type StockReleaseClientRef } from "./stock-release-client";
-import ItemManagement from "./item-management";
-import { AddItemDialog } from "./add-item-dialog";
-import { HistoryPanel } from "./history-panel";
 import { Sidebar, SidebarContent, SidebarInset, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarTrigger } from "./ui/sidebar";
+import { AddItemDialog } from "./add-item-dialog";
+import type { StockReleaseClientRef } from "./stock-release-client";
+import { Skeleton } from "./ui/skeleton";
+
+const StockReleaseClient = dynamic(() => import('./stock-release-client'), {
+  loading: () => <ClientSkeleton />,
+  ssr: false,
+});
+const ItemManagement = dynamic(() => import('./item-management'), {
+  loading: () => <ManagementSkeleton />,
+});
+const HistoryPanel = dynamic(() => import('./history-panel'), {
+  loading: () => <HistorySkeleton />,
+});
+
 
 type View = "release" | "items" | "history";
 
@@ -209,4 +221,83 @@ export default function StockReleaseApp() {
       />
     </div>
   )
+}
+
+function ClientSkeleton() {
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <Skeleton className="h-8 w-64" />
+          <Skeleton className="h-4 w-80 mt-2" />
+        </div>
+        <Skeleton className="h-10 w-10 rounded-full" />
+      </div>
+      <div className="p-4 border rounded-lg space-y-4">
+        <Skeleton className="h-6 w-48" />
+        <div className="grid sm:grid-cols-[1fr_80px_100px_auto] gap-2 items-end">
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-10" />
+        </div>
+      </div>
+      <Skeleton className="h-24 w-full rounded-lg" />
+      <div className="grid sm:grid-cols-2 gap-4">
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-10 w-full" />
+      </div>
+      <div className="flex justify-end gap-2">
+        <Skeleton className="h-10 w-28" />
+        <Skeleton className="h-10 w-36" />
+      </div>
+    </div>
+  );
+}
+
+function ManagementSkeleton() {
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <div>
+          <Skeleton className="h-8 w-64" />
+          <Skeleton className="h-4 w-72 mt-2" />
+        </div>
+        <Skeleton className="h-10 w-48" />
+      </div>
+      <Skeleton className="h-10 w-full" />
+      <div className="border rounded-lg">
+        <Skeleton className="h-12 w-full" />
+        {[...Array(5)].map((_, i) => (
+          <Skeleton key={i} className="h-14 w-full border-t" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function HistorySkeleton() {
+    return (
+      <div className="space-y-4">
+        <div className="flex justify-between items-center">
+            <div>
+                <Skeleton className="h-8 w-64" />
+                <Skeleton className="h-4 w-72 mt-2" />
+            </div>
+            <Skeleton className="h-10 w-36" />
+        </div>
+        <div className="grid sm:grid-cols-2 gap-4">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+        </div>
+        <div className="border rounded-lg">
+          <Skeleton className="h-12 w-full" />
+          {[...Array(5)].map((_, i) => (
+            <Skeleton key={i} className="h-14 w-full border-t" />
+          ))}
+        </div>
+      </div>
+    );
 }
