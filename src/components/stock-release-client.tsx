@@ -77,6 +77,12 @@ const StockReleaseClient = forwardRef<unknown, StockReleaseClientProps>(
       setWithdrawalItems(prev => prev.map(item => item.item.id === itemId ? { ...item, quantity } : item));
     }
 
+    const handleClearCart = () => {
+      form.reset({ requestedBy: "", requestedFor: "" });
+      setWithdrawalItems([]);
+      toast({ title: "Campos Limpos", description: "Todos os campos de entrada foram redefinidos." });
+    };
+
 
     const onSubmit = (values: WithdrawalFormValues) => {
       if (withdrawalItems.length === 0) {
@@ -120,6 +126,7 @@ const StockReleaseClient = forwardRef<unknown, StockReleaseClientProps>(
           onAppendItem={handleAppendItem}
           onRemoveItem={handleRemoveItem}
           onUpdateItemQuantity={handleUpdateItemQuantity}
+          onClearCart={handleClearCart}
         />
     );
   }

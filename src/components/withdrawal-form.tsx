@@ -28,6 +28,7 @@ interface WithdrawalFormProps {
   onAppendItem: (item: WithdrawalItem) => void;
   onRemoveItem: (itemId: string) => void;
   onUpdateItemQuantity: (itemId: string, quantity: number) => void;
+  onClearCart: () => void;
 }
 
 export function WithdrawalForm({
@@ -41,6 +42,7 @@ export function WithdrawalForm({
   onAppendItem,
   onRemoveItem,
   onUpdateItemQuantity,
+  onClearCart,
 }: WithdrawalFormProps) {
   const { toast } = useToast();
   const [isSearchScannerOpen, setSearchScannerOpen] = useState(false);
@@ -78,12 +80,6 @@ export function WithdrawalForm({
     }
   };
 
-  const handleClear = () => {
-    form.reset({ requestedBy: "", requestedFor: "" });
-    withdrawalItems.forEach(item => onRemoveItem(item.item.id));
-    toast({ title: "Campos Limpos", description: "Todos os campos de entrada foram redefinidos." });
-  };
-  
   return (
     <>
       <Form {...form}>
@@ -181,7 +177,7 @@ export function WithdrawalForm({
               </div>
             </CardContent>
             <CardFooter className="px-6 pt-6 flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={handleClear}>Limpar Tudo</Button>
+              <Button type="button" variant="outline" onClick={onClearCart}>Limpar Tudo</Button>
               <Button type="submit">Salvar Retirada</Button>
             </CardFooter>
           </Card>
