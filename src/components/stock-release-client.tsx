@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState, forwardRef, useImperativeHandle } from "react";
+import { useEffect, useState, forwardRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -21,16 +21,12 @@ export type WithdrawalFormValues = z.infer<typeof formSchema>;
 
 interface StockReleaseClientProps {
   stockItems: StockItem[];
-  onUpdateHistory: (callback: (history: WithdrawalRecord[]) => WithdrawalRecord[]) => void;
+  onUpdateHistory: (records: WithdrawalRecord[]) => void;
   uniqueRequesters: string[];
   uniqueDestinations: string[];
 }
 
-export interface StockReleaseClientRef {
-  setFormItem: (item: StockItem) => void;
-}
-
-const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientProps>(
+const StockReleaseClient = forwardRef<unknown, StockReleaseClientProps>(
   ({ stockItems, onUpdateHistory, uniqueRequesters, uniqueDestinations }, ref) => {
     const { toast } = useToast();
     const [currentDate, setCurrentDate] = useState("");
@@ -43,35 +39,30 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
         requestedFor: "",
       },
     });
-
-    useImperativeHandle(ref, () => ({
-      setFormItem(item: StockItem) {
-        handleAppendItem({ item, quantity: 1, unit: 'UN' });
-        toast({
-          title: "Item Adicionado à Cesta",
-          description: `"${item.name}" foi adicionado e está pronto para a retirada.`,
-        });
-      }
-    }));
     
     useEffect(() => {
       setCurrentDate(format(new Date(), "eeee, dd 'de' MMMM 'de' yyyy", { locale: ptBR }));
     }, []);
     
     const handleAppendItem = (item: WithdrawalItem) => {
-      const existingItemIndex = withdrawalItems.findIndex(cartItem => cartItem.item.id === item.item.id);
-
-      if (existingItemIndex > -1) {
-        const updatedItems = [...withdrawalItems];
-        updatedItems[existingItemIndex].quantity += item.quantity;
-        setWithdrawalItems(updatedItems);
-        toast({
-          title: "Quantidade Atualizada",
-          description: `A quantidade de "${item.item.name}" foi atualizada na cesta.`,
-        });
-      } else {
-        setWithdrawalItems(prev => [...prev, item]);
-      }
+      setWithdrawalItems(prev => {
+        const existingItemIndex = prev.findIndex(cartItem => cartItem.item.id === item.item.id);
+        if (existingItemIndex > -1) {
+          const updatedItems = [...prev];
+          updatedItems[existingItemIndex].quantity += item.quantity;
+          toast({
+            title: "Quantidade Atualizada",
+            description: `A quantidade de "${item.item.name}" foi atualizada na cesta.`,
+          });
+          return updatedItems;
+        } else {
+          toast({
+            title: "Item Adicionado",
+            description: `"${item.item.name}" foi adicionado à cesta.`,
+          });
+          return [...prev, item];
+        }
+      });
     };
     
     const handleRemoveItem = (itemId: string) => {
@@ -107,7 +98,7 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
         requestedFor: values.requestedFor.toUpperCase(),
       }));
       
-      onUpdateHistory(prevHistory => [...newRecords, ...prevHistory]);
+      onUpdateHistory(newRecords);
 
       toast({ title: "Sucesso!", description: `${newRecords.length} retirada(s) foram registradas.` });
       form.reset({

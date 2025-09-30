@@ -20,3 +20,21 @@ export type WithdrawalRecord = {
   requestedBy: string; // Quem
   requestedFor:string; // Para Quem
 };
+
+export type Tool = {
+  id: string;
+  name: string;
+  assetId: string; // Patrimônio
+};
+
+export type ToolRecord = {
+  id: string;
+  tool: Tool;
+  checkoutDate: string;
+  checkedOutBy: string;
+  returnDate?: string;
+  isDamaged?: boolean;
+  damageDescription?: string;
+  damagePhoto?: string; // Data URI da foto
+  signature?: string; // Data URI da assinatura
+};

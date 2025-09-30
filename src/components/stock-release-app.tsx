@@ -1,16 +1,15 @@
 
 "use client";
 
-import { useEffect, useState, useCallback, useRef, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import dynamic from 'next/dynamic';
-import type { StockItem, WithdrawalRecord } from "@/lib/types";
+import type { StockItem, WithdrawalRecord, Tool, ToolRecord } from "@/lib/types";
 import { MOCK_STOCK_ITEMS } from "@/lib/mock-data";
 import { useToast } from "@/hooks/use-toast";
-import { Boxes, History, PackagePlus, RefreshCw } from "lucide-react";
+import { Boxes, History, PackagePlus, RefreshCw, Wrench } from "lucide-react";
 
 import { Sidebar, SidebarContent, SidebarInset, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarTrigger } from "./ui/sidebar";
 import { AddItemDialog } from "./add-item-dialog";
-import type { StockReleaseClientRef } from "./stock-release-client";
 import { Skeleton } from "./ui/skeleton";
 
 const StockReleaseClient = dynamic(() => import('./stock-release-client'), {
@@ -19,53 +18,72 @@ const StockReleaseClient = dynamic(() => import('./stock-release-client'), {
 });
 const ItemManagement = dynamic(() => import('./item-management'), {
   loading: () => <ManagementSkeleton />,
+  ssr: false,
 });
 const HistoryPanel = dynamic(() => import('./history-panel').then(mod => mod.HistoryPanel), {
   loading: () => <HistorySkeleton />,
+  ssr: false,
+});
+const ToolManagement = dynamic(() => import('./tool-management'), {
+  loading: () => <ManagementSkeleton />, // Re-use skeleton for now
+  ssr: false,
 });
 
 
-type View = "release" | "items" | "history";
+type View = "release" | "items" | "history" | "tools";
 
 export default function StockReleaseApp() {
   const { toast } = useToast();
   const [stockItems, setStockItems] = useState<StockItem[]>([]);
   const [history, setHistory] = useState<WithdrawalRecord[]>([]);
+  const [tools, setTools] = useState<Tool[]>([]);
+  const [toolHistory, setToolHistory] = useState<ToolRecord[]>([]);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [isAddItemDialogOpen, setAddItemDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<StockItem | null>(null);
   const [activeView, setActiveView] = useState<View>("release");
-  const stockReleaseClientRef = useRef<StockReleaseClientRef>(null);
 
   useEffect(() => {
     try {
+      // Load stock and history
       const storedHistory = localStorage.getItem("withdrawalHistory");
-      if (storedHistory) {
-        setHistory(JSON.parse(storedHistory));
-      }
+      if (storedHistory) setHistory(JSON.parse(storedHistory));
+      
       const storedStockItems = localStorage.getItem("stockItems");
       if (storedStockItems) {
         setStockItems(JSON.parse(storedStockItems));
       } else {
         setStockItems(MOCK_STOCK_ITEMS);
       }
+
+      // Load tools and tool history
+      const storedTools = localStorage.getItem("tools");
+      if (storedTools) setTools(JSON.parse(storedTools));
+
+      const storedToolHistory = localStorage.getItem("toolHistory");
+      if (storedToolHistory) setToolHistory(JSON.parse(storedToolHistory));
+
     } catch (error) {
       console.error("Failed to parse data from localStorage", error);
+      toast({ variant: 'destructive', title: "Erro ao Carregar Dados", description: "Não foi possível carregar os dados salvos."});
     } finally {
       setIsInitialLoad(false);
     }
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
     if (!isInitialLoad) {
       try {
         localStorage.setItem("withdrawalHistory", JSON.stringify(history));
         localStorage.setItem("stockItems", JSON.stringify(stockItems));
+        localStorage.setItem("tools", JSON.stringify(tools));
+        localStorage.setItem("toolHistory", JSON.stringify(toolHistory));
       } catch (error) {
         console.error("Failed to save data to localStorage", error);
+        toast({ variant: 'destructive', title: "Erro ao Salvar Dados", description: "Não foi possível salvar as alterações."});
       }
     }
-  }, [history, stockItems, isInitialLoad]);
+  }, [history, stockItems, tools, toolHistory, isInitialLoad, toast]);
 
   const { uniqueRequesters, uniqueDestinations } = useMemo(() => {
     const requesters = new Set<string>();
@@ -130,25 +148,21 @@ export default function StockReleaseApp() {
     });
   };
 
-  const handleSelectItemForRelease = (item: StockItem) => {
-    setActiveView("release");
-    setTimeout(() => {
-      stockReleaseClientRef.current?.setFormItem(item);
-    }, 0);
-    toast({
-      title: "Item Selecionado",
-      description: `"${item.name}" pronto para registrar a saída na aba 'Lançamento'.`,
-    });
+  const handleNewWithdrawal = (newRecords: WithdrawalRecord[]) => {
+    setHistory(prev => [...newRecords, ...prev]);
   };
-
+  
+  const handleSetStockItems = (items: StockItem[]) => {
+    setStockItems(items);
+  };
+  
   const renderContent = () => {
     switch (activeView) {
       case "release":
         return (
           <StockReleaseClient
-            ref={stockReleaseClientRef}
             stockItems={stockItems}
-            onUpdateHistory={setHistory}
+            onUpdateHistory={handleNewWithdrawal}
             uniqueRequesters={uniqueRequesters}
             uniqueDestinations={uniqueDestinations}
           />
@@ -157,10 +171,9 @@ export default function StockReleaseApp() {
         return (
           <ItemManagement
             stockItems={stockItems}
-            onSetStockItems={setStockItems}
+            onSetStockItems={handleSetStockItems}
             onSetIsAddItemDialogOpen={setAddItemDialogOpen}
             onSetEditingItem={setEditingItem}
-            onSelectItemForRelease={handleSelectItemForRelease}
           />
         );
       case "history":
@@ -169,6 +182,10 @@ export default function StockReleaseApp() {
             history={history}
             onDeleteRecord={handleDeleteRecord}
           />
+        );
+      case "tools":
+        return (
+            <ToolManagement />
         );
       default:
         return null;
@@ -209,6 +226,9 @@ export default function StockReleaseApp() {
                 </SidebarMenuItem>
                 <SidebarMenuItem>
                     <NavButton view="items" label="Itens" icon={Boxes} />
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                    <NavButton view="tools" label="Ferramentas" icon={Wrench} />
                 </SidebarMenuItem>
                 <SidebarMenuItem>
                     <NavButton view="history" label="Histórico" icon={History} />
@@ -315,7 +335,3 @@ function HistorySkeleton() {
       </div>
     );
 }
-
-    
-
-    
