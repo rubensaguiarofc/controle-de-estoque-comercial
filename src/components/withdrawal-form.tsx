@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { UseFormReturn, useFieldArray, FieldArrayWithId } from "react-hook-form";
+import { UseFormReturn, FieldArrayWithId } from "react-hook-form";
 import { Plus, ScanLine } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -143,10 +143,9 @@ export function WithdrawalForm({
                                         {stockItems.map((item) => (
                                             <CommandItem
                                                 key={item.id}
-                                                value={item.name}
-                                                onSelect={(currentValue) => {
-                                                    const selected = stockItems.find(i => i.name.toLowerCase() === currentValue.toLowerCase())
-                                                    setCurrentItem(selected || null);
+                                                value={`${item.name} ${item.specifications}`}
+                                                onSelect={() => {
+                                                    setCurrentItem(item);
                                                     setPopoverOpen(false);
                                                 }}
                                             >
