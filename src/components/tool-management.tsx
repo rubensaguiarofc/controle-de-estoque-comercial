@@ -36,14 +36,14 @@ export default function ToolManagement({
     setToolHistory([newRecord, ...toolHistory]);
   };
 
-  const handleReturn = (recordId: string, isDamaged?: boolean, damageDescription?: string, damagePhoto?: string, signature?: string) => {
+  const handleReturn = (recordId: string, isDamaged: boolean, damageDescription?: string, damagePhoto?: string, signature?: string) => {
     setToolHistory(toolHistory.map(rec => 
       rec.id === recordId 
       ? { 
           ...rec, 
           returnDate: new Date().toISOString(),
           isDamaged,
-          damageDescription,
+          damageDescription: damageDescription?.toUpperCase(),
           damagePhoto,
           signature
         } 
