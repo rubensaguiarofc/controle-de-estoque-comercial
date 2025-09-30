@@ -20,7 +20,7 @@ const StockReleaseClient = dynamic(() => import('./stock-release-client'), {
 const ItemManagement = dynamic(() => import('./item-management'), {
   loading: () => <ManagementSkeleton />,
 });
-const HistoryPanel = dynamic(() => import('./history-panel'), {
+const HistoryPanel = dynamic(() => import('./history-panel').then(mod => mod.HistoryPanel), {
   loading: () => <HistorySkeleton />,
 });
 
@@ -301,3 +301,5 @@ function HistorySkeleton() {
       </div>
     );
 }
+
+    
