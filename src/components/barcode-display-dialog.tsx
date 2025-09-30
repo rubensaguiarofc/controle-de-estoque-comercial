@@ -8,7 +8,13 @@ import 'jspdf-autotable';
 import type { StockItem } from '@/lib/types';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import Barcode from 'react-barcode';
+
+// Extend jsPDF interface for autotable barcode functionality
+declare module 'jspdf' {
+    interface jsPDF {
+      autoTable: (options: any) => jsPDF;
+    }
+  }
 
 interface BarcodeDisplayDialogProps {
   item: StockItem | null;
@@ -17,50 +23,58 @@ interface BarcodeDisplayDialogProps {
 }
 
 export function BarcodeDisplayDialog({ item, isOpen, onOpenChange }: BarcodeDisplayDialogProps) {
-  const barcodeRef = useRef<HTMLDivElement>(null);
 
   const handlePrint = () => {
-    if (!item || !barcodeRef.current) return;
+    if (!item) return;
 
-    const canvas = barcodeRef.current.querySelector('canvas');
-    if (!canvas) return;
+    const barcodeValue = item.barcode || item.id;
+    if (!barcodeValue) {
+        alert("Este item não possui um valor de código de barras para gerar a etiqueta.");
+        return;
+    }
 
     const doc = new jsPDF({
-        orientation: 'p',
+        orientation: 'l', // landscape
         unit: 'mm',
-        format: [80, 50] // Largura x Altura da etiqueta
+        format: [50, 80] // height, width
     });
 
     const docWidth = doc.internal.pageSize.getWidth();
     const docHeight = doc.internal.pageSize.getHeight();
-
-    // Centralizar conteúdo
     const centerX = docWidth / 2;
 
-    // Nome do item (centralizado, fonte maior)
-    doc.setFontSize(12);
+    // Item Name
+    doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text(item.name, centerX, 10, { align: 'center', maxWidth: docWidth - 10 });
     const nameLines = doc.splitTextToSize(item.name, docWidth - 10);
-    const nameHeight = nameLines.length * 5; // Estimativa de altura do texto
-
-    // Especificações (centralizado, fonte menor)
+    doc.text(nameLines, centerX, 10, { align: 'center' });
+    const nameHeight = doc.getTextDimensions(nameLines).h;
+    
+    // Specifications
     doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
-    doc.text(item.specifications, centerX, 12 + nameHeight, { align: 'center', maxWidth: docWidth - 10 });
     const specLines = doc.splitTextToSize(item.specifications, docWidth - 10);
-    const specHeight = specLines.length * 3;
+    doc.text(specLines, centerX, 10 + nameHeight, { align: 'center' });
+    
+    // Barcode using jsPDF-AutoTable's undocumented feature
+    (doc as any).autoTable({
+        body: [[{ content: barcodeValue, styles: { cellWidth: 'auto', halign: 'center', font: 'JsBarcode' } }]],
+        startY: docHeight - 20,
+        theme: 'plain',
+        styles: {
+            cellPadding: 0,
+            lineWidth: 0,
+        },
+        didDrawCell: (data: any) => {
+            // This is a bit of a hack to get the barcode centered.
+            // The library doesn't expose centering for the barcode font directly.
+            const barcodeWidth = data.cell.width;
+            const xPosition = (docWidth - barcodeWidth) / 2;
+            data.cell.x = xPosition;
+        }
+    });
 
-    // Imagem do código de barras
-    const imgData = canvas.toDataURL('image/png');
-    const barcodeWidth = 50; // Largura do código de barras no PDF
-    const barcodeHeight = 20; // Altura do código de barras no PDF
-    const barcodeX = (docWidth - barcodeWidth) / 2;
-    const barcodeY = docHeight - barcodeHeight - 5; // Posiciona na parte inferior
-    
-    doc.addImage(imgData, 'PNG', barcodeX, barcodeY, barcodeWidth, barcodeHeight);
-    
-    doc.save(`barcode-${item.name}.pdf`);
+    doc.save(`etiqueta-${item.name.replace(/\s+/g, '-')}.pdf`);
   };
 
   if (!item) {
@@ -73,21 +87,19 @@ export function BarcodeDisplayDialog({ item, isOpen, onOpenChange }: BarcodeDisp
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Gerar Etiqueta com Código de Barras</DialogTitle>
+          <DialogTitle>Gerar Etiqueta</DialogTitle>
           <DialogDescription>
-            Gere um PDF da etiqueta para impressão.
+            Gere um PDF da etiqueta para impressão. O código de barras será gerado no arquivo.
           </DialogDescription>
         </DialogHeader>
         
-        <div className="py-6 px-4 bg-white text-black">
-          <div ref={barcodeRef} className="flex flex-col items-center justify-center gap-4">
-            <h3 className="text-lg font-bold text-center">{item.name}</h3>
-            <p className="text-sm text-center">{item.specifications}</p>
-            {barcodeValue ? (
-              <Barcode value={barcodeValue} />
-            ) : (
-              <p className="text-red-500">Valor do código de barras indisponível.</p>
-            )}
+        <div className="py-6 px-4 bg-white text-black rounded-md">
+          <div className="flex flex-col items-center justify-center gap-2 text-center">
+            <h3 className="text-lg font-bold">{item.name}</h3>
+            <p className="text-sm">{item.specifications}</p>
+            <p className="font-mono text-xs bg-slate-100 px-2 py-1 rounded">
+              {barcodeValue ? `CÓDIGO: ${barcodeValue}`: "Sem código de barras."}
+            </p>
           </div>
         </div>
 
@@ -96,7 +108,7 @@ export function BarcodeDisplayDialog({ item, isOpen, onOpenChange }: BarcodeDisp
             <X className="mr-2" />
             Fechar
           </Button>
-          <Button type="button" onClick={handlePrint}>
+          <Button type="button" onClick={handlePrint} disabled={!barcodeValue}>
             <Printer className="mr-2" />
             Gerar PDF
           </Button>
