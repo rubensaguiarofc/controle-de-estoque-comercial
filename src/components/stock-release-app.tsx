@@ -90,7 +90,7 @@ export default function StockReleaseApp() {
     setAddItemDialogOpen(false);
     toast({
       title: "Item Adicionado",
-      description: `${newItem.name} foi adicionado ao estoque.`,
+      description: `${newItem.name} foi adicionado.`,
     })
   }, [toast]);
 
@@ -219,7 +219,7 @@ export default function StockReleaseApp() {
       <SidebarInset className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
           <header className="flex items-center gap-3 mb-8">
             <SidebarTrigger className="md:hidden" />
-            <h1 className="text-3xl font-bold text-foreground tracking-tight">Controle de Estoque</h1>
+            <h1 className="text-3xl font-bold text-foreground tracking-tight">Controle de Saída</h1>
           </header>
 
           <main>

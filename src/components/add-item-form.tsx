@@ -20,7 +20,7 @@ export function AddItemForm({ editingItem, onOpenChange, onSwitchToScanner }: Ad
   const form = useFormContext<AddItemFormValues>();
 
   const dialogTitle = editingItem ? "Editar Item" : "Cadastrar Novo Item";
-  const dialogDescription = editingItem ? "Atualize as informações do item de estoque." : "Preencha as informações do novo item de estoque.";
+  const dialogDescription = editingItem ? "Atualize as informações do item." : "Preencha as informações do novo item.";
 
   return (
     <>

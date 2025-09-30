@@ -5,7 +5,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { SidebarProvider } from '@/components/ui/sidebar';
 
 export const metadata: Metadata = {
-  title: 'Controle de Estoque',
+  title: 'Controle de Saída',
   description: 'Gerenciado por Alternativa Solutions',
 };
 

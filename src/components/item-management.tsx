@@ -41,7 +41,7 @@ export default function ItemManagement({
     onSetStockItems(updatedItems);
     toast({
         title: "Item Excluído",
-        description: "O item foi removido do seu estoque.",
+        description: "O item foi removido.",
     })
   };
 
@@ -64,7 +64,7 @@ export default function ItemManagement({
         <div className="flex justify-between items-start sm:items-center flex-col sm:flex-row gap-4">
             <div>
                 <CardTitle>Biblioteca de Itens</CardTitle>
-                <CardDescription>Gerencie todos os itens do seu estoque.</CardDescription>
+                <CardDescription>Gerencie todos os itens cadastrados.</CardDescription>
             </div>
             <Button onClick={() => { onSetEditingItem(null); onSetIsAddItemDialogOpen(true); }}>
                 <Plus className="mr-2 h-4 w-4" />
@@ -127,8 +127,7 @@ export default function ItemManagement({
                             <AlertDialogHeader>
                                 <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                Essa ação não pode ser desfeita. Isso excluirá permanentemente o item
-                                do seu estoque.
+                                Essa ação não pode ser desfeita. Isso excluirá permanentemente o item.
                                 </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
