@@ -16,6 +16,7 @@ interface BarcodeDisplayDialogProps {
 }
 
 export function BarcodeDisplayDialog({ item, isOpen, onOpenChange }: BarcodeDisplayDialogProps) {
+  // This ref is now only for displaying the barcode in the dialog
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -25,21 +26,20 @@ export function BarcodeDisplayDialog({ item, isOpen, onOpenChange }: BarcodeDisp
             try {
                  JsBarcode(canvasRef.current, barcodeValue, {
                     format: "CODE128",
-                    displayValue: false, // Don't display text under the barcode, we'll add it manually
+                    displayValue: false,
                     width: 2,
                     height: 50,
-                    margin: 0,
+                    margin: 10,
                 });
             } catch (e) {
-                console.error("Error generating barcode", e);
+                console.error("Error generating barcode for display", e);
             }
         }
     }
   }, [isOpen, item]);
 
-
   const handlePrint = () => {
-    if (!item || !canvasRef.current) return;
+    if (!item) return;
 
     const barcodeValue = item.barcode || item.id;
     if (!barcodeValue) {
@@ -48,22 +48,20 @@ export function BarcodeDisplayDialog({ item, isOpen, onOpenChange }: BarcodeDisp
     }
 
     const doc = new jsPDF({
-        orientation: 'l', // landscape
+        orientation: 'l',
         unit: 'mm',
-        format: [50, 80] // height, width
+        format: [50, 80]
     });
 
     const docWidth = doc.internal.pageSize.getWidth();
     const centerX = docWidth / 2;
     
-    // Item Name
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
     const nameLines = doc.splitTextToSize(item.name, docWidth - 10);
     doc.text(nameLines, centerX, 10, { align: 'center' });
     const nameHeight = doc.getTextDimensions(nameLines).h;
     
-    // Specifications
     doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
     const specLines = doc.splitTextToSize(item.specifications, docWidth - 10);
@@ -71,21 +69,28 @@ export function BarcodeDisplayDialog({ item, isOpen, onOpenChange }: BarcodeDisp
     doc.text(specLines, centerX, specY, { align: 'center' });
     const specHeight = doc.getTextDimensions(specLines).h;
 
-    // Barcode Image
     try {
-        const canvas = canvasRef.current;
-        const barcodeImage = canvas.toDataURL('image/png');
-        const barcodeY = specY + specHeight;
+        // Create an in-memory canvas
+        const tempCanvas = document.createElement('canvas');
+        JsBarcode(tempCanvas, barcodeValue, {
+            format: "CODE128",
+            displayValue: false,
+            width: 2,
+            height: 50,
+            margin: 0,
+        });
 
-        // Calculate aspect ratio
-        const canvasWidth = canvas.width;
-        const canvasHeight = canvas.height;
+        const barcodeImage = tempCanvas.toDataURL('image/png');
+        const barcodeY = specY + specHeight + 2;
+
+        const canvasWidth = tempCanvas.width;
+        const canvasHeight = tempCanvas.height;
         const aspectRatio = canvasWidth / canvasHeight;
 
-        let imgWidth = docWidth - 20; // Some padding
+        let imgWidth = docWidth - 20; 
         let imgHeight = imgWidth / aspectRatio;
         
-        const maxHeight = 15; // Max height for barcode in mm
+        const maxHeight = 15;
         if (imgHeight > maxHeight) {
             imgHeight = maxHeight;
             imgWidth = imgHeight * aspectRatio;
@@ -94,7 +99,6 @@ export function BarcodeDisplayDialog({ item, isOpen, onOpenChange }: BarcodeDisp
         const x = (docWidth - imgWidth) / 2;
         doc.addImage(barcodeImage, 'PNG', x, barcodeY, imgWidth, imgHeight);
         
-        // Barcode Value Text
         doc.setFontSize(9);
         doc.setFont('helvetica', 'normal');
         doc.text(barcodeValue, centerX, barcodeY + imgHeight + 4, { align: 'center'});
@@ -120,14 +124,14 @@ export function BarcodeDisplayDialog({ item, isOpen, onOpenChange }: BarcodeDisp
         <DialogHeader>
           <DialogTitle>Gerar Etiqueta</DialogTitle>
           <DialogDescription>
-            Gere um PDF da etiqueta para impressão. O código de barras será gerado no arquivo.
+            Visualize a etiqueta e gere um PDF para impressão.
           </DialogDescription>
         </DialogHeader>
         
         <div className="py-6 px-4 bg-white text-black rounded-md flex flex-col items-center justify-center text-center">
           <h3 className="text-lg font-bold">{item.name}</h3>
           <p className="text-sm">{item.specifications}</p>
-          <canvas ref={canvasRef} className="max-w-full h-auto mt-2" />
+          <canvas ref={canvasRef} className="max-w-full h-auto mt-2 bg-white" />
            <p className="font-mono text-xs bg-slate-100 px-2 py-1 rounded mt-2">
               {barcodeValue ? `CÓDIGO: ${barcodeValue}`: "Sem código de barras."}
             </p>
