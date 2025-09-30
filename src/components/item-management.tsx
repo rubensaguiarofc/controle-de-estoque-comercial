@@ -6,10 +6,11 @@ import type { StockItem } from '@/lib/types';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
-import { Edit, Trash, Search, Plus, Send } from 'lucide-react';
+import { Edit, Trash, Search, Plus, Send, Barcode } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from './ui/input';
+import { BarcodeDisplayDialog } from './barcode-display-dialog';
 
 interface ItemManagementProps {
   stockItems: StockItem[];
@@ -28,6 +29,7 @@ export default function ItemManagement({
 }: ItemManagementProps) {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
+  const [barcodeItem, setBarcodeItem] = useState<StockItem | null>(null);
 
   const handleEdit = (item: StockItem) => {
     onSetEditingItem(item);
@@ -56,6 +58,7 @@ export default function ItemManagement({
   }, [stockItems, searchQuery]);
 
   return (
+    <>
     <Card className="shadow-lg">
       <CardHeader>
         <div className="flex justify-between items-start sm:items-center flex-col sm:flex-row gap-4">
@@ -100,7 +103,11 @@ export default function ItemManagement({
                   <TableCell>{item.specifications}</TableCell>
                   <TableCell className="font-mono text-sm">{item.barcode || 'N/A'}</TableCell>
                   <TableCell className="text-right">
-                    <div className="flex gap-2 justify-end">
+                    <div className="flex gap-1 justify-end">
+                      <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setBarcodeItem(item); }}>
+                        <Barcode className="h-4 w-4 text-muted-foreground" />
+                        <span className="sr-only">Gerar Código de Barras</span>
+                      </Button>
                       <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onSelectItemForRelease(item); }}>
                         <Send className="h-4 w-4 text-sky-500" />
                         <span className="sr-only">Lançar</span>
@@ -145,5 +152,15 @@ export default function ItemManagement({
         </Table>
       </CardContent>
     </Card>
+     <BarcodeDisplayDialog 
+        item={barcodeItem}
+        isOpen={!!barcodeItem}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            setBarcodeItem(null);
+          }
+        }}
+      />
+    </>
   );
 }

@@ -120,7 +120,6 @@ export default function StockReleaseApp() {
           <StockReleaseClient
             ref={stockReleaseClientRef}
             stockItems={stockItems}
-            history={history}
             onUpdateHistory={setHistory}
             onSetIsAddItemDialogOpen={setAddItemDialogOpen}
           />

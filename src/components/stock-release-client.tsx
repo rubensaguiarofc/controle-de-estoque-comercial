@@ -32,8 +32,7 @@ export type WithdrawalFormValues = z.infer<typeof formSchema>;
 
 interface StockReleaseClientProps {
   stockItems: StockItem[];
-  history: WithdrawalRecord[];
-  onUpdateHistory: (history: WithdrawalalRecord[]) => void;
+  onUpdateHistory: (history: WithdrawalRecord[]) => void;
   onSetIsAddItemDialogOpen: (isOpen: boolean) => void;
 }
 
@@ -42,9 +41,10 @@ export interface StockReleaseClientRef {
 }
 
 const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientProps>(
-  ({ stockItems, history, onUpdateHistory, onSetIsAddItemDialogOpen }, ref) => {
+  ({ stockItems, onUpdateHistory, onSetIsAddItemDialogOpen }, ref) => {
     const { toast } = useToast();
     const [currentDate, setCurrentDate] = useState("");
+    const [history, setHistory] = useState<WithdrawalRecord[]>([]);
 
     const form = useForm<WithdrawalFormValues>({
       resolver: zodResolver(formSchema),
@@ -64,8 +64,12 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
     }));
 
     useEffect(() => {
-      setCurrentDate(format(new Date(), "eeee, dd 'de' MMMM 'de' yyyy", { locale: ptBR }));
-    }, []);
+        const storedHistory = localStorage.getItem("withdrawalHistory");
+        if (storedHistory) {
+          setHistory(JSON.parse(storedHistory));
+        }
+        setCurrentDate(format(new Date(), "eeee, dd 'de' MMMM 'de' yyyy", { locale: ptBR }));
+      }, []);
 
     const { uniqueRequesters, uniqueDestinations } = useMemo(() => {
       const requesters = new Set<string>();
@@ -97,8 +101,11 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
         requestedBy: values.requestedBy.toUpperCase(),
         requestedFor: values.requestedFor.toUpperCase(),
       };
+      
+      const updatedHistory = [newRecord, ...history];
+      onUpdateHistory(updatedHistory);
+      setHistory(updatedHistory);
 
-      onUpdateHistory([newRecord, ...history]);
       toast({ title: "Sucesso!", description: "Retirada de item registrada." });
       form.reset({
         item: { name: "", specifications: "", barcode: "" },
