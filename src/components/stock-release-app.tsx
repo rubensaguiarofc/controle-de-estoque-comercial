@@ -12,8 +12,15 @@ import StockReleaseClient from "./stock-release-client";
 import ItemManagement from "./item-management";
 import { AddItemDialog } from "./add-item-dialog";
 import { cn } from "@/lib/utils";
+import dynamic from "next/dynamic";
+import { Skeleton } from "./ui/skeleton";
 
-type View = 'release' | 'items';
+const HistoryPanel = dynamic(() => import('./history-panel').then(mod => mod.HistoryPanel), {
+  ssr: false,
+  loading: () => <HistoryPanelSkeleton />,
+});
+
+type View = 'release' | 'items' | 'history';
 
 export default function StockReleaseApp() {
   const { toast } = useToast();
@@ -105,6 +112,15 @@ export default function StockReleaseApp() {
       description: `"${item.name}" pronto para registrar a saída.`,
     });
   };
+
+  const handleDeleteRecord = (recordId: string) => {
+    const updatedHistory = history.filter(record => record.id !== recordId);
+    setHistory(updatedHistory);
+    toast({
+      title: "Registro Excluído",
+      description: "O registro de retirada foi removido do histórico.",
+    });
+  };
   
   const tabTriggerStyle = "pb-2 text-muted-foreground data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary";
 
@@ -122,6 +138,7 @@ export default function StockReleaseApp() {
             <TabsList className="bg-transparent p-0 justify-start gap-6 border-b">
                 <TabsTrigger value="release" className={cn(tabTriggerStyle, 'rounded-none shadow-none px-0')}>Lançamento</TabsTrigger>
                 <TabsTrigger value="items" className={cn(tabTriggerStyle, 'rounded-none shadow-none px-0')}>Itens</TabsTrigger>
+                <TabsTrigger value="history" className={cn(tabTriggerStyle, 'rounded-none shadow-none px-0')}>Histórico</TabsTrigger>
             </TabsList>
             <TabsContent value="release" className="mt-6">
                 <StockReleaseClient
@@ -144,6 +161,12 @@ export default function StockReleaseApp() {
                     onSelectItemForRelease={handleSelectItemForRelease}
                 />
             </TabsContent>
+            <TabsContent value="history" className="mt-6">
+                <HistoryPanel
+                  history={history}
+                  onDeleteRecord={handleDeleteRecord}
+                />
+            </TabsContent>
         </Tabs>
         
         <AddItemDialog
@@ -154,4 +177,25 @@ export default function StockReleaseApp() {
         />
     </div>
   )
+}
+
+function HistoryPanelSkeleton() {
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="space-y-2">
+          <Skeleton className="h-6 w-48" />
+          <Skeleton className="h-4 w-64" />
+        </div>
+        <Skeleton className="h-9 w-32" />
+      </div>
+      <div className="space-y-2">
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-10 w-full" />
+      </div>
+      <div className="border rounded-lg p-4">
+        <Skeleton className="h-32 w-full" />
+      </div>
+    </div>
+  );
 }

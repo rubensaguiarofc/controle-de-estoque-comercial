@@ -1,23 +1,16 @@
 
 "use client";
 
-import { useEffect, useState, useMemo, useRef, forwardRef, useImperativeHandle } from "react";
+import { useEffect, useState, useMemo, forwardRef, useImperativeHandle } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
 import { ptBR } from 'date-fns/locale';
-import dynamic from 'next/dynamic';
 
 import type { StockItem, WithdrawalRecord } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { WithdrawalForm } from "./withdrawal-form";
-import { Skeleton } from "./ui/skeleton";
-
-const HistoryPanel = dynamic(() => import('./history-panel').then(mod => mod.HistoryPanel), {
-  ssr: false,
-  loading: () => <HistoryPanelSkeleton />,
-});
 
 const formSchema = z.object({
   item: z.object({
@@ -116,55 +109,19 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
       });
     };
 
-    const handleDeleteRecord = (recordId: string) => {
-      const updatedHistory = history.filter(record => record.id !== recordId);
-      onUpdateHistory(updatedHistory);
-      toast({
-        title: "Registro Excluído",
-        description: "O registro de retirada foi removido do histórico.",
-      });
-    };
-
     return (
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 items-start">
-        <WithdrawalForm
-          form={form}
-          currentDate={currentDate}
-          stockItems={stockItems}
-          uniqueRequesters={uniqueRequesters}
-          uniqueDestinations={uniqueDestinations}
-          onSubmit={onSubmit}
-          onSetIsAddItemDialogOpen={onSetIsAddItemDialogOpen}
-        />
-        <HistoryPanel
-          history={history}
-          onDeleteRecord={handleDeleteRecord}
-        />
-      </div>
+      <WithdrawalForm
+        form={form}
+        currentDate={currentDate}
+        stockItems={stockItems}
+        uniqueRequesters={uniqueRequesters}
+        uniqueDestinations={uniqueDestinations}
+        onSubmit={onSubmit}
+        onSetIsAddItemDialogOpen={onSetIsAddItemDialogOpen}
+      />
     );
   }
 );
 
 StockReleaseClient.displayName = 'StockReleaseClient';
 export default StockReleaseClient;
-
-function HistoryPanelSkeleton() {
-  return (
-    <div className="lg:col-span-2 space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="space-y-2">
-          <Skeleton className="h-6 w-48" />
-          <Skeleton className="h-4 w-64" />
-        </div>
-        <Skeleton className="h-9 w-32" />
-      </div>
-      <div className="space-y-2">
-        <Skeleton className="h-10 w-full" />
-        <Skeleton className="h-10 w-full" />
-      </div>
-      <div className="border rounded-lg p-4">
-        <Skeleton className="h-32 w-full" />
-      </div>
-    </div>
-  );
-}
