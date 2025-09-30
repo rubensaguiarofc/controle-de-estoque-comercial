@@ -51,6 +51,7 @@
     "embla-carousel-react": "^8.6.0",
     "firebase": "^11.9.1",
     "genkit": "^1.14.1",
+    "jsbarcode": "^3.11.6",
     "jspdf": "^2.5.1",
     "jspdf-autotable": "^3.8.2",
     "lucide-react": "^0.475.0",
@@ -67,6 +68,7 @@
   },
   "devDependencies": {
     "@capacitor/cli": "^6.0.0",
+    "@types/jsbarcode": "^3.11.4",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "@types/react-signature-canvas": "^1.0.5",

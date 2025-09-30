@@ -1,20 +1,13 @@
 
 "use client";
 
-import { useRef } from 'react';
+import { useRef, useEffect } from 'react';
 import { Printer, X } from 'lucide-react';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import JsBarcode from 'jsbarcode';
 import type { StockItem } from '@/lib/types';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-
-// Extend jsPDF interface for autotable barcode functionality
-declare module 'jspdf' {
-    interface jsPDF {
-      autoTable: (options: any) => jsPDF;
-    }
-  }
 
 interface BarcodeDisplayDialogProps {
   item: StockItem | null;
@@ -23,9 +16,30 @@ interface BarcodeDisplayDialogProps {
 }
 
 export function BarcodeDisplayDialog({ item, isOpen, onOpenChange }: BarcodeDisplayDialogProps) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    if (isOpen && item && canvasRef.current) {
+        const barcodeValue = item.barcode || item.id;
+        if (barcodeValue) {
+            try {
+                 JsBarcode(canvasRef.current, barcodeValue, {
+                    format: "CODE128",
+                    displayValue: false, // Don't display text under the barcode, we'll add it manually
+                    width: 2,
+                    height: 50,
+                    margin: 0,
+                });
+            } catch (e) {
+                console.error("Error generating barcode", e);
+            }
+        }
+    }
+  }, [isOpen, item]);
+
 
   const handlePrint = () => {
-    if (!item) return;
+    if (!item || !canvasRef.current) return;
 
     const barcodeValue = item.barcode || item.id;
     if (!barcodeValue) {
@@ -40,9 +54,8 @@ export function BarcodeDisplayDialog({ item, isOpen, onOpenChange }: BarcodeDisp
     });
 
     const docWidth = doc.internal.pageSize.getWidth();
-    const docHeight = doc.internal.pageSize.getHeight();
     const centerX = docWidth / 2;
-
+    
     // Item Name
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
@@ -54,26 +67,44 @@ export function BarcodeDisplayDialog({ item, isOpen, onOpenChange }: BarcodeDisp
     doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
     const specLines = doc.splitTextToSize(item.specifications, docWidth - 10);
-    doc.text(specLines, centerX, 10 + nameHeight, { align: 'center' });
-    
-    // Barcode using jsPDF-AutoTable's undocumented feature
-    (doc as any).autoTable({
-        body: [[{ content: barcodeValue, styles: { cellWidth: 'auto', halign: 'center', font: 'JsBarcode' } }]],
-        startY: docHeight - 20,
-        theme: 'plain',
-        styles: {
-            cellPadding: 0,
-            lineWidth: 0,
-        },
-        didDrawCell: (data: any) => {
-            // This is a bit of a hack to get the barcode centered.
-            // The library doesn't expose centering for the barcode font directly.
-            const barcodeWidth = data.cell.width;
-            const xPosition = (docWidth - barcodeWidth) / 2;
-            data.cell.x = xPosition;
-        }
-    });
+    const specY = 10 + nameHeight;
+    doc.text(specLines, centerX, specY, { align: 'center' });
+    const specHeight = doc.getTextDimensions(specLines).h;
 
+    // Barcode Image
+    try {
+        const canvas = canvasRef.current;
+        const barcodeImage = canvas.toDataURL('image/png');
+        const barcodeY = specY + specHeight;
+
+        // Calculate aspect ratio
+        const canvasWidth = canvas.width;
+        const canvasHeight = canvas.height;
+        const aspectRatio = canvasWidth / canvasHeight;
+
+        let imgWidth = docWidth - 20; // Some padding
+        let imgHeight = imgWidth / aspectRatio;
+        
+        const maxHeight = 15; // Max height for barcode in mm
+        if (imgHeight > maxHeight) {
+            imgHeight = maxHeight;
+            imgWidth = imgHeight * aspectRatio;
+        }
+
+        const x = (docWidth - imgWidth) / 2;
+        doc.addImage(barcodeImage, 'PNG', x, barcodeY, imgWidth, imgHeight);
+        
+        // Barcode Value Text
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'normal');
+        doc.text(barcodeValue, centerX, barcodeY + imgHeight + 4, { align: 'center'});
+
+    } catch (error) {
+        console.error("Failed to add barcode image to PDF", error);
+        alert("Ocorreu um erro ao gerar a imagem do código de barras.");
+        return;
+    }
+    
     doc.save(`etiqueta-${item.name.replace(/\s+/g, '-')}.pdf`);
   };
 
@@ -93,14 +124,13 @@ export function BarcodeDisplayDialog({ item, isOpen, onOpenChange }: BarcodeDisp
           </DialogDescription>
         </DialogHeader>
         
-        <div className="py-6 px-4 bg-white text-black rounded-md">
-          <div className="flex flex-col items-center justify-center gap-2 text-center">
-            <h3 className="text-lg font-bold">{item.name}</h3>
-            <p className="text-sm">{item.specifications}</p>
-            <p className="font-mono text-xs bg-slate-100 px-2 py-1 rounded">
+        <div className="py-6 px-4 bg-white text-black rounded-md flex flex-col items-center justify-center text-center">
+          <h3 className="text-lg font-bold">{item.name}</h3>
+          <p className="text-sm">{item.specifications}</p>
+          <canvas ref={canvasRef} className="max-w-full h-auto mt-2" />
+           <p className="font-mono text-xs bg-slate-100 px-2 py-1 rounded mt-2">
               {barcodeValue ? `CÓDIGO: ${barcodeValue}`: "Sem código de barras."}
             </p>
-          </div>
         </div>
 
         <DialogFooter className="sm:justify-end gap-2 pt-4">
