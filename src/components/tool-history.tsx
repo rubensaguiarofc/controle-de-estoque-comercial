@@ -15,7 +15,7 @@ import { Badge } from './ui/badge';
 interface ToolHistoryProps {
   tools: Tool[];
   history: ToolRecord[];
-  onCheckout: (tool: Tool, checkedOutBy: string) => void;
+  onCheckout: (tool: Tool, checkedOutBy: string, usageLocation: string) => void;
   onReturn: (recordId: string) => void;
 }
 
@@ -23,25 +23,27 @@ export function ToolHistory({ tools, history, onCheckout, onReturn }: ToolHistor
   const { toast } = useToast();
   const [selectedToolId, setSelectedToolId] = useState('');
   const [checkedOutBy, setCheckedOutBy] = useState('');
+  const [usageLocation, setUsageLocation] = useState('');
 
   const toolsOut = history.filter(h => !h.returnDate).map(h => h.tool.id);
   const availableTools = tools.filter(t => !toolsOut.includes(t.id));
 
   const handleCheckout = () => {
-    if (!selectedToolId || !checkedOutBy) {
+    if (!selectedToolId || !checkedOutBy || !usageLocation) {
       toast({
         variant: "destructive",
         title: "Campos obrigatórios",
-        description: "Selecione uma ferramenta e informe quem está retirando.",
+        description: "Preencha todos os campos para registrar a retirada.",
       });
       return;
     }
     const tool = tools.find(t => t.id === selectedToolId);
     if (tool) {
-      onCheckout(tool, checkedOutBy);
+      onCheckout(tool, checkedOutBy, usageLocation);
       toast({ title: "Retirada Registrada", description: `${tool.name} retirada por ${checkedOutBy}.`});
       setSelectedToolId('');
       setCheckedOutBy('');
+      setUsageLocation('');
     }
   };
 
@@ -50,15 +52,15 @@ export function ToolHistory({ tools, history, onCheckout, onReturn }: ToolHistor
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle>Registrar Retirada de Ferramenta</CardTitle>
-          <CardDescription>Selecione a ferramenta e o responsável.</CardDescription>
+          <CardDescription>Selecione a ferramenta, o responsável e o local de uso.</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid sm:grid-cols-[1fr_1fr_auto] gap-2 items-end">
+          <div className="grid sm:grid-cols-[1fr_1fr_1fr_auto] gap-2 items-end">
             <div className="space-y-2">
                 <label className="text-sm font-medium">Ferramenta</label>
                 <Select onValueChange={setSelectedToolId} value={selectedToolId}>
                     <SelectTrigger>
-                        <SelectValue placeholder="Selecione uma ferramenta disponível" />
+                        <SelectValue placeholder="Selecione uma ferramenta" />
                     </SelectTrigger>
                     <SelectContent>
                         {availableTools.length > 0 ? availableTools.map(tool => (
@@ -75,6 +77,14 @@ export function ToolHistory({ tools, history, onCheckout, onReturn }: ToolHistor
                     placeholder="Nome do responsável"
                     value={checkedOutBy}
                     onChange={(e) => setCheckedOutBy(e.target.value)}
+                />
+            </div>
+            <div className="space-y-2">
+                <label className="text-sm font-medium">Local de Uso</label>
+                <Input
+                    placeholder="Ex: OBRA-01, OFICINA"
+                    value={usageLocation}
+                    onChange={(e) => setUsageLocation(e.target.value)}
                 />
             </div>
             <Button size="icon" onClick={handleCheckout}>
@@ -96,6 +106,7 @@ export function ToolHistory({ tools, history, onCheckout, onReturn }: ToolHistor
                     <TableRow>
                         <TableHead>Ferramenta</TableHead>
                         <TableHead>Retirado por</TableHead>
+                        <TableHead>Local</TableHead>
                         <TableHead>Data Retirada</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead className="text-right">Ação</TableHead>
@@ -106,6 +117,7 @@ export function ToolHistory({ tools, history, onCheckout, onReturn }: ToolHistor
                         <TableRow key={record.id}>
                             <TableCell className="font-medium">{record.tool.name} <span className="text-muted-foreground text-xs">({record.tool.assetId})</span></TableCell>
                             <TableCell>{record.checkedOutBy}</TableCell>
+                            <TableCell>{record.usageLocation}</TableCell>
                             <TableCell>{new Date(record.checkoutDate).toLocaleDateString('pt-BR')}</TableCell>
                             <TableCell>
                                 {record.returnDate
@@ -121,7 +133,7 @@ export function ToolHistory({ tools, history, onCheckout, onReturn }: ToolHistor
                         </TableRow>
                     )) : (
                         <TableRow>
-                            <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
+                            <TableCell colSpan={6} className="text-center h-24 text-muted-foreground">
                             Nenhum registro de movimentação encontrado.
                             </TableCell>
                         </TableRow>
@@ -133,5 +145,3 @@ export function ToolHistory({ tools, history, onCheckout, onReturn }: ToolHistor
     </div>
   );
 }
-
-    

@@ -32,6 +32,7 @@ export type ToolRecord = {
   tool: Tool;
   checkoutDate: string;
   checkedOutBy: string;
+  usageLocation: string;
   returnDate?: string;
   isDamaged?: boolean;
   damageDescription?: string;

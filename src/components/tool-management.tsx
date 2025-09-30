@@ -25,12 +25,13 @@ export default function ToolManagement({
   onSetIsAddToolDialogOpen
 }: ToolManagementProps) {
 
-  const handleCheckout = (tool: Tool, checkedOutBy: string) => {
+  const handleCheckout = (tool: Tool, checkedOutBy: string, usageLocation: string) => {
     const newRecord: ToolRecord = {
       id: `TR-${Date.now()}`,
       tool,
       checkoutDate: new Date().toISOString(),
       checkedOutBy: checkedOutBy.toUpperCase(),
+      usageLocation: usageLocation.toUpperCase(),
     };
     setToolHistory([newRecord, ...toolHistory]);
   };
