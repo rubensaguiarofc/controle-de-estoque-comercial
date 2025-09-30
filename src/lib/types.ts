@@ -5,6 +5,12 @@ export type StockItem = {
   barcode?: string;
 };
 
+export type WithdrawalItem = {
+  item: StockItem;
+  quantity: number;
+  unit: string;
+};
+
 export type WithdrawalRecord = {
   id: string;
   date: string;

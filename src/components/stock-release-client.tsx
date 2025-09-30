@@ -8,14 +8,11 @@ import { z } from "zod";
 import { format } from "date-fns";
 import { ptBR } from 'date-fns/locale';
 
-import type { StockItem, WithdrawalRecord } from "@/lib/types";
+import type { StockItem, WithdrawalRecord, WithdrawalItem } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { WithdrawalForm } from "./withdrawal-form";
 
 const formSchema = z.object({
-  selectedItem: z.string().min(1, "Selecione um item da lista."),
-  quantity: z.coerce.number().min(1, "A quantidade deve ser pelo menos 1."),
-  unit: z.string().min(1, "A unidade é obrigatória."),
   requestedBy: z.string().min(1, 'O campo "Quem" é obrigatório.').toUpperCase(),
   requestedFor: z.string().min(1, 'O campo "Para Quem" é obrigatório.').toUpperCase(),
 });
@@ -37,13 +34,11 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
     const { toast } = useToast();
     const [currentDate, setCurrentDate] = useState("");
     const [history, setHistory] = useState<WithdrawalRecord[]>([]);
+    const [withdrawalItems, setWithdrawalItems] = useState<WithdrawalItem[]>([]);
 
     const form = useForm<WithdrawalFormValues>({
       resolver: zodResolver(formSchema),
       defaultValues: {
-        selectedItem: "",
-        quantity: 1,
-        unit: 'UN',
         requestedBy: "",
         requestedFor: "",
       },
@@ -51,7 +46,11 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
 
     useImperativeHandle(ref, () => ({
       setFormItem(item: StockItem) {
-        form.setValue('selectedItem', item.id);
+        handleAppendItem({ item, quantity: 1, unit: 'UN' });
+        toast({
+          title: "Item Adicionado à Cesta",
+          description: `"${item.name}" foi adicionado e está pronto para a retirada.`,
+        });
       }
     }));
     
@@ -79,42 +78,67 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
         uniqueDestinations: Array.from(destinations),
       };
     }, [history]);
+    
+    const handleAppendItem = (item: WithdrawalItem) => {
+      // Check if item is already in the cart
+      const existingItemIndex = withdrawalItems.findIndex(cartItem => cartItem.item.id === item.item.id);
+
+      if (existingItemIndex > -1) {
+        // Update quantity if item exists
+        const updatedItems = [...withdrawalItems];
+        updatedItems[existingItemIndex].quantity += item.quantity;
+        setWithdrawalItems(updatedItems);
+      } else {
+        // Add new item to cart
+        setWithdrawalItems(prev => [...prev, item]);
+      }
+    };
+    
+    const handleRemoveItem = (itemId: string) => {
+      setWithdrawalItems(prev => prev.filter(item => item.item.id !== itemId));
+    };
+
+    const handleUpdateItemQuantity = (itemId: string, quantity: number) => {
+      if (quantity <= 0) {
+        handleRemoveItem(itemId);
+        return;
+      }
+      setWithdrawalItems(prev => prev.map(item => item.item.id === itemId ? { ...item, quantity } : item));
+    }
+
 
     const onSubmit = (values: WithdrawalFormValues) => {
-      const selectedItem = stockItems.find(item => item.id === values.selectedItem);
-      if (!selectedItem) {
+      if (withdrawalItems.length === 0) {
         toast({
           variant: "destructive",
-          title: "Erro",
-          description: "O item selecionado não foi encontrado.",
+          title: "Cesta Vazia",
+          description: "Adicione pelo menos um item para registrar uma retirada.",
         });
         return;
       }
-
-      const newRecord: WithdrawalRecord = {
+      
+      const newRecords: WithdrawalRecord[] = withdrawalItems.map(cartItem => ({
         id: crypto.randomUUID(),
         date: new Date().toISOString(),
-        item: selectedItem,
-        quantity: values.quantity,
-        unit: values.unit.toUpperCase(),
+        item: cartItem.item,
+        quantity: cartItem.quantity,
+        unit: cartItem.unit.toUpperCase(),
         requestedBy: values.requestedBy.toUpperCase(),
         requestedFor: values.requestedFor.toUpperCase(),
-      };
+      }));
       
       onUpdateHistory(prevHistory => {
-        const updatedHistory = [newRecord, ...prevHistory];
+        const updatedHistory = [...newRecords, ...prevHistory];
         setHistory(updatedHistory); 
         return updatedHistory;
       });
 
-      toast({ title: "Sucesso!", description: "Sua retirada foi registrada." });
+      toast({ title: "Sucesso!", description: `${newRecords.length} retirada(s) foram registradas.` });
       form.reset({
-        selectedItem: "",
-        quantity: 1,
-        unit: 'UN',
         requestedBy: "",
         requestedFor: "",
       });
+      setWithdrawalItems([]);
     };
 
     return (
@@ -122,10 +146,13 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
           form={form}
           currentDate={currentDate}
           stockItems={stockItems}
+          withdrawalItems={withdrawalItems}
           uniqueRequesters={uniqueRequesters}
           uniqueDestinations={uniqueDestinations}
           onSubmit={onSubmit}
-          onSetIsAddItemDialogOpen={onSetIsAddItemDialogOpen}
+          onAppendItem={handleAppendItem}
+          onRemoveItem={handleRemoveItem}
+          onUpdateItemQuantity={handleUpdateItemQuantity}
         />
     );
   }

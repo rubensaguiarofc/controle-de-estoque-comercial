@@ -3,16 +3,17 @@
 
 import React, { useState } from "react";
 import { UseFormReturn } from "react-hook-form";
-import { ScanLine } from "lucide-react";
+import { ScanLine, Plus, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import type { StockItem } from "@/lib/types";
+import type { StockItem, WithdrawalItem } from "@/lib/types";
 import type { WithdrawalFormValues } from "./stock-release-client";
 import dynamic from "next/dynamic";
+import { WithdrawalCart } from "./withdrawal-cart";
 
 const SearchScannerDialog = dynamic(() => import('./search-scanner-dialog').then(mod => mod.SearchScannerDialog), { ssr: false });
 
@@ -20,27 +21,37 @@ interface WithdrawalFormProps {
   form: UseFormReturn<WithdrawalFormValues>;
   currentDate: string;
   stockItems: StockItem[];
+  withdrawalItems: WithdrawalItem[];
   uniqueRequesters: string[];
   uniqueDestinations: string[];
   onSubmit: (values: WithdrawalFormValues) => void;
-  onSetIsAddItemDialogOpen: (isOpen: boolean) => void;
+  onAppendItem: (item: WithdrawalItem) => void;
+  onRemoveItem: (itemId: string) => void;
+  onUpdateItemQuantity: (itemId: string, quantity: number) => void;
 }
 
 export function WithdrawalForm({
   form,
   currentDate,
   stockItems,
+  withdrawalItems,
   uniqueRequesters,
   uniqueDestinations,
   onSubmit,
+  onAppendItem,
+  onRemoveItem,
+  onUpdateItemQuantity,
 }: WithdrawalFormProps) {
   const { toast } = useToast();
   const [isSearchScannerOpen, setSearchScannerOpen] = useState(false);
-  
+  const [currentItemId, setCurrentItemId] = useState<string>('');
+  const [quantity, setQuantity] = useState(1);
+  const [unit, setUnit] = useState('UN');
+
   const handleScanSuccess = (foundItem: StockItem) => {
-    form.setValue('selectedItem', foundItem.id);
+    onAppendItem({ item: foundItem, quantity: 1, unit: 'UN' });
     setSearchScannerOpen(false);
-    toast({ title: "Item Encontrado", description: `Item "${foundItem.name}" selecionado.` });
+    toast({ title: "Item Adicionado", description: `Item "${foundItem.name}" adicionado à cesta.` });
   };
 
   const handleScanNotFound = () => {
@@ -52,8 +63,23 @@ export function WithdrawalForm({
     setSearchScannerOpen(false);
   };
   
+  const handleAddItemToCart = () => {
+    if (!currentItemId) {
+      toast({ variant: 'destructive', title: 'Nenhum item selecionado' });
+      return;
+    }
+    const item = stockItems.find(i => i.id === currentItemId);
+    if (item) {
+      onAppendItem({ item, quantity, unit });
+      setCurrentItemId('');
+      setQuantity(1);
+      setUnit('UN');
+    }
+  };
+
   const handleClear = () => {
-    form.reset({ selectedItem: "", quantity: 1, unit: "UN", requestedBy: "", requestedFor: "" });
+    form.reset({ requestedBy: "", requestedFor: "" });
+    onRemoveItem('all'); // Custom logic in parent to clear all
     toast({ title: "Campos Limpos", description: "Todos os campos de entrada foram redefinidos." });
   };
   
@@ -75,19 +101,15 @@ export function WithdrawalForm({
               </div>
             </CardHeader>
             <CardContent className="flex flex-col gap-6">
-              <div className="grid sm:grid-cols-[1fr_80px_100px] gap-4 items-end">
-                <FormField
-                  control={form.control}
-                  name="selectedItem"
-                  render={({ field }) => (
+              <div className="p-4 border rounded-lg space-y-4">
+                <h3 className="text-lg font-medium">Adicionar Item à Retirada</h3>
+                <div className="grid sm:grid-cols-[1fr_80px_100px_auto] gap-2 items-end">
                     <FormItem>
                       <FormLabel>Item</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
+                      <Select onValueChange={setCurrentItemId} value={currentItemId}>
                           <SelectTrigger>
                             <SelectValue placeholder="Selecione um item" />
                           </SelectTrigger>
-                        </FormControl>
                         <SelectContent>
                           {stockItems.map((item) => (
                             <SelectItem key={item.id} value={item.id}>
@@ -96,37 +118,27 @@ export function WithdrawalForm({
                           ))}
                         </SelectContent>
                       </Select>
-                      <FormMessage />
                     </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="quantity"
-                  render={({ field }) => (
                     <FormItem>
                       <FormLabel>Qtd.</FormLabel>
-                      <FormControl>
-                        <Input type="number" {...field} />
-                      </FormControl>
-                      <FormMessage />
+                      <Input type="number" value={quantity} onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))} />
                     </FormItem>
-                  )}
-                />
-                 <FormField
-                  control={form.control}
-                  name="unit"
-                  render={({ field }) => (
-                    <FormItem>
+                     <FormItem>
                       <FormLabel>Unidade</FormLabel>
-                      <FormControl>
-                        <Input placeholder="UN, KG, PC..." {...field} />
-                      </FormControl>
-                      <FormMessage />
+                      <Input placeholder="UN, KG, PC..." value={unit} onChange={(e) => setUnit(e.target.value.toUpperCase())} />
                     </FormItem>
-                  )}
-                />
+                    <Button type="button" size="icon" onClick={handleAddItemToCart} className="bg-teal-500 hover:bg-teal-600">
+                        <Plus className="h-4 w-4" />
+                        <span className="sr-only">Adicionar</span>
+                    </Button>
+                </div>
               </div>
+
+              <WithdrawalCart 
+                items={withdrawalItems} 
+                onRemove={onRemoveItem} 
+                onUpdateQuantity={onUpdateItemQuantity} 
+              />
 
               <div className="grid sm:grid-cols-2 gap-4">
                 <FormField
