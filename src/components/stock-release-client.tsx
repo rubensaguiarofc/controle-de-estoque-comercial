@@ -127,7 +127,7 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
           uniqueDestinations={uniqueDestinations}
           onSubmit={onSubmit}
           onAppendItem={handleAppendItem}
-          onRemoveItem={onRemoveItem}
+          onRemoveItem={handleRemoveItem}
           onUpdateItemQuantity={handleUpdateItemQuantity}
         />
     );
@@ -136,5 +136,3 @@ const StockReleaseClient = forwardRef<StockReleaseClientRef, StockReleaseClientP
 
 StockReleaseClient.displayName = 'StockReleaseClient';
 export default StockReleaseClient;
-
-    
