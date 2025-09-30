@@ -6,11 +6,10 @@ import type { StockItem } from '@/lib/types';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
-import { Edit, Trash, Search, Plus, Barcode } from 'lucide-react';
+import { Edit, Trash, Search, Plus } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from './ui/input';
-import { BarcodeDisplayDialog } from './barcode-display-dialog';
 
 interface ItemManagementProps {
   stockItems: StockItem[];
@@ -27,7 +26,6 @@ export default function ItemManagement({
 }: ItemManagementProps) {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
-  const [barcodeItem, setBarcodeItem] = useState<StockItem | null>(null);
 
   const handleEdit = (item: StockItem) => {
     onSetEditingItem(item);
@@ -102,10 +100,6 @@ export default function ItemManagement({
                   <TableCell className="font-mono text-sm">{item.barcode || 'N/A'}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex gap-1 justify-end">
-                      <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setBarcodeItem(item); }}>
-                        <Barcode className="h-4 w-4 text-muted-foreground" />
-                        <span className="sr-only">Gerar Código de Barras</span>
-                      </Button>
                       <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleEdit(item); }}>
                         <Edit className="h-4 w-4" />
                         <span className="sr-only">Editar</span>
@@ -145,15 +139,6 @@ export default function ItemManagement({
         </Table>
       </CardContent>
     </Card>
-     <BarcodeDisplayDialog 
-        item={barcodeItem}
-        isOpen={!!barcodeItem}
-        onOpenChange={(isOpen) => {
-          if (!isOpen) {
-            setBarcodeItem(null);
-          }
-        }}
-      />
     </>
   );
 }
