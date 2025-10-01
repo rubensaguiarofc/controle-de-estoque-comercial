@@ -24,7 +24,7 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="font-body antialiased bg-slate-50 dark:bg-background">
+      <body className="font-body antialiased bg-slate-50 dark:bg-background overflow-x-hidden">
         <SidebarProvider>
             {children}
         </SidebarProvider>
