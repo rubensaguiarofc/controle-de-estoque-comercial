@@ -89,7 +89,7 @@ export function ToolHistory({ tools, history, onCheckout, onReturn }: ToolHistor
             <CardDescription>Selecione a ferramenta disponível e clique em retirar.</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid sm:grid-cols-[1fr_auto] gap-2 items-end">
+            <div className="flex flex-col space-y-4">
               <div className="space-y-2">
                   <label className="text-sm font-medium">Ferramenta Disponível</label>
                   <Select onValueChange={setSelectedToolId} value={selectedToolId}>
@@ -118,7 +118,7 @@ export function ToolHistory({ tools, history, onCheckout, onReturn }: ToolHistor
             <CardDescription>Ferramentas que foram retiradas e ainda não foram devolvidas.</CardDescription>
           </CardHeader>
           <CardContent>
-            <ScrollArea>
+            <ScrollArea className="w-full whitespace-nowrap">
               <Table>
                   <TableHeader>
                       <TableRow>
@@ -134,10 +134,10 @@ export function ToolHistory({ tools, history, onCheckout, onReturn }: ToolHistor
                   <TableBody>
                       {toolsOutRecords.length > 0 ? toolsOutRecords.map(record => (
                           <TableRow key={record.id}>
-                              <TableCell className="font-medium whitespace-nowrap">{record.tool.name} <span className="text-muted-foreground text-xs">({record.tool.assetId})</span></TableCell>
-                              <TableCell className="whitespace-nowrap">{record.checkedOutBy}</TableCell>
-                              <TableCell className="whitespace-nowrap">{record.usageLocation}</TableCell>
-                              <TableCell className="whitespace-nowrap">{new Date(record.checkoutDate).toLocaleDateString('pt-BR')}</TableCell>
+                              <TableCell className="font-medium">{record.tool.name} <span className="text-muted-foreground text-xs">({record.tool.assetId})</span></TableCell>
+                              <TableCell>{record.checkedOutBy}</TableCell>
+                              <TableCell>{record.usageLocation}</TableCell>
+                              <TableCell>{new Date(record.checkoutDate).toLocaleDateString('pt-BR')}</TableCell>
                               <TableCell>
                                   <Badge>Em uso</Badge>
                               </TableCell>

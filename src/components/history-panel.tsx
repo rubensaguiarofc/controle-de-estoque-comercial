@@ -196,35 +196,38 @@ function ItemHistoryTab({ history, onDeleteRecord }: { history: WithdrawalRecord
   
     return (
       <div className="space-y-4 flex flex-col flex-grow">
-        <div className="flex flex-col gap-4 p-4 border rounded-lg bg-slate-50/50">
-            <div className="relative">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center p-4 border rounded-lg bg-slate-50/50">
+            <div className="relative flex-grow">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input placeholder="Buscar por item, quem retirou, destino..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" />
+                <Input placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" />
             </div>
-            <Popover>
-                <PopoverTrigger asChild>
-                    <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !dateFilter && "text-muted-foreground")}>
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {dateFilter ? format(dateFilter, "PPP", { locale: ptBR }) : <span>Filtrar por data</span>}
-                    </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={dateFilter} onSelect={setDateFilter} initialFocus locale={ptBR} /></PopoverContent>
-            </Popover>
-            <Button variant="ghost" onClick={() => { setDateFilter(undefined); setSearchTerm(''); }}>
-                <X className="mr-2 h-4 w-4" /> Limpar Filtros
-            </Button>
+            <div className="flex gap-2">
+                <Popover>
+                    <PopoverTrigger asChild>
+                        <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !dateFilter && "text-muted-foreground")}>
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {dateFilter ? format(dateFilter, "PPP", { locale: ptBR }) : <span>Data</span>}
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={dateFilter} onSelect={setDateFilter} initialFocus locale={ptBR} /></PopoverContent>
+                </Popover>
+                <Button variant="ghost" size="icon" onClick={() => { setDateFilter(undefined); setSearchTerm(''); }}>
+                    <X className="h-4 w-4" />
+                    <span className="sr-only">Limpar Filtros</span>
+                </Button>
+            </div>
         </div>
-        <ScrollArea className="flex-grow">
+        <ScrollArea className="flex-grow w-full whitespace-nowrap">
         <Table>
           <TableHeader><TableRow><TableHead>Data</TableHead><TableHead>Item</TableHead><TableHead>Qtd.</TableHead><TableHead>Quem</TableHead><TableHead>Destino</TableHead><TableHead className="text-right">Ações</TableHead></TableRow></TableHeader>
           <TableBody>
             {paginatedHistory.length > 0 ? paginatedHistory.map((record) => (
               <TableRow key={record.id}>
-                <TableCell className="text-muted-foreground whitespace-nowrap">{new Date(record.date).toLocaleDateString('pt-BR')}</TableCell>
-                <TableCell className="font-medium whitespace-nowrap">{record.item.name}</TableCell>
+                <TableCell className="text-muted-foreground">{new Date(record.date).toLocaleDateString('pt-BR')}</TableCell>
+                <TableCell className="font-medium">{record.item.name}</TableCell>
                 <TableCell>{record.quantity}{record.unit}</TableCell>
-                <TableCell className="whitespace-nowrap">{record.requestedBy}</TableCell>
-                <TableCell className="whitespace-nowrap">{record.requestedFor}</TableCell>
+                <TableCell>{record.requestedBy}</TableCell>
+                <TableCell>{record.requestedFor}</TableCell>
                 <TableCell className="text-right">
                   <AlertDialog>
                     <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="text-destructive hover:text-destructive"><Trash className="h-4 w-4" /></Button></AlertDialogTrigger>
@@ -273,16 +276,16 @@ function ToolHistoryTab({ history, onDeleteRecord, onShowSignatures }: { history
 
     return (
         <div className="space-y-4 flex flex-col flex-grow">
-            <div className="flex flex-col gap-4 p-4 border rounded-lg bg-slate-50/50">
-                 <div className="relative">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center p-4 border rounded-lg bg-slate-50/50">
+                 <div className="relative flex-grow">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input placeholder="Buscar por ferramenta, patrimônio, etc..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" />
+                    <Input placeholder="Buscar por ferramenta, patrimônio..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" />
                 </div>
                 <Button variant="ghost" onClick={() => setSearchTerm('')}>
                     <X className="mr-2 h-4 w-4" /> Limpar Filtro
                 </Button>
             </div>
-            <ScrollArea className="flex-grow">
+            <ScrollArea className="flex-grow w-full whitespace-nowrap">
             <Table>
                 <TableHeader>
                     <TableRow>
@@ -298,10 +301,10 @@ function ToolHistoryTab({ history, onDeleteRecord, onShowSignatures }: { history
                 <TableBody>
                     {paginatedHistory.length > 0 ? paginatedHistory.map(record => (
                         <TableRow key={record.id}>
-                            <TableCell className="font-medium whitespace-nowrap">{record.tool.name} <span className="text-xs text-muted-foreground">({record.tool.assetId})</span></TableCell>
-                            <TableCell className="whitespace-nowrap">{record.checkedOutBy}</TableCell>
-                            <TableCell className="whitespace-nowrap">{format(new Date(record.checkoutDate), 'dd/MM/yy HH:mm')}</TableCell>
-                            <TableCell className="whitespace-nowrap">{record.returnDate ? format(new Date(record.returnDate), 'dd/MM/yy HH:mm') : '—'}</TableCell>
+                            <TableCell className="font-medium">{record.tool.name} <span className="text-xs text-muted-foreground">({record.tool.assetId})</span></TableCell>
+                            <TableCell>{record.checkedOutBy}</TableCell>
+                            <TableCell>{format(new Date(record.checkoutDate), 'dd/MM/yy HH:mm')}</TableCell>
+                            <TableCell>{record.returnDate ? format(new Date(record.returnDate), 'dd/MM/yy HH:mm') : '—'}</TableCell>
                             <TableCell>
                                 {record.returnDate 
                                     ? <Badge variant={record.isDamaged ? "destructive" : "secondary"}>{record.isDamaged ? "Com Avaria" : "Devolvido"}</Badge>
