@@ -13,6 +13,7 @@ import { Badge } from './ui/badge';
 import { ReturnToolDialog } from './return-tool-dialog';
 import { CheckoutToolDialog } from './checkout-tool-dialog';
 import { SignatureDisplayDialog } from './signature-display-dialog';
+import { ScrollArea } from './ui/scroll-area';
 
 interface ToolHistoryProps {
   tools: Tool[];
@@ -105,7 +106,7 @@ export function ToolHistory({ tools, history, onCheckout, onReturn }: ToolHistor
                   </Select>
               </div>
               <Button onClick={handleOpenCheckout}>
-                Retirar Ferramenta
+                Retirar
               </Button>
             </div>
           </CardContent>
@@ -117,6 +118,7 @@ export function ToolHistory({ tools, history, onCheckout, onReturn }: ToolHistor
             <CardDescription>Ferramentas que foram retiradas e ainda não foram devolvidas.</CardDescription>
           </CardHeader>
           <CardContent>
+            <ScrollArea>
               <Table>
                   <TableHeader>
                       <TableRow>
@@ -132,7 +134,7 @@ export function ToolHistory({ tools, history, onCheckout, onReturn }: ToolHistor
                   <TableBody>
                       {toolsOutRecords.length > 0 ? toolsOutRecords.map(record => (
                           <TableRow key={record.id}>
-                              <TableCell className="font-medium">{record.tool.name} <span className="text-muted-foreground text-xs">({record.tool.assetId})</span></TableCell>
+                              <TableCell className="font-medium whitespace-nowrap">{record.tool.name} <span className="text-muted-foreground text-xs">({record.tool.assetId})</span></TableCell>
                               <TableCell>{record.checkedOutBy}</TableCell>
                               <TableCell>{record.usageLocation}</TableCell>
                               <TableCell>{new Date(record.checkoutDate).toLocaleDateString('pt-BR')}</TableCell>
@@ -158,6 +160,7 @@ export function ToolHistory({ tools, history, onCheckout, onReturn }: ToolHistor
                       )}
                   </TableBody>
               </Table>
+            </ScrollArea>
           </CardContent>
         </Card>
       </div>
@@ -185,5 +188,3 @@ export function ToolHistory({ tools, history, onCheckout, onReturn }: ToolHistor
     </>
   );
 }
-
-    

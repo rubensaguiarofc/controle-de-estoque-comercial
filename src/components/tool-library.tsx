@@ -10,6 +10,7 @@ import { Edit, Trash, Search, Plus } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from './ui/input';
+import { ScrollArea } from './ui/scroll-area';
 
 interface ToolLibraryProps {
   tools: Tool[];
@@ -53,7 +54,7 @@ export function ToolLibrary({
   }, [tools, searchQuery]);
 
   return (
-    <Card className="shadow-lg">
+    <Card className="shadow-lg h-full flex flex-col">
       <CardHeader>
         <div className="flex justify-between items-start sm:items-center flex-col sm:flex-row gap-4">
             <div>
@@ -66,7 +67,7 @@ export function ToolLibrary({
             </Button>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex flex-col flex-grow">
         <div className="mb-4">
             <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -78,6 +79,7 @@ export function ToolLibrary({
                 />
             </div>
         </div>
+        <ScrollArea className="flex-grow">
         <Table>
           <TableHeader>
             <TableRow>
@@ -131,8 +133,8 @@ export function ToolLibrary({
             )}
           </TableBody>
         </Table>
+        </ScrollArea>
       </CardContent>
     </Card>
   );
 }
-    

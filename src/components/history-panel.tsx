@@ -21,6 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Badge } from "./ui/badge";
 import { SignatureDisplayDialog } from "./signature-display-dialog";
+import { ScrollArea } from "./ui/scroll-area";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -97,27 +98,27 @@ export function HistoryPanel({ itemHistory, toolHistory, onDeleteItemRecord, onD
 
   return (
     <>
-    <Card className="shadow-lg">
-      <CardHeader className="flex-row items-start justify-between">
+    <Card className="shadow-lg h-full flex flex-col">
+      <CardHeader className="flex-row items-start justify-between gap-2">
         <div>
           <CardTitle>Histórico Geral</CardTitle>
           <CardDescription>Visualize, filtre e exporte todas as movimentações.</CardDescription>
         </div>
-        <Button variant="outline" size="sm" onClick={handleExportToPDF}>
+        <Button variant="outline" size="sm" onClick={handleExportToPDF} className="shrink-0">
           <FileDown className="mr-2 h-4 w-4" />
           Exportar PDF
         </Button>
       </CardHeader>
-      <CardContent>
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+      <CardContent className="flex flex-col flex-grow">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex flex-col flex-grow">
             <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="items">Retirada de Itens</TabsTrigger>
                 <TabsTrigger value="tools">Movimentação de Ferramentas</TabsTrigger>
             </TabsList>
-            <TabsContent value="items" className="mt-4">
+            <TabsContent value="items" className="mt-4 flex flex-col flex-grow">
                 <ItemHistoryTab history={itemHistory} onDeleteRecord={onDeleteItemRecord} />
             </TabsContent>
-            <TabsContent value="tools" className="mt-4">
+            <TabsContent value="tools" className="mt-4 flex flex-col flex-grow">
                 <ToolHistoryTab history={toolHistory} onDeleteRecord={onDeleteToolRecord} onShowSignatures={setSignatureRecord} />
             </TabsContent>
         </Tabs>
@@ -194,7 +195,7 @@ function ItemHistoryTab({ history, onDeleteRecord }: { history: WithdrawalRecord
     }, [dateFilter, searchTerm]);
   
     return (
-      <div className="space-y-4">
+      <div className="space-y-4 flex flex-col flex-grow">
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 p-4 border rounded-lg bg-slate-50/50">
             <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -213,13 +214,14 @@ function ItemHistoryTab({ history, onDeleteRecord }: { history: WithdrawalRecord
                 <X className="mr-2 h-4 w-4" /> Limpar Filtros
             </Button>
         </div>
+        <ScrollArea className="flex-grow">
         <Table>
           <TableHeader><TableRow><TableHead>Data</TableHead><TableHead>Item</TableHead><TableHead>Qtd.</TableHead><TableHead>Quem</TableHead><TableHead>Destino</TableHead><TableHead className="text-right">Ações</TableHead></TableRow></TableHeader>
           <TableBody>
             {paginatedHistory.length > 0 ? paginatedHistory.map((record) => (
               <TableRow key={record.id}>
                 <TableCell className="text-muted-foreground">{new Date(record.date).toLocaleDateString('pt-BR')}</TableCell>
-                <TableCell className="font-medium">{record.item.name}</TableCell>
+                <TableCell className="font-medium whitespace-nowrap">{record.item.name}</TableCell>
                 <TableCell>{record.quantity}{record.unit}</TableCell>
                 <TableCell>{record.requestedBy}</TableCell>
                 <TableCell>{record.requestedFor}</TableCell>
@@ -236,6 +238,7 @@ function ItemHistoryTab({ history, onDeleteRecord }: { history: WithdrawalRecord
             )) : <TableRow><TableCell colSpan={6} className="text-center h-24 text-muted-foreground">Nenhum registro encontrado.</TableCell></TableRow>}
           </TableBody>
         </Table>
+        </ScrollArea>
         <Paginator currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
       </div>
     );
@@ -269,16 +272,17 @@ function ToolHistoryTab({ history, onDeleteRecord, onShowSignatures }: { history
     }, [searchTerm]);
 
     return (
-        <div className="space-y-4">
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 p-4 border rounded-lg bg-slate-50/50">
-                 <div className="relative lg:col-span-2">
+        <div className="space-y-4 flex flex-col flex-grow">
+            <div className="grid sm:grid-cols-2 gap-4 p-4 border rounded-lg bg-slate-50/50">
+                 <div className="relative sm:col-span-2">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input placeholder="Buscar por ferramenta, patrimônio, responsável..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" />
                 </div>
-                <Button variant="ghost" onClick={() => setSearchTerm('')}>
+                <Button variant="ghost" onClick={() => setSearchTerm('')} className="sm:col-span-2">
                     <X className="mr-2 h-4 w-4" /> Limpar Filtro
                 </Button>
             </div>
+            <ScrollArea className="flex-grow">
             <Table>
                 <TableHeader>
                     <TableRow>
@@ -294,7 +298,7 @@ function ToolHistoryTab({ history, onDeleteRecord, onShowSignatures }: { history
                 <TableBody>
                     {paginatedHistory.length > 0 ? paginatedHistory.map(record => (
                         <TableRow key={record.id}>
-                            <TableCell className="font-medium">{record.tool.name} <span className="text-xs text-muted-foreground">({record.tool.assetId})</span></TableCell>
+                            <TableCell className="font-medium whitespace-nowrap">{record.tool.name} <span className="text-xs text-muted-foreground">({record.tool.assetId})</span></TableCell>
                             <TableCell>{record.checkedOutBy}</TableCell>
                             <TableCell>{format(new Date(record.checkoutDate), 'dd/MM/yy HH:mm')}</TableCell>
                             <TableCell>{record.returnDate ? format(new Date(record.returnDate), 'dd/MM/yy HH:mm') : '—'}</TableCell>
@@ -329,13 +333,8 @@ function ToolHistoryTab({ history, onDeleteRecord, onShowSignatures }: { history
                     )}
                 </TableBody>
             </Table>
+            </ScrollArea>
             <Paginator currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
         </div>
     );
 }
-
-    
-
-    
-
-    

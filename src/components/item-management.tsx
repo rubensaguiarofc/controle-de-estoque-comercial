@@ -11,6 +11,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from '@/hooks/use-toast';
 import { Input } from './ui/input';
 import { BarcodeDisplayDialog } from './barcode-display-dialog';
+import { ScrollArea } from './ui/scroll-area';
 
 interface ItemManagementProps {
   stockItems: StockItem[];
@@ -69,7 +70,7 @@ export default function ItemManagement({
 
   return (
     <>
-    <Card className="shadow-lg">
+    <Card className="shadow-lg h-full flex flex-col">
       <CardHeader>
         <div className="flex justify-between items-start sm:items-center flex-col sm:flex-row gap-4">
             <div>
@@ -82,7 +83,7 @@ export default function ItemManagement({
             </Button>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex flex-col flex-grow">
         <div className="mb-4">
             <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -94,10 +95,10 @@ export default function ItemManagement({
                 />
             </div>
         </div>
+        <ScrollArea className="flex-grow">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>ID</TableHead>
               <TableHead>Nome</TableHead>
               <TableHead>Especificações</TableHead>
               <TableHead>Código de Barras</TableHead>
@@ -108,7 +109,6 @@ export default function ItemManagement({
             {filteredItems.length > 0 ? (
               filteredItems.map(item => (
                 <TableRow key={item.id} >
-                  <TableCell className="text-muted-foreground">{item.id}</TableCell>
                   <TableCell className="font-medium">{item.name}</TableCell>
                   <TableCell>{item.specifications}</TableCell>
                   <TableCell className="font-mono text-sm">{item.barcode || 'N/A'}</TableCell>
@@ -155,13 +155,14 @@ export default function ItemManagement({
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
+                <TableCell colSpan={4} className="text-center h-24 text-muted-foreground">
                   Nenhum item encontrado.
                 </TableCell>
               </TableRow>
             )}
           </TableBody>
         </Table>
+        </ScrollArea>
       </CardContent>
     </Card>
     {barcodeItem && (
