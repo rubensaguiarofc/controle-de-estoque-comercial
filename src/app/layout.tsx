@@ -23,7 +23,7 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="font-body antialiased bg-background">
+      <body className="font-body antialiased bg-background overflow-x-hidden">
         {children}
         <Toaster />
         <footer className="w-full text-center p-4 text-xs text-muted-foreground md:fixed bottom-0 bg-background">
@@ -33,5 +33,3 @@ export default function RootLayout({
     </html>
   );
 }
-
-    

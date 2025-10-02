@@ -299,5 +299,3 @@ function ToolHistoryTab({ paginatedHistory, onDeleteRecord, onShowSignatures }: 
       </Table>
     );
 }
-
-    
