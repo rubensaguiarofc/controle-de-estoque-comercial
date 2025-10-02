@@ -56,30 +56,28 @@ export function ToolLibrary({
   return (
     <Card className="shadow-lg h-full flex flex-col">
       <CardHeader>
-        <div className="flex justify-between items-start sm:items-center flex-col sm:flex-row gap-4">
-            <div>
+        <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+            <div className="flex-1">
                 <CardTitle>Biblioteca de Ferramentas</CardTitle>
                 <CardDescription>Gerencie todas as ferramentas cadastradas.</CardDescription>
             </div>
-            <Button onClick={() => { onSetEditingTool(null); onSetIsAddToolDialogOpen(true); }}>
+            <Button onClick={() => { onSetEditingTool(null); onSetIsAddToolDialogOpen(true); }} className="w-full sm:w-auto">
                 <Plus className="mr-2 h-4 w-4" />
                 Cadastrar Nova Ferramenta
             </Button>
         </div>
       </CardHeader>
-      <CardContent className="flex flex-col flex-grow">
-        <div className="mb-4">
-            <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                    placeholder="Pesquisar por nome ou patrimônio..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10"
-                />
-            </div>
+      <CardContent className="flex flex-col flex-grow gap-4">
+        <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+                placeholder="Pesquisar por nome ou patrimônio..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+            />
         </div>
-        <ScrollArea className="flex-grow">
+        <ScrollArea className="flex-grow rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>

@@ -91,7 +91,7 @@ export function ToolHistory({ tools, history, onCheckout, onReturn }: ToolHistor
             <div className="border rounded-lg p-4 space-y-4">
                 <h3 className="font-medium">Registrar Nova Retirada</h3>
                 <div className="flex flex-col gap-2">
-                    <div className="space-y-2 flex-grow w-full">
+                    <div className="space-y-2 flex-grow">
                         <label className="text-sm font-medium">Ferramenta Disponível</label>
                         <Select onValueChange={setSelectedToolId} value={selectedToolId}>
                             <SelectTrigger>
@@ -130,10 +130,10 @@ export function ToolHistory({ tools, history, onCheckout, onReturn }: ToolHistor
                     <TableBody>
                         {toolsOutRecords.length > 0 ? toolsOutRecords.map(record => (
                             <TableRow key={record.id}>
-                                <TableCell className="font-medium">{record.tool.name} <span className="text-muted-foreground text-xs">({record.tool.assetId})</span></TableCell>
-                                <TableCell>{record.checkedOutBy}</TableCell>
-                                <TableCell>{record.usageLocation}</TableCell>
-                                <TableCell>{new Date(record.checkoutDate).toLocaleDateString('pt-BR')}</TableCell>
+                                <TableCell className="font-medium whitespace-nowrap">{record.tool.name} <span className="text-muted-foreground text-xs">({record.tool.assetId})</span></TableCell>
+                                <TableCell className="whitespace-nowrap">{record.checkedOutBy}</TableCell>
+                                <TableCell className="whitespace-nowrap">{record.usageLocation}</TableCell>
+                                <TableCell className="whitespace-nowrap">{new Date(record.checkoutDate).toLocaleDateString('pt-BR')}</TableCell>
                                 <TableCell>
                                     <Badge>Em uso</Badge>
                                 </TableCell>

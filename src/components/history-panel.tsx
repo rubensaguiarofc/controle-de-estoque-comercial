@@ -223,11 +223,11 @@ function ItemHistoryTab({ history, onDeleteRecord }: { history: WithdrawalRecord
           <TableBody>
             {paginatedHistory.length > 0 ? paginatedHistory.map((record) => (
               <TableRow key={record.id}>
-                <TableCell className="text-muted-foreground">{new Date(record.date).toLocaleDateString('pt-BR')}</TableCell>
-                <TableCell className="font-medium">{record.item.name}</TableCell>
-                <TableCell>{record.quantity}{record.unit}</TableCell>
-                <TableCell>{record.requestedBy}</TableCell>
-                <TableCell>{record.requestedFor}</TableCell>
+                <TableCell className="text-muted-foreground whitespace-nowrap">{new Date(record.date).toLocaleDateString('pt-BR')}</TableCell>
+                <TableCell className="font-medium whitespace-nowrap">{record.item.name}</TableCell>
+                <TableCell className="whitespace-nowrap">{record.quantity}{record.unit}</TableCell>
+                <TableCell className="whitespace-nowrap">{record.requestedBy}</TableCell>
+                <TableCell className="whitespace-nowrap">{record.requestedFor}</TableCell>
                 <TableCell className="text-right">
                   <AlertDialog>
                     <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="text-destructive hover:text-destructive"><Trash className="h-4 w-4" /></Button></AlertDialogTrigger>
@@ -304,10 +304,10 @@ function ToolHistoryTab({ history, onDeleteRecord, onShowSignatures }: { history
                 <TableBody>
                     {paginatedHistory.length > 0 ? paginatedHistory.map(record => (
                         <TableRow key={record.id}>
-                            <TableCell className="font-medium">{record.tool.name} <span className="text-xs text-muted-foreground">({record.tool.assetId})</span></TableCell>
-                            <TableCell>{record.checkedOutBy}</TableCell>
-                            <TableCell>{format(new Date(record.checkoutDate), 'dd/MM/yy HH:mm')}</TableCell>
-                            <TableCell>{record.returnDate ? format(new Date(record.returnDate), 'dd/MM/yy HH:mm') : '—'}</TableCell>
+                            <TableCell className="font-medium whitespace-nowrap">{record.tool.name} <span className="text-xs text-muted-foreground">({record.tool.assetId})</span></TableCell>
+                            <TableCell className="whitespace-nowrap">{record.checkedOutBy}</TableCell>
+                            <TableCell className="whitespace-nowrap">{format(new Date(record.checkoutDate), 'dd/MM/yy HH:mm')}</TableCell>
+                            <TableCell className="whitespace-nowrap">{record.returnDate ? format(new Date(record.returnDate), 'dd/MM/yy HH:mm') : '—'}</TableCell>
                             <TableCell>
                                 {record.returnDate 
                                     ? <Badge variant={record.isDamaged ? "destructive" : "secondary"}>{record.isDamaged ? "Com Avaria" : "Devolvido"}</Badge>
