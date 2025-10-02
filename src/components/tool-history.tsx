@@ -13,7 +13,6 @@ import { Badge } from './ui/badge';
 import { ReturnToolDialog } from './return-tool-dialog';
 import { CheckoutToolDialog } from './checkout-tool-dialog';
 import { SignatureDisplayDialog } from './signature-display-dialog';
-import { ScrollArea } from './ui/scroll-area';
 
 interface ToolHistoryProps {
   tools: Tool[];
@@ -82,16 +81,14 @@ export function ToolHistory({ tools, history, onCheckout, onReturn }: ToolHistor
 
   return (
     <>
-      <Card className="shadow-lg h-full flex flex-col">
-        <CardHeader>
-            <CardTitle>Movimentação de Ferramentas</CardTitle>
-            <CardDescription>Registre retiradas e devoluções de ferramentas.</CardDescription>
-        </CardHeader>
-        <CardContent className="flex-grow flex flex-col gap-6">
-            <div className="border rounded-lg p-4 space-y-4">
-                <h3 className="font-medium">Registrar Nova Retirada</h3>
-                <div className="flex flex-col sm:flex-row gap-2 items-end">
-                    <div className="space-y-2 flex-grow w-full">
+      <div className="space-y-6">
+        <Card className="shadow-lg">
+            <CardHeader>
+                <CardTitle>Registrar Nova Retirada</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <div className="flex gap-2 items-end">
+                    <div className="space-y-2 flex-grow">
                         <label className="text-sm font-medium">Ferramenta Disponível</label>
                         <Select onValueChange={setSelectedToolId} value={selectedToolId}>
                             <SelectTrigger>
@@ -106,15 +103,19 @@ export function ToolHistory({ tools, history, onCheckout, onReturn }: ToolHistor
                             </SelectContent>
                         </Select>
                     </div>
-                    <Button onClick={handleOpenCheckout} className="w-full sm:w-auto">
+                    <Button onClick={handleOpenCheckout}>
                         Retirar Ferramenta
                     </Button>
                 </div>
-            </div>
-            
-            <div className="space-y-4 flex flex-col flex-grow">
-              <h3 className="font-medium">Ferramentas em Uso</h3>
-              <ScrollArea className="flex-grow w-full whitespace-nowrap rounded-md border">
+            </CardContent>
+        </Card>
+        
+        <Card className="shadow-lg">
+            <CardHeader>
+                <CardTitle>Ferramentas em Uso</CardTitle>
+                <CardDescription>Ferramentas que foram retiradas e ainda não foram devolvidas.</CardDescription>
+            </CardHeader>
+            <CardContent>
                 <Table>
                     <TableHeader>
                         <TableRow>
@@ -130,10 +131,10 @@ export function ToolHistory({ tools, history, onCheckout, onReturn }: ToolHistor
                     <TableBody>
                         {toolsOutRecords.length > 0 ? toolsOutRecords.map(record => (
                             <TableRow key={record.id}>
-                                <TableCell className="font-medium whitespace-nowrap">{record.tool.name} <span className="text-muted-foreground text-xs">({record.tool.assetId})</span></TableCell>
-                                <TableCell className="whitespace-nowrap">{record.checkedOutBy}</TableCell>
-                                <TableCell className="whitespace-nowrap">{record.usageLocation}</TableCell>
-                                <TableCell className="whitespace-nowrap">{new Date(record.checkoutDate).toLocaleDateString('pt-BR')}</TableCell>
+                                <TableCell className="font-medium">{record.tool.name} <span className="text-muted-foreground text-xs">({record.tool.assetId})</span></TableCell>
+                                <TableCell>{record.checkedOutBy}</TableCell>
+                                <TableCell>{record.usageLocation}</TableCell>
+                                <TableCell>{new Date(record.checkoutDate).toLocaleDateString('pt-BR')}</TableCell>
                                 <TableCell>
                                     <Badge>Em uso</Badge>
                                 </TableCell>
@@ -156,10 +157,9 @@ export function ToolHistory({ tools, history, onCheckout, onReturn }: ToolHistor
                         )}
                     </TableBody>
                 </Table>
-              </ScrollArea>
-            </div>
-        </CardContent>
-      </Card>
+            </CardContent>
+        </Card>
+      </div>
       
       {returningRecord && (
         <ReturnToolDialog

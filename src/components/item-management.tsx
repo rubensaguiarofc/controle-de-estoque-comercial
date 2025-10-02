@@ -11,7 +11,6 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from '@/hooks/use-toast';
 import { Input } from './ui/input';
 import { BarcodeDisplayDialog } from './barcode-display-dialog';
-import { ScrollArea } from './ui/scroll-area';
 
 interface ItemManagementProps {
   stockItems: StockItem[];
@@ -72,18 +71,18 @@ export default function ItemManagement({
     <>
     <Card className="shadow-lg h-full flex flex-col">
       <CardHeader>
-        <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+        <div className="flex justify-between items-start">
             <div className="flex-1">
                 <CardTitle>Biblioteca de Itens</CardTitle>
                 <CardDescription>Gerencie todos os itens cadastrados.</CardDescription>
             </div>
-            <Button onClick={() => { onSetEditingItem(null); onSetIsAddItemDialogOpen(true); }} className="w-full sm:w-auto">
+            <Button onClick={() => { onSetEditingItem(null); onSetIsAddItemDialogOpen(true); }}>
                 <Plus className="mr-2 h-4 w-4" />
                 Cadastrar Novo Item
             </Button>
         </div>
       </CardHeader>
-      <CardContent className="flex flex-col flex-grow gap-4">
+      <CardContent className="flex-grow flex flex-col gap-4">
         <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -93,7 +92,7 @@ export default function ItemManagement({
                 className="pl-10"
             />
         </div>
-        <ScrollArea className="flex-grow rounded-md border">
+        <div className="flex-grow rounded-md border overflow-y-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -107,9 +106,9 @@ export default function ItemManagement({
             {filteredItems.length > 0 ? (
               filteredItems.map(item => (
                 <TableRow key={item.id} >
-                  <TableCell className="font-medium whitespace-nowrap">{item.name}</TableCell>
-                  <TableCell className="whitespace-nowrap">{item.specifications}</TableCell>
-                  <TableCell className="font-mono text-sm whitespace-nowrap">{item.barcode || 'N/A'}</TableCell>
+                  <TableCell className="font-medium">{item.name}</TableCell>
+                  <TableCell>{item.specifications}</TableCell>
+                  <TableCell className="font-mono text-sm">{item.barcode || 'N/A'}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex gap-1 justify-end">
                       {item.barcode ? (
@@ -160,7 +159,7 @@ export default function ItemManagement({
             )}
           </TableBody>
         </Table>
-        </ScrollArea>
+        </div>
       </CardContent>
     </Card>
     {barcodeItem && (

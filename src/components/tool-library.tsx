@@ -10,7 +10,6 @@ import { Edit, Trash, Search, Plus } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from './ui/input';
-import { ScrollArea } from './ui/scroll-area';
 
 interface ToolLibraryProps {
   tools: Tool[];
@@ -56,18 +55,18 @@ export function ToolLibrary({
   return (
     <Card className="shadow-lg h-full flex flex-col">
       <CardHeader>
-        <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+        <div className="flex justify-between items-start">
             <div className="flex-1">
                 <CardTitle>Biblioteca de Ferramentas</CardTitle>
                 <CardDescription>Gerencie todas as ferramentas cadastradas.</CardDescription>
             </div>
-            <Button onClick={() => { onSetEditingTool(null); onSetIsAddToolDialogOpen(true); }} className="w-full sm:w-auto">
+            <Button onClick={() => { onSetEditingTool(null); onSetIsAddToolDialogOpen(true); }}>
                 <Plus className="mr-2 h-4 w-4" />
                 Cadastrar Nova Ferramenta
             </Button>
         </div>
       </CardHeader>
-      <CardContent className="flex flex-col flex-grow gap-4">
+      <CardContent className="flex-grow flex flex-col gap-4">
         <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -77,7 +76,7 @@ export function ToolLibrary({
                 className="pl-10"
             />
         </div>
-        <ScrollArea className="flex-grow rounded-md border">
+        <div className="flex-grow rounded-md border overflow-y-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -90,8 +89,8 @@ export function ToolLibrary({
             {filteredTools.length > 0 ? (
               filteredTools.map(tool => (
                 <TableRow key={tool.id}>
-                  <TableCell className="font-medium whitespace-nowrap">{tool.name}</TableCell>
-                  <TableCell className="font-mono text-sm whitespace-nowrap">{tool.assetId}</TableCell>
+                  <TableCell className="font-medium">{tool.name}</TableCell>
+                  <TableCell className="font-mono text-sm">{tool.assetId}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex gap-1 justify-end">
                       <Button variant="ghost" size="icon" onClick={() => handleEdit(tool)}>
@@ -131,7 +130,7 @@ export function ToolLibrary({
             )}
           </TableBody>
         </Table>
-        </ScrollArea>
+        </div>
       </CardContent>
     </Card>
   );

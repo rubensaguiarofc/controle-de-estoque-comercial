@@ -12,7 +12,6 @@ import { Sidebar, SidebarContent, SidebarInset, SidebarItem, SidebarTrigger } fr
 import { AddItemDialog } from "./add-item-dialog";
 import { Skeleton } from "./ui/skeleton";
 import { AddToolDialog } from "./add-tool-dialog";
-import { cn } from "@/lib/utils";
 
 const StockReleaseClient = dynamic(() => import('./stock-release-client'), {
   loading: () => <ClientSkeleton />,
@@ -223,85 +222,47 @@ export default function StockReleaseApp() {
     }
   };
 
-  const navItems = [
-    { view: "release", label: "Lançamento", icon: RefreshCw },
-    { view: "items", label: "Itens", icon: Boxes },
-    { view: "tools", label: "Ferramentas", icon: Wrench },
-    { view: "history", label: "Histórico", icon: History },
-  ]
-
-  const NavButton = ({ view, label, icon: Icon, isMobile }: { view: View; label: string; icon: React.ElementType, isMobile?: boolean }) => (
-    <button
-      onClick={() => setActiveView(view)}
-      className={cn(
-        "flex items-center gap-4 rounded-lg p-3 text-muted-foreground transition-colors hover:text-primary",
-        { "bg-primary/10 text-primary": activeView === view },
-        { "flex-col gap-1 text-xs h-16 justify-center": isMobile },
-        { "w-full": !isMobile}
-      )}
-    >
-      <Icon className={cn("h-5 w-5", { "h-6 w-6": isMobile })} />
-      <span>{label}</span>
-    </button>
-  );
-
   return (
-    <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
-        {/* Desktop Sidebar */}
-        <div className="hidden border-r bg-muted/40 md:block">
-            <div className="flex h-full max-h-screen flex-col gap-2">
-                <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
-                    <div className="flex items-center gap-2 font-semibold">
-                        <PackagePlus className="h-6 w-6" />
-                        <span className="">Controle de Saída</span>
-                    </div>
-                </div>
-                <div className="flex-1">
-                    <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
-                        {navItems.map(item => (
-                            <NavButton key={item.view} {...item} />
-                        ))}
-                    </nav>
-                </div>
-            </div>
-        </div>
+    <div className="flex h-screen bg-muted/40">
+      <Sidebar>
+        <SidebarContent className="flex flex-col">
+          <div className="flex-grow">
+            <h2 className="text-2xl font-bold p-4 flex items-center gap-2">
+              <PackagePlus />
+              Controle
+            </h2>
+            <nav className="flex flex-col gap-2 p-4">
+              <SidebarItem icon={<RefreshCw />} isActive={activeView === 'release'} onClick={() => setActiveView("release")}>Lançamento</SidebarItem>
+              <SidebarItem icon={<Boxes />} isActive={activeView === 'items'} onClick={() => setActiveView("items")}>Itens</SidebarItem>
+              <SidebarItem icon={<Wrench />} isActive={activeView === 'tools'} onClick={() => setActiveView("tools")}>Ferramentas</SidebarItem>
+              <SidebarItem icon={<History />} isActive={activeView === 'history'} onClick={() => setActiveView("history")}>Histórico</SidebarItem>
+            </nav>
+          </div>
+        </SidebarContent>
+      </Sidebar>
+      <div className="flex flex-col flex-1">
+        <header className="flex h-14 items-center gap-4 border-b bg-background px-6">
+            <SidebarTrigger />
+            <h1 className="text-lg font-semibold md:text-2xl capitalize">{activeView}</h1>
+        </header>
+        <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-6 overflow-auto">
+          {renderContent()}
+        </main>
+      </div>
 
-        <div className="flex flex-col">
-            {/* Mobile Header */}
-            <header className="flex h-14 items-center gap-4 border-b bg-muted/40 px-4 lg:h-[60px] lg:px-6 md:hidden">
-                <div className="flex items-center gap-2 font-semibold">
-                    <PackagePlus className="h-6 w-6" />
-                    <span>Controle de Saída</span>
-                </div>
-            </header>
+      <AddItemDialog
+          isOpen={isAddItemDialogOpen}
+          onOpenChange={handleItemDialogClose}
+          onAddItem={handleItemDialogSubmit}
+          editingItem={editingItem}
+      />
 
-            <main className="flex-1 gap-4 p-4 sm:px-6 sm:py-0 md:gap-8 pb-20 md:pb-4">
-              {renderContent()}
-            </main>
-        </div>
-
-        {/* Mobile Bottom Nav */}
-        <div className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-background border-t">
-          <nav className="grid h-full grid-cols-4 items-center">
-            {navItems.map(item => (
-              <NavButton key={item.view} {...item} isMobile />
-            ))}
-          </nav>
-        </div>
-
-        <AddItemDialog
-            isOpen={isAddItemDialogOpen}
-            onOpenChange={handleItemDialogClose}
-            onAddItem={handleItemDialogSubmit}
-            editingItem={editingItem}
-        />
-
-        <AddToolDialog
-            isOpen={isAddToolDialogOpen}
-            onOpenChange={handleToolDialogClose}
-            onAddTool={handleToolDialogSubmit}
-            editingTool={editingTool}
-        />
+      <AddToolDialog
+          isOpen={isAddToolDialogOpen}
+          onOpenChange={handleToolDialogClose}
+          onAddTool={handleToolDialogSubmit}
+          editingTool={editingTool}
+      />
     </div>
   )
 }
@@ -385,5 +346,3 @@ function HistorySkeleton() {
       </div>
     );
 }
-
-    

@@ -52,12 +52,12 @@ export default function ToolManagement({
   };
   
   return (
-    <Tabs defaultValue="actions" className="w-full flex flex-col">
+    <Tabs defaultValue="actions" className="w-full">
       <TabsList className="grid w-full grid-cols-2">
         <TabsTrigger value="actions">Movimentação</TabsTrigger>
         <TabsTrigger value="library">Biblioteca</TabsTrigger>
       </TabsList>
-      <TabsContent value="actions" className="mt-4 flex-grow">
+      <TabsContent value="actions" className="mt-4">
         <ToolHistory
             tools={tools}
             history={toolHistory}
@@ -65,7 +65,7 @@ export default function ToolManagement({
             onReturn={handleReturn}
         />
       </TabsContent>
-      <TabsContent value="library" className="mt-4 flex-grow">
+      <TabsContent value="library" className="mt-4">
         <ToolLibrary
           tools={tools}
           setTools={setTools}
@@ -76,5 +76,3 @@ export default function ToolManagement({
     </Tabs>
   );
 }
-
-    
