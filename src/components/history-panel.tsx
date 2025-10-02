@@ -6,7 +6,7 @@ import { format } from "date-fns";
 import { ptBR } from 'date-fns/locale';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-import { Calendar as CalendarIcon, FileDown, Trash, X } from "lucide-react";
+import { Calendar as CalendarIcon, FileDown, PenSquare, Trash, X } from "lucide-react";
 
 import type { WithdrawalRecord, ToolRecord } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -21,6 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Badge } from "./ui/badge";
 import { SignatureDisplayDialog } from "./signature-display-dialog";
+import { ScrollArea } from "./ui/scroll-area";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -146,12 +147,12 @@ export function HistoryPanel({ itemHistory, toolHistory, onDeleteItemRecord, onD
     <>
     <Card className="shadow-lg h-full flex flex-col">
       <CardHeader>
-        <div className="flex justify-between items-start">
-            <div>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="flex-1">
                 <CardTitle>Histórico Geral</CardTitle>
                 <CardDescription>Visualize, filtre e exporte todas as movimentações.</CardDescription>
             </div>
-            <Button variant="outline" size="sm" onClick={handleExportToPDF}>
+            <Button variant="outline" size="sm" onClick={handleExportToPDF} className="w-full sm:w-auto">
                 <FileDown className="mr-2 h-4 w-4" />
                 Exportar PDF
             </Button>
@@ -168,29 +169,31 @@ export function HistoryPanel({ itemHistory, toolHistory, onDeleteItemRecord, onD
             <div className="relative flex-grow">
                 <Input placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
             </div>
-            <Popover>
-                <PopoverTrigger asChild>
-                    <Button variant={"outline"} className={cn("w-full sm:w-auto justify-start text-left font-normal", !dateFilter && "text-muted-foreground")}>
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {dateFilter ? format(dateFilter, "PPP", { locale: ptBR }) : <span>Filtrar por data</span>}
-                    </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={dateFilter} onSelect={setDateFilter} initialFocus locale={ptBR} /></PopoverContent>
-            </Popover>
-            { (dateFilter || searchTerm) &&
-              <Button variant="ghost" size="icon" onClick={clearFilters}>
-                  <X className="h-4 w-4" />
-                  <span className="sr-only">Limpar Filtros</span>
-              </Button>
-            }
+            <div className="flex gap-2">
+              <Popover>
+                  <PopoverTrigger asChild>
+                      <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !dateFilter && "text-muted-foreground")}>
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {dateFilter ? format(dateFilter, "PPP", { locale: ptBR }) : <span>Filtrar por data</span>}
+                      </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={dateFilter} onSelect={setDateFilter} initialFocus locale={ptBR} /></PopoverContent>
+              </Popover>
+              { (dateFilter || searchTerm) &&
+                <Button variant="ghost" size="icon" onClick={clearFilters}>
+                    <X className="h-4 w-4" />
+                    <span className="sr-only">Limpar Filtros</span>
+                </Button>
+              }
+            </div>
         </div>
-        <div className="flex-grow rounded-md border overflow-y-auto">
+        <ScrollArea className="flex-grow rounded-md border">
           {activeTab === 'items' ? (
             <ItemHistoryTab paginatedHistory={paginatedHistory as WithdrawalRecord[]} onDeleteRecord={onDeleteItemRecord} />
           ) : (
             <ToolHistoryTab paginatedHistory={paginatedHistory as ToolRecord[]} onDeleteRecord={onDeleteToolRecord} onShowSignatures={setSignatureRecord} />
           )}
-        </div>
+        </ScrollArea>
       </CardContent>
       <CardFooter className="pt-6">
         <div className="flex items-center justify-end w-full">
@@ -223,7 +226,7 @@ function ItemHistoryTab({ paginatedHistory, onDeleteRecord }: { paginatedHistory
         <TableBody>
           {paginatedHistory.length > 0 ? paginatedHistory.map((record) => (
             <TableRow key={record.id}>
-              <TableCell className="text-muted-foreground">{new Date(record.date).toLocaleDateString('pt-BR')}</TableCell>
+              <TableCell className="text-muted-foreground whitespace-nowrap">{new Date(record.date).toLocaleDateString('pt-BR')}</TableCell>
               <TableCell className="font-medium">{record.item.name}</TableCell>
               <TableCell>{record.quantity}{record.unit}</TableCell>
               <TableCell>{record.requestedBy}</TableCell>
@@ -264,8 +267,8 @@ function ToolHistoryTab({ paginatedHistory, onDeleteRecord, onShowSignatures }: 
                 <TableRow key={record.id}>
                     <TableCell className="font-medium">{record.tool.name} <span className="text-xs text-muted-foreground">({record.tool.assetId})</span></TableCell>
                     <TableCell>{record.checkedOutBy}</TableCell>
-                    <TableCell>{format(new Date(record.checkoutDate), 'dd/MM/yy HH:mm')}</TableCell>
-                    <TableCell>{record.returnDate ? format(new Date(record.returnDate), 'dd/MM/yy HH:mm') : '—'}</TableCell>
+                    <TableCell className="whitespace-nowrap">{format(new Date(record.checkoutDate), 'dd/MM/yy HH:mm')}</TableCell>
+                    <TableCell className="whitespace-nowrap">{record.returnDate ? format(new Date(record.returnDate), 'dd/MM/yy HH:mm') : '—'}</TableCell>
                     <TableCell>
                         {record.returnDate 
                             ? <Badge variant={record.isDamaged ? "destructive" : "secondary"}>{record.isDamaged ? "Com Avaria" : "Devolvido"}</Badge>
@@ -274,7 +277,7 @@ function ToolHistoryTab({ paginatedHistory, onDeleteRecord, onShowSignatures }: 
                     </TableCell>
                     <TableCell>
                         <Button variant="ghost" size="icon" onClick={() => onShowSignatures(record)}>
-                            <Trash className="h-4 w-4" />
+                            <PenSquare className="h-4 w-4" />
                             <span className="sr-only">Ver assinaturas</span>
                         </Button>
                     </TableCell>
