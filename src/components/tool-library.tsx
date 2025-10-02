@@ -92,8 +92,8 @@ export function ToolLibrary({
             {filteredTools.length > 0 ? (
               filteredTools.map(tool => (
                 <TableRow key={tool.id}>
-                  <TableCell className="font-medium">{tool.name}</TableCell>
-                  <TableCell className="font-mono text-sm">{tool.assetId}</TableCell>
+                  <TableCell className="font-medium whitespace-nowrap">{tool.name}</TableCell>
+                  <TableCell className="font-mono text-sm whitespace-nowrap">{tool.assetId}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex gap-1 justify-end">
                       <Button variant="ghost" size="icon" onClick={() => handleEdit(tool)}>

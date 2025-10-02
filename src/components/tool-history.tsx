@@ -135,9 +135,9 @@ export function ToolHistory({ tools, history, onCheckout, onReturn }: ToolHistor
                       {toolsOutRecords.length > 0 ? toolsOutRecords.map(record => (
                           <TableRow key={record.id}>
                               <TableCell className="font-medium whitespace-nowrap">{record.tool.name} <span className="text-muted-foreground text-xs">({record.tool.assetId})</span></TableCell>
-                              <TableCell>{record.checkedOutBy}</TableCell>
-                              <TableCell>{record.usageLocation}</TableCell>
-                              <TableCell>{new Date(record.checkoutDate).toLocaleDateString('pt-BR')}</TableCell>
+                              <TableCell className="whitespace-nowrap">{record.checkedOutBy}</TableCell>
+                              <TableCell className="whitespace-nowrap">{record.usageLocation}</TableCell>
+                              <TableCell className="whitespace-nowrap">{new Date(record.checkoutDate).toLocaleDateString('pt-BR')}</TableCell>
                               <TableCell>
                                   <Badge>Em uso</Badge>
                               </TableCell>
