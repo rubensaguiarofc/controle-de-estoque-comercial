@@ -112,8 +112,8 @@ export function HistoryPanel({ itemHistory, toolHistory, onDeleteItemRecord, onD
       <CardContent className="flex flex-col flex-grow p-0 sm:p-6 sm:pt-0">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex flex-col flex-grow">
             <TabsList className="grid w-full grid-cols-2 rounded-none sm:rounded-md">
-                <TabsTrigger value="items" className="rounded-none sm:rounded-sm">Retirada de Itens</TabsTrigger>
-                <TabsTrigger value="tools" className="rounded-none sm:rounded-sm">Mov. Ferramentas</TabsTrigger>
+                <TabsTrigger value="items" className="rounded-none sm:rounded-sm">Itens</TabsTrigger>
+                <TabsTrigger value="tools" className="rounded-none sm:rounded-sm">Ferramentas</TabsTrigger>
             </TabsList>
             <TabsContent value="items" className="mt-0 sm:mt-4 flex flex-col flex-grow">
                 <ItemHistoryTab history={itemHistory} onDeleteRecord={onDeleteItemRecord} />
@@ -136,7 +136,7 @@ export function HistoryPanel({ itemHistory, toolHistory, onDeleteItemRecord, onD
 function Paginator({ currentPage, totalPages, onPageChange, className }: { currentPage: number, totalPages: number, onPageChange: (page: number) => void, className?: string }) {
     if (totalPages <= 1) return null;
     return (
-        <div className={cn("flex items-center justify-between pt-4", className)}>
+        <div className={cn("flex items-center justify-end pt-4", className)}>
             <div className="flex gap-2">
                 <Button variant="outline" size="sm" onClick={() => onPageChange(currentPage - 1)} disabled={currentPage === 1}>
                     <ChevronLeft className="h-4 w-4" />
@@ -199,20 +199,22 @@ function ItemHistoryTab({ history, onDeleteRecord }: { history: WithdrawalRecord
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" />
             </div>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-2">
                 <Popover>
                     <PopoverTrigger asChild>
-                        <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !dateFilter && "text-muted-foreground")}>
+                        <Button variant={"outline"} className={cn("w-full flex-1 md:w-auto justify-start text-left font-normal", !dateFilter && "text-muted-foreground")}>
                             <CalendarIcon className="mr-2 h-4 w-4" />
                             {dateFilter ? format(dateFilter, "PPP", { locale: ptBR }) : <span>Filtrar por data</span>}
                         </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={dateFilter} onSelect={setDateFilter} initialFocus locale={ptBR} /></PopoverContent>
                 </Popover>
-                <Button variant="ghost" size="icon" onClick={() => { setDateFilter(undefined); setSearchTerm(''); }}>
-                    <X className="h-4 w-4" />
-                    <span className="sr-only">Limpar Filtros</span>
-                </Button>
+                { (dateFilter || searchTerm) &&
+                  <Button variant="ghost" size="icon" onClick={() => { setDateFilter(undefined); setSearchTerm(''); }}>
+                      <X className="h-4 w-4" />
+                      <span className="sr-only">Limpar Filtros</span>
+                  </Button>
+                }
             </div>
         </div>
         <ScrollArea className="flex-grow w-full whitespace-nowrap rounded-md border">
@@ -240,7 +242,7 @@ function ItemHistoryTab({ history, onDeleteRecord }: { history: WithdrawalRecord
           </TableBody>
         </Table>
         </ScrollArea>
-        <Paginator currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} className="self-end" />
+        <Paginator currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
       </div>
     );
 }
@@ -279,9 +281,12 @@ function ToolHistoryTab({ history, onDeleteRecord, onShowSignatures }: { history
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input placeholder="Buscar por ferramenta, patrimônio..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" />
                 </div>
-                <Button variant="ghost" onClick={() => setSearchTerm('')} className="flex-shrink-0">
-                    <X className="mr-2 h-4 w-4" /> Limpar Busca
-                </Button>
+                { searchTerm &&
+                  <Button variant="ghost" size="icon" onClick={() => setSearchTerm('')}>
+                      <X className="h-4 w-4" />
+                      <span className="sr-only">Limpar Busca</span>
+                  </Button>
+                }
             </div>
             <ScrollArea className="flex-grow w-full whitespace-nowrap rounded-md border">
             <Table>
@@ -335,9 +340,7 @@ function ToolHistoryTab({ history, onDeleteRecord, onShowSignatures }: { history
                 </TableBody>
             </Table>
             </ScrollArea>
-            <Paginator currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} className="self-end" />
+            <Paginator currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
         </div>
     );
 }
-
-    
