@@ -90,8 +90,8 @@ export function ToolHistory({ tools, history, onCheckout, onReturn }: ToolHistor
         <CardContent className="flex-grow flex flex-col gap-6">
             <div className="border rounded-lg p-4 space-y-4">
                 <h3 className="font-medium">Registrar Nova Retirada</h3>
-                <div className="flex flex-col gap-2">
-                    <div className="space-y-2 flex-grow">
+                <div className="flex flex-col sm:flex-row gap-2 items-end">
+                    <div className="space-y-2 flex-grow w-full">
                         <label className="text-sm font-medium">Ferramenta Disponível</label>
                         <Select onValueChange={setSelectedToolId} value={selectedToolId}>
                             <SelectTrigger>
@@ -106,7 +106,7 @@ export function ToolHistory({ tools, history, onCheckout, onReturn }: ToolHistor
                             </SelectContent>
                         </Select>
                     </div>
-                    <Button onClick={handleOpenCheckout} className="w-full">
+                    <Button onClick={handleOpenCheckout} className="w-full sm:w-auto">
                         Retirar Ferramenta
                     </Button>
                 </div>
