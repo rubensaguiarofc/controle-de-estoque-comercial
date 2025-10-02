@@ -8,10 +8,11 @@ import { MOCK_STOCK_ITEMS } from "@/lib/mock-data";
 import { useToast } from "@/hooks/use-toast";
 import { Boxes, History, PackagePlus, RefreshCw, Wrench } from "lucide-react";
 
-import { Sidebar, SidebarContent, SidebarInset, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarTrigger } from "./ui/sidebar";
+import { Sidebar, SidebarContent, SidebarInset, SidebarItem, SidebarTrigger } from "./ui/sidebar-vertical";
 import { AddItemDialog } from "./add-item-dialog";
 import { Skeleton } from "./ui/skeleton";
 import { AddToolDialog } from "./add-tool-dialog";
+import { cn } from "@/lib/utils";
 
 const StockReleaseClient = dynamic(() => import('./stock-release-client'), {
   loading: () => <ClientSkeleton />,
@@ -177,7 +178,6 @@ export default function StockReleaseApp() {
     });
   };
 
-
   const renderContent = () => {
     switch (activeView) {
       case "release":
@@ -222,79 +222,90 @@ export default function StockReleaseApp() {
         return null;
     }
   };
-  
-  const NavButton = ({ view, label, icon: Icon }: { view: View; label: string; icon: React.ElementType }) => (
-    <div className="flex flex-col items-center gap-1">
-      <SidebarMenuButton
-          isActive={activeView === view}
-          onClick={() => setActiveView(view)}
-          className="rounded-full h-16 w-16 !p-0 flex items-center justify-center text-primary bg-white shadow-md hover:shadow-lg transition-shadow"
-      >
-          <Icon className="h-7 w-7" />
-      </SidebarMenuButton>
-      <span className="text-xs text-muted-foreground">{label}</span>
-  </div>
+
+  const navItems = [
+    { view: "release", label: "Lançamento", icon: RefreshCw },
+    { view: "items", label: "Itens", icon: Boxes },
+    { view: "tools", label: "Ferramentas", icon: Wrench },
+    { view: "history", label: "Histórico", icon: History },
+  ]
+
+  const NavButton = ({ view, label, icon: Icon, isMobile }: { view: View; label: string; icon: React.ElementType, isMobile?: boolean }) => (
+    <button
+      onClick={() => setActiveView(view)}
+      className={cn(
+        "flex items-center gap-4 rounded-lg p-3 text-muted-foreground transition-colors hover:text-primary",
+        { "bg-primary/10 text-primary": activeView === view },
+        { "flex-col gap-1 text-xs h-16 justify-center": isMobile },
+        { "w-full": !isMobile}
+      )}
+    >
+      <Icon className={cn("h-5 w-5", { "h-6 w-6": isMobile })} />
+      <span>{label}</span>
+    </button>
   );
-  
+
   return (
-    <div className="flex min-h-[calc(100vh-80px)]">
-      <Sidebar variant="sidebar" collapsible="none" className="bg-slate-50 border-r-0">
-        <SidebarContent className="p-4 flex flex-col items-center justify-center gap-6">
-            <SidebarMenu>
-                <SidebarMenuItem>
-                    <div className="flex flex-col items-center gap-1">
-                        <SidebarMenuButton
-                            onClick={() => { setEditingItem(null); setAddItemDialogOpen(true); }}
-                            className="rounded-full h-16 w-16 !p-0 flex items-center justify-center text-primary bg-white shadow-md hover:shadow-lg transition-shadow"
-                        >
-                            <PackagePlus className="h-7 w-7 text-teal-500" />
-                        </SidebarMenuButton>
-                        <span className="text-xs text-muted-foreground">Cadastrar Itens</span>
+    <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
+        {/* Desktop Sidebar */}
+        <div className="hidden border-r bg-muted/40 md:block">
+            <div className="flex h-full max-h-screen flex-col gap-2">
+                <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
+                    <div className="flex items-center gap-2 font-semibold">
+                        <PackagePlus className="h-6 w-6" />
+                        <span className="">Controle de Saída</span>
                     </div>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                    <NavButton view="release" label="Lançamento" icon={RefreshCw} />
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                    <NavButton view="items" label="Itens" icon={Boxes} />
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                    <NavButton view="tools" label="Ferramentas" icon={Wrench} />
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                    <NavButton view="history" label="Histórico" icon={History} />
-                </SidebarMenuItem>
-            </SidebarMenu>
-        </SidebarContent>
-      </Sidebar>
-      <SidebarInset className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
-          <header className="flex items-center gap-3 mb-8">
-            <SidebarTrigger className="md:hidden" />
-            <h1 className="text-3xl font-bold text-foreground tracking-tight">Controle de Saída</h1>
-          </header>
+                </div>
+                <div className="flex-1">
+                    <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
+                        {navItems.map(item => (
+                            <NavButton key={item.view} {...item} />
+                        ))}
+                    </nav>
+                </div>
+            </div>
+        </div>
 
-          <main>
-            {renderContent()}
-          </main>
-      </SidebarInset>
-      
-      <AddItemDialog
-          isOpen={isAddItemDialogOpen}
-          onOpenChange={handleItemDialogClose}
-          onAddItem={handleItemDialogSubmit}
-          editingItem={editingItem}
-      />
+        <div className="flex flex-col">
+            {/* Mobile Header */}
+            <header className="flex h-14 items-center gap-4 border-b bg-muted/40 px-4 lg:h-[60px] lg:px-6 md:hidden">
+                <div className="flex items-center gap-2 font-semibold">
+                    <PackagePlus className="h-6 w-6" />
+                    <span>Controle de Saída</span>
+                </div>
+            </header>
 
-      <AddToolDialog
-          isOpen={isAddToolDialogOpen}
-          onOpenChange={handleToolDialogClose}
-          onAddTool={handleToolDialogSubmit}
-          editingTool={editingTool}
-      />
+            <main className="flex-1 gap-4 p-4 sm:px-6 sm:py-0 md:gap-8 pb-20 md:pb-4">
+              {renderContent()}
+            </main>
+        </div>
 
+        {/* Mobile Bottom Nav */}
+        <div className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-background border-t">
+          <nav className="grid h-full grid-cols-4 items-center">
+            {navItems.map(item => (
+              <NavButton key={item.view} {...item} isMobile />
+            ))}
+          </nav>
+        </div>
+
+        <AddItemDialog
+            isOpen={isAddItemDialogOpen}
+            onOpenChange={handleItemDialogClose}
+            onAddItem={handleItemDialogSubmit}
+            editingItem={editingItem}
+        />
+
+        <AddToolDialog
+            isOpen={isAddToolDialogOpen}
+            onOpenChange={handleToolDialogClose}
+            onAddTool={handleToolDialogSubmit}
+            editingTool={editingTool}
+        />
     </div>
   )
 }
+
 
 function ClientSkeleton() {
   return (
@@ -374,7 +385,5 @@ function HistorySkeleton() {
       </div>
     );
 }
-
-    
 
     

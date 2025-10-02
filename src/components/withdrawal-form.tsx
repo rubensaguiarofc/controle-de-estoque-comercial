@@ -100,8 +100,8 @@ export function WithdrawalForm({
             <CardContent className="flex flex-col gap-6">
               <div className="p-4 border rounded-lg space-y-4">
                 <h3 className="text-lg font-medium">Adicionar Item à Retirada</h3>
-                <div className="grid sm:grid-cols-[1fr_80px_100px_auto] gap-2 items-end">
-                    <FormItem>
+                <div className="grid grid-cols-1 sm:grid-cols-[1fr_80px] md:grid-cols-[1fr_80px_100px_auto] gap-2 items-end">
+                    <FormItem className="sm:col-span-2 md:col-span-1">
                       <FormLabel>Item</FormLabel>
                       <Select onValueChange={setCurrentItemId} value={currentItemId}>
                           <SelectTrigger>
@@ -120,11 +120,11 @@ export function WithdrawalForm({
                       <FormLabel>Qtd.</FormLabel>
                       <Input type="number" value={quantity} onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))} />
                     </FormItem>
-                     <FormItem>
+                     <FormItem className="hidden md:block">
                       <FormLabel>Unidade</FormLabel>
                       <Input placeholder="UN, KG, PC..." value={unit} onChange={(e) => setUnit(e.target.value.toUpperCase())} />
                     </FormItem>
-                    <Button type="button" size="icon" onClick={handleAddItemToCart} className="bg-teal-500 hover:bg-teal-600">
+                    <Button type="button" size="icon" onClick={handleAddItemToCart} className="bg-teal-500 hover:bg-teal-600 sm:col-start-2 md:col-start-4">
                         <Plus className="h-4 w-4" />
                         <span className="sr-only">Adicionar</span>
                     </Button>
@@ -195,3 +195,5 @@ export function WithdrawalForm({
     </>
   );
 }
+
+    

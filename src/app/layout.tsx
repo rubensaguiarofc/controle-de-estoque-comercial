@@ -2,7 +2,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
-import { SidebarProvider } from '@/components/ui/sidebar';
 
 export const metadata: Metadata = {
   title: 'Controle de Saída',
@@ -24,15 +23,15 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="font-body antialiased bg-slate-50 dark:bg-background overflow-x-hidden">
-        <SidebarProvider>
-            {children}
-        </SidebarProvider>
+      <body className="font-body antialiased bg-background overflow-x-hidden">
+        {children}
         <Toaster />
-        <footer className="w-full text-center p-4 text-sm text-muted-foreground fixed bottom-0 bg-slate-50 dark:bg-background">
+        <footer className="w-full text-center p-4 text-xs text-muted-foreground md:fixed bottom-0 bg-background">
           Alternativa Solutions. Todos os direitos reservados
         </footer>
       </body>
     </html>
   );
 }
+
+    
