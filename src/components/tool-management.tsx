@@ -1,7 +1,6 @@
 
 "use client";
 
-import { useState } from 'react';
 import type { Tool, ToolRecord } from '@/lib/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ToolLibrary } from './tool-library';
@@ -53,12 +52,12 @@ export default function ToolManagement({
   };
   
   return (
-    <Tabs defaultValue="history" className="w-full">
+    <Tabs defaultValue="actions" className="w-full flex flex-col">
       <TabsList className="grid w-full grid-cols-2">
-        <TabsTrigger value="history">Histórico & Retiradas</TabsTrigger>
-        <TabsTrigger value="library">Biblioteca de Ferramentas</TabsTrigger>
+        <TabsTrigger value="actions">Movimentação</TabsTrigger>
+        <TabsTrigger value="library">Biblioteca</TabsTrigger>
       </TabsList>
-      <TabsContent value="history" className="mt-4">
+      <TabsContent value="actions" className="mt-4 flex-grow">
         <ToolHistory
             tools={tools}
             history={toolHistory}
@@ -66,7 +65,7 @@ export default function ToolManagement({
             onReturn={handleReturn}
         />
       </TabsContent>
-      <TabsContent value="library" className="mt-4">
+      <TabsContent value="library" className="mt-4 flex-grow">
         <ToolLibrary
           tools={tools}
           setTools={setTools}
