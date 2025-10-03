@@ -72,14 +72,12 @@ export default function ItemManagement({
     <>
     <div className="relative h-full">
       <Card className="shadow-lg h-full flex flex-col">
-        <CardHeader>
+        <CardHeader className="space-y-4">
             <div className="flex-1">
                 <CardTitle>Biblioteca de Itens</CardTitle>
                 <CardDescription>Gerencie todos os itens cadastrados.</CardDescription>
             </div>
-        </CardHeader>
-        <CardContent className="flex-grow flex flex-col gap-4">
-          <div className="relative">
+            <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                   placeholder="Pesquisar por nome, especificações, código..."
@@ -88,73 +86,75 @@ export default function ItemManagement({
                   className="pl-10"
               />
           </div>
-          <ScrollArea className="flex-grow rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nome</TableHead>
-                <TableHead>Especificações</TableHead>
-                <TableHead>Código de Barras</TableHead>
-                <TableHead className="text-right min-w-[120px]">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredItems.length > 0 ? (
-                filteredItems.map(item => (
-                  <TableRow key={item.id} >
-                    <TableCell className="font-medium whitespace-nowrap">{item.name}</TableCell>
-                    <TableCell className="whitespace-nowrap">{item.specifications}</TableCell>
-                    <TableCell className="font-mono text-sm whitespace-nowrap">{item.barcode || 'N/A'}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex gap-1 justify-end">
-                        {item.barcode ? (
-                          <Button variant="ghost" size="icon" onClick={() => setBarcodeItem(item)}>
-                              <Barcode className="h-4 w-4" />
-                              <span className="sr-only">Visualizar código de barras</span>
+        </CardHeader>
+        <CardContent className="flex-grow p-0">
+          <ScrollArea className="h-full">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nome</TableHead>
+                  <TableHead>Especificações</TableHead>
+                  <TableHead>Código de Barras</TableHead>
+                  <TableHead className="text-right min-w-[120px]">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredItems.length > 0 ? (
+                  filteredItems.map(item => (
+                    <TableRow key={item.id} >
+                      <TableCell className="font-medium whitespace-nowrap p-4">{item.name}</TableCell>
+                      <TableCell className="whitespace-nowrap p-4">{item.specifications}</TableCell>
+                      <TableCell className="font-mono text-sm whitespace-nowrap p-4">{item.barcode || 'N/A'}</TableCell>
+                      <TableCell className="text-right p-4">
+                        <div className="flex gap-1 justify-end">
+                          {item.barcode ? (
+                            <Button variant="ghost" size="icon" onClick={() => setBarcodeItem(item)}>
+                                <Barcode className="h-4 w-4" />
+                                <span className="sr-only">Visualizar código de barras</span>
+                            </Button>
+                          ) : (
+                            <Button variant="ghost" size="icon" onClick={() => handleGenerateBarcode(item)}>
+                              <Barcode className="h-4 w-4 text-teal-500" />
+                              <span className="sr-only">Gerar código de barras</span>
+                            </Button>
+                          )}
+                          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleEdit(item); }}>
+                            <Edit className="h-4 w-4" />
+                            <span className="sr-only">Editar</span>
                           </Button>
-                        ) : (
-                          <Button variant="ghost" size="icon" onClick={() => handleGenerateBarcode(item)}>
-                            <Barcode className="h-4 w-4 text-teal-500" />
-                            <span className="sr-only">Gerar código de barras</span>
-                          </Button>
-                        )}
-                        <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleEdit(item); }}>
-                          <Edit className="h-4 w-4" />
-                          <span className="sr-only">Editar</span>
-                        </Button>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={(e) => e.stopPropagation()}>
-                                  <Trash className="h-4 w-4" />
-                                  <span className="sr-only">Excluir</span>
-                              </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                              <AlertDialogHeader>
-                                  <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                  Essa ação não pode ser desfeita. Isso excluirá permanentemente o item.
-                                  </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                  <AlertDialogCancel onClick={(e) => e.stopPropagation()}>Cancelar</AlertDialogCancel>
-                                  <AlertDialogAction onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }}>Excluir</AlertDialogAction>
-                              </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={(e) => e.stopPropagation()}>
+                                    <Trash className="h-4 w-4" />
+                                    <span className="sr-only">Excluir</span>
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                    Essa ação não pode ser desfeita. Isso excluirá permanentemente o item.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel onClick={(e) => e.stopPropagation()}>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }}>Excluir</AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center h-24 text-muted-foreground p-4">
+                      Nenhum item encontrado.
                     </TableCell>
                   </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={4} className="text-center h-24 text-muted-foreground">
-                    Nenhum item encontrado.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+                )}
+              </TableBody>
+            </Table>
           </ScrollArea>
         </CardContent>
       </Card>
