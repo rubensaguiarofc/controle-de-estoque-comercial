@@ -33,7 +33,7 @@ export default function ToolManagement({
       usageLocation: usageLocation.toUpperCase(),
       checkoutSignature,
     };
-    setToolHistory([newRecord, ...toolHistory]);
+    setToolHistory(prev => [newRecord, ...prev]);
   };
 
   const handleReturn = (recordId: string, isDamaged: boolean, damageDescription?: string, damagePhoto?: string, signature?: string) => {
@@ -69,6 +69,7 @@ export default function ToolManagement({
         <ToolLibrary
           tools={tools}
           setTools={setTools}
+          toolHistory={toolHistory}
           onSetEditingTool={onSetEditingTool}
           onSetIsAddToolDialogOpen={onSetIsAddToolDialogOpen}
         />

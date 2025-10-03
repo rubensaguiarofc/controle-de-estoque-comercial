@@ -6,7 +6,7 @@ import { format } from "date-fns";
 import { ptBR } from 'date-fns/locale';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-import { Calendar as CalendarIcon, FileDown, PenSquare, Trash, X } from "lucide-react";
+import { Calendar as CalendarIcon, FileDown, Trash, X } from "lucide-react";
 
 import type { WithdrawalRecord, ToolRecord } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -45,7 +45,7 @@ export function HistoryPanel({ itemHistory, toolHistory, onDeleteItemRecord, onD
   const [dateFilter, setDateFilter] = useState<Date | undefined>();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState("items");
-  const [signatureRecord, setSignatureRecord] = useState<ToolRecord | null>(null);
+  const [viewingRecord, setViewingRecord] = useState<ToolRecord | null>(null);
 
   const historyToDisplay = activeTab === 'items' ? itemHistory : toolHistory;
 
@@ -79,7 +79,11 @@ export function HistoryPanel({ itemHistory, toolHistory, onDeleteItemRecord, onD
         }
     }
     
-    return filtered;
+    return filtered.sort((a, b) => {
+      const dateA = new Date(activeTab === 'items' ? (a as WithdrawalRecord).date : (a as ToolRecord).checkoutDate).getTime();
+      const dateB = new Date(activeTab === 'items' ? (b as WithdrawalRecord).date : (b as ToolRecord).checkoutDate).getTime();
+      return dateB - dateA;
+    });
   }, [historyToDisplay, dateFilter, searchTerm, activeTab]);
 
   const totalPages = Math.ceil(filteredHistory.length / ITEMS_PER_PAGE);
@@ -91,7 +95,7 @@ export function HistoryPanel({ itemHistory, toolHistory, onDeleteItemRecord, onD
   
 
   const handleExportToPDF = () => {
-    if (historyToDisplay.length === 0) {
+    if (filteredHistory.length === 0) {
       toast({ variant: "destructive", title: "Nenhum dado para exportar" });
       return;
     }
@@ -110,7 +114,7 @@ export function HistoryPanel({ itemHistory, toolHistory, onDeleteItemRecord, onD
         (doc as any).autoTable({
             startY: 35,
             head: [['Data', 'Item', 'Specs', 'Qtd.', 'Quem Retirou', 'Destino']],
-            body: (historyToDisplay as WithdrawalRecord[]).map(record => [
+            body: (filteredHistory as WithdrawalRecord[]).map(record => [
               format(new Date(record.date), 'dd/MM/yy'), record.item.name, record.item.specifications,
               `${record.quantity} ${record.unit}`, record.requestedBy, record.requestedFor,
             ]),
@@ -122,7 +126,7 @@ export function HistoryPanel({ itemHistory, toolHistory, onDeleteItemRecord, onD
         (doc as any).autoTable({
             startY: 35,
             head: [['Ferramenta', 'Patrimônio', 'Retirado por', 'Local', 'Data Retirada', 'Data Devolução', 'Status']],
-            body: (historyToDisplay as ToolRecord[]).map(record => [
+            body: (filteredHistory as ToolRecord[]).map(record => [
               record.tool.name, record.tool.assetId, record.checkedOutBy, record.usageLocation,
               format(new Date(record.checkoutDate), 'dd/MM/yy HH:mm'),
               record.returnDate ? format(new Date(record.returnDate), 'dd/MM/yy HH:mm') : '-',
@@ -191,7 +195,7 @@ export function HistoryPanel({ itemHistory, toolHistory, onDeleteItemRecord, onD
           {activeTab === 'items' ? (
             <ItemHistoryTab paginatedHistory={paginatedHistory as WithdrawalRecord[]} onDeleteRecord={onDeleteItemRecord} />
           ) : (
-            <ToolHistoryTab paginatedHistory={paginatedHistory as ToolRecord[]} onDeleteRecord={onDeleteToolRecord} onShowSignatures={setSignatureRecord} />
+            <ToolHistoryTab paginatedHistory={paginatedHistory as ToolRecord[]} onDeleteRecord={onDeleteToolRecord} onShowDetails={setViewingRecord} />
           )}
         </ScrollArea>
       </CardContent>
@@ -210,9 +214,9 @@ export function HistoryPanel({ itemHistory, toolHistory, onDeleteItemRecord, onD
       </CardFooter>
     </Card>
      <SignatureDisplayDialog 
-        record={signatureRecord}
-        isOpen={!!signatureRecord}
-        onOpenChange={(isOpen) => !isOpen && setSignatureRecord(null)}
+        record={viewingRecord}
+        isOpen={!!viewingRecord}
+        onOpenChange={(isOpen) => !isOpen && setViewingRecord(null)}
       />
     </>
   );
@@ -248,45 +252,41 @@ function ItemHistoryTab({ paginatedHistory, onDeleteRecord }: { paginatedHistory
 }
 
 // Sub-component for Tool History
-function ToolHistoryTab({ paginatedHistory, onDeleteRecord, onShowSignatures }: { paginatedHistory: ToolRecord[], onDeleteRecord: (id: string) => void, onShowSignatures: (record: ToolRecord) => void }) {
+function ToolHistoryTab({ paginatedHistory, onDeleteRecord, onShowDetails }: { paginatedHistory: ToolRecord[], onDeleteRecord: (id: string) => void, onShowDetails: (record: ToolRecord) => void }) {
     return (
       <Table>
         <TableHeader>
             <TableRow>
                 <TableHead>Ferramenta</TableHead>
-                <TableHead>Retirado por</TableHead>
-                <TableHead>Data Retirada</TableHead>
-                <TableHead>Data Devolução</TableHead>
+                <TableHead className="hidden md:table-cell">Retirado por</TableHead>
+                <TableHead className="hidden md:table-cell">Data Retirada</TableHead>
+                <TableHead className="hidden md:table-cell">Data Devolução</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Assinaturas</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
             </TableRow>
         </TableHeader>
         <TableBody>
             {paginatedHistory.length > 0 ? paginatedHistory.map(record => (
-                <TableRow key={record.id}>
-                    <TableCell className="font-medium">{record.tool.name} <span className="text-xs text-muted-foreground">({record.tool.assetId})</span></TableCell>
-                    <TableCell>{record.checkedOutBy}</TableCell>
-                    <TableCell className="whitespace-nowrap">{format(new Date(record.checkoutDate), 'dd/MM/yy HH:mm')}</TableCell>
-                    <TableCell className="whitespace-nowrap">{record.returnDate ? format(new Date(record.returnDate), 'dd/MM/yy HH:mm') : '—'}</TableCell>
+                <TableRow key={record.id} onClick={() => onShowDetails(record)} className="cursor-pointer">
+                    <TableCell className="font-medium">{record.tool.name} <span className="text-xs text-muted-foreground md:hidden">({record.tool.assetId})</span></TableCell>
+                    <TableCell className="hidden md:table-cell">{record.checkedOutBy}</TableCell>
+                    <TableCell className="whitespace-nowrap hidden md:table-cell">{format(new Date(record.checkoutDate), 'dd/MM/yy HH:mm')}</TableCell>
+                    <TableCell className="whitespace-nowrap hidden md:table-cell">{record.returnDate ? format(new Date(record.returnDate), 'dd/MM/yy HH:mm') : '—'}</TableCell>
                     <TableCell>
                         {record.returnDate 
                             ? <Badge variant={record.isDamaged ? "destructive" : "secondary"}>{record.isDamaged ? "Com Avaria" : "Devolvido"}</Badge>
                             : <Badge>Em uso</Badge>
                         }
                     </TableCell>
-                    <TableCell>
-                        <Button variant="ghost" size="icon" onClick={() => onShowSignatures(record)}>
-                            <PenSquare className="h-4 w-4" />
-                            <span className="sr-only">Ver assinaturas</span>
-                        </Button>
-                    </TableCell>
                     <TableCell className="text-right">
                       <AlertDialog>
-                        <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="text-destructive hover:text-destructive"><Trash className="h-4 w-4" /></Button></AlertDialogTrigger>
+                        <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={(e) => e.stopPropagation()}><Trash className="h-4 w-4" /></Button></AlertDialogTrigger>
                         <AlertDialogContent>
                           <AlertDialogHeader><AlertDialogTitle>Excluir Permanentemente?</AlertDialogTitle><AlertDialogDescription>Essa ação não pode ser desfeita e removerá este registro para sempre. Continue com cuidado.</AlertDialogDescription></AlertDialogHeader>
-                          <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={() => onDeleteRecord(record.id)}>Excluir</AlertDialogAction></AlertDialogFooter>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel onClick={(e) => e.stopPropagation()}>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => onDeleteRecord(record.id)}>Excluir</AlertDialogAction>
+                          </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>
                     </TableCell>

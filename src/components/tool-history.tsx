@@ -2,7 +2,6 @@
 "use client";
 
 import { useState } from 'react';
-import { PenSquare } from 'lucide-react';
 import type { Tool, ToolRecord } from '@/lib/types';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
@@ -32,7 +31,7 @@ export function ToolHistory({ tools, history, onCheckout, onReturn }: ToolHistor
   const [isCheckoutDialogOpen, setCheckoutDialogOpen] = useState(false);
   const [checkingOutTool, setCheckingOutTool] = useState<Tool | null>(null);
 
-  const [signatureRecord, setSignatureRecord] = useState<ToolRecord | null>(null);
+  const [viewingRecord, setViewingRecord] = useState<ToolRecord | null>(null);
 
   const toolsOutRecords = history.filter(h => !h.returnDate);
   const toolsOutIds = toolsOutRecords.map(h => h.tool.id);
@@ -119,32 +118,25 @@ export function ToolHistory({ tools, history, onCheckout, onReturn }: ToolHistor
                       <TableHeader>
                           <TableRow>
                               <TableHead>Ferramenta</TableHead>
-                              <TableHead>Retirado por</TableHead>
-                              <TableHead>Local</TableHead>
-                              <TableHead>Data Retirada</TableHead>
+                              <TableHead className="hidden md:table-cell">Retirado por</TableHead>
+                              <TableHead className="hidden md:table-cell">Local</TableHead>
+                              <TableHead className="hidden md:table-cell">Data Retirada</TableHead>
                               <TableHead>Status</TableHead>
-                              <TableHead>Assinatura</TableHead>
                               <TableHead className="text-right">Ação</TableHead>
                           </TableRow>
                       </TableHeader>
                       <TableBody>
                           {toolsOutRecords.length > 0 ? toolsOutRecords.map(record => (
-                              <TableRow key={record.id}>
-                                  <TableCell className="font-medium">{record.tool.name} <span className="text-muted-foreground text-xs">({record.tool.assetId})</span></TableCell>
-                                  <TableCell>{record.checkedOutBy}</TableCell>
-                                  <TableCell>{record.usageLocation}</TableCell>
-                                  <TableCell className="whitespace-nowrap">{new Date(record.checkoutDate).toLocaleDateString('pt-BR')}</TableCell>
+                              <TableRow key={record.id} onClick={() => setViewingRecord(record)} className="cursor-pointer">
+                                  <TableCell className="font-medium">{record.tool.name} <span className="text-muted-foreground text-xs md:hidden">({record.tool.assetId})</span></TableCell>
+                                  <TableCell className="hidden md:table-cell">{record.checkedOutBy}</TableCell>
+                                  <TableCell className="hidden md:table-cell">{record.usageLocation}</TableCell>
+                                  <TableCell className="whitespace-nowrap hidden md:table-cell">{new Date(record.checkoutDate).toLocaleDateString('pt-BR')}</TableCell>
                                   <TableCell>
                                       <Badge>Em uso</Badge>
                                   </TableCell>
-                                  <TableCell>
-                                    <Button variant="ghost" size="icon" onClick={() => setSignatureRecord(record)}>
-                                      <PenSquare className="h-4 w-4" />
-                                      <span className="sr-only">Ver assinatura</span>
-                                    </Button>
-                                  </TableCell>
                                   <TableCell className="text-right">
-                                      <Button size="sm" onClick={() => handleOpenReturnDialog(record)}>Devolver</Button>
+                                      <Button size="sm" onClick={(e) => {e.stopPropagation(); handleOpenReturnDialog(record);}}>Devolver</Button>
                                   </TableCell>
                               </TableRow>
                           )) : (
@@ -178,9 +170,9 @@ export function ToolHistory({ tools, history, onCheckout, onReturn }: ToolHistor
         />
       )}
       <SignatureDisplayDialog 
-        record={signatureRecord}
-        isOpen={!!signatureRecord}
-        onOpenChange={(isOpen) => !isOpen && setSignatureRecord(null)}
+        record={viewingRecord}
+        isOpen={!!viewingRecord}
+        onOpenChange={(isOpen) => !isOpen && setViewingRecord(null)}
       />
     </>
   );
