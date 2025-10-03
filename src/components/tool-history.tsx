@@ -122,7 +122,7 @@ export function ToolHistory({ tools, history, onCheckout, onReturn }: ToolHistor
                               <TableHead className="hidden md:table-cell">Local</TableHead>
                               <TableHead className="hidden md:table-cell">Data Retirada</TableHead>
                               <TableHead>Status</TableHead>
-                              <TableHead className="text-right">Ação</TableHead>
+                              <TableHead className="text-center">Ação</TableHead>
                           </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -135,7 +135,7 @@ export function ToolHistory({ tools, history, onCheckout, onReturn }: ToolHistor
                                   <TableCell>
                                       <Badge>Em uso</Badge>
                                   </TableCell>
-                                  <TableCell className="text-right">
+                                  <TableCell className="text-center">
                                       <Button size="sm" onClick={(e) => {e.stopPropagation(); handleOpenReturnDialog(record);}}>Devolver</Button>
                                   </TableCell>
                               </TableRow>
