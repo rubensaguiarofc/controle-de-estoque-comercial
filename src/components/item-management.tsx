@@ -70,14 +70,19 @@ export default function ItemManagement({
 
   return (
     <>
-    <div className="relative h-full">
-      <Card className="shadow-lg h-full flex flex-col">
-        <CardHeader className="space-y-4">
-            <div className="flex-1">
-                <CardTitle>Biblioteca de Itens</CardTitle>
-                <CardDescription>Gerencie todos os itens cadastrados.</CardDescription>
+    <Card className="shadow-lg h-full flex flex-col">
+        <CardHeader>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div className="flex-1">
+                    <CardTitle>Biblioteca de Itens</CardTitle>
+                    <CardDescription>Gerencie todos os itens cadastrados.</CardDescription>
+                </div>
+                <Button className="w-full sm:w-auto" onClick={() => { onSetEditingItem(null); onSetIsAddItemDialogOpen(true); }}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Cadastrar Item
+                </Button>
             </div>
-            <div className="relative">
+            <div className="relative pt-4">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                   placeholder="Pesquisar por nome, especificações, código..."
@@ -88,7 +93,7 @@ export default function ItemManagement({
           </div>
         </CardHeader>
         <CardContent className="flex-grow p-0">
-          <ScrollArea className="h-full">
+          <ScrollArea className="h-full w-full">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -158,16 +163,7 @@ export default function ItemManagement({
           </ScrollArea>
         </CardContent>
       </Card>
-      
-      <Button 
-        onClick={() => { onSetEditingItem(null); onSetIsAddItemDialogOpen(true); }}
-        className="fixed bottom-20 right-6 md:bottom-10 md:right-10 h-14 w-14 rounded-full shadow-lg z-20"
-        size="icon"
-      >
-        <Plus className="h-6 w-6" />
-        <span className="sr-only">Cadastrar Novo Item</span>
-      </Button>
-    </div>
+    
 
     {barcodeItem && (
         <BarcodeDisplayDialog
