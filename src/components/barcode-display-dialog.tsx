@@ -37,7 +37,7 @@ export function BarcodeDisplayDialog({ isOpen, onOpenChange, item }: BarcodeDisp
         });
       }
     }
-  }, [isOpen, item, toast]);
+  }, [isOpen, item, item.barcode, toast]);
 
   const handlePrint = () => {
     if (!item.barcode) {
