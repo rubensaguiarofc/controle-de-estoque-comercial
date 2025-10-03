@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Input } from './ui/input';
 import { BarcodeDisplayDialog } from './barcode-display-dialog';
 import { ScrollArea } from './ui/scroll-area';
+import { ItemDetailsDialog } from './item-details-dialog';
 
 interface ItemManagementProps {
   stockItems: StockItem[];
@@ -29,6 +30,7 @@ export default function ItemManagement({
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
   const [barcodeItem, setBarcodeItem] = useState<StockItem | null>(null);
+  const [viewingItem, setViewingItem] = useState<StockItem | null>(null);
 
   const handleEdit = (item: StockItem) => {
     onSetEditingItem(item);
@@ -98,27 +100,27 @@ export default function ItemManagement({
               <TableHeader>
                 <TableRow>
                   <TableHead>Nome</TableHead>
-                  <TableHead>Especificações</TableHead>
-                  <TableHead>Código de Barras</TableHead>
+                  <TableHead className="hidden md:table-cell">Especificações</TableHead>
+                  <TableHead className="hidden md:table-cell">Código de Barras</TableHead>
                   <TableHead className="text-right min-w-[120px]">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredItems.length > 0 ? (
                   filteredItems.map(item => (
-                    <TableRow key={item.id} >
+                    <TableRow key={item.id} onClick={() => setViewingItem(item)} className="cursor-pointer">
                       <TableCell className="font-medium whitespace-nowrap p-4">{item.name}</TableCell>
-                      <TableCell className="whitespace-nowrap p-4">{item.specifications}</TableCell>
-                      <TableCell className="font-mono text-sm whitespace-nowrap p-4">{item.barcode || 'N/A'}</TableCell>
+                      <TableCell className="hidden md:table-cell whitespace-nowrap p-4">{item.specifications}</TableCell>
+                      <TableCell className="hidden md:table-cell font-mono text-sm whitespace-nowrap p-4">{item.barcode || 'N/A'}</TableCell>
                       <TableCell className="text-right p-4">
                         <div className="flex gap-1 justify-end">
                           {item.barcode ? (
-                            <Button variant="ghost" size="icon" onClick={() => setBarcodeItem(item)}>
+                            <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setBarcodeItem(item);}}>
                                 <Barcode className="h-4 w-4" />
                                 <span className="sr-only">Visualizar código de barras</span>
                             </Button>
                           ) : (
-                            <Button variant="ghost" size="icon" onClick={() => handleGenerateBarcode(item)}>
+                            <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleGenerateBarcode(item);}}>
                               <Barcode className="h-4 w-4 text-teal-500" />
                               <span className="sr-only">Gerar código de barras</span>
                             </Button>
@@ -164,12 +166,19 @@ export default function ItemManagement({
         </CardContent>
       </Card>
     
-
     {barcodeItem && (
         <BarcodeDisplayDialog
             isOpen={!!barcodeItem}
             onOpenChange={() => setBarcodeItem(null)}
             item={barcodeItem}
+        />
+    )}
+
+    {viewingItem && (
+        <ItemDetailsDialog
+            isOpen={!!viewingItem}
+            onOpenChange={() => setViewingItem(null)}
+            item={viewingItem}
         />
     )}
     </>
