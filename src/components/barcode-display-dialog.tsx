@@ -22,9 +22,13 @@ export function BarcodeDisplayDialog({ isOpen, onOpenChange, item }: BarcodeDisp
   useEffect(() => {
     if (isOpen && item.barcode && canvasRef.current) {
       try {
-        JsBarcode(canvasRef.current, item.barcode, {
+        const barcodeValue = item.barcode;
+        const textToDisplay = barcodeValue.split('-').pop() || barcodeValue;
+
+        JsBarcode(canvasRef.current, barcodeValue, {
           format: "CODE128",
           displayValue: true,
+          text: textToDisplay, // Exibe apenas a parte numérica
           fontSize: 18,
           margin: 10,
         });
@@ -53,11 +57,15 @@ export function BarcodeDisplayDialog({ isOpen, onOpenChange, item }: BarcodeDisp
 
     const tempCanvas = document.createElement('canvas');
     try {
-        JsBarcode(tempCanvas, item.barcode, {
+        const barcodeValue = item.barcode;
+        const textToDisplay = barcodeValue.split('-').pop() || barcodeValue;
+
+        JsBarcode(tempCanvas, barcodeValue, {
             format: "CODE128",
             width: 2,
             height: 50,
-            displayValue: true
+            displayValue: true,
+            text: textToDisplay,
         });
         const barcodeDataUrl = tempCanvas.toDataURL('image/png');
 
