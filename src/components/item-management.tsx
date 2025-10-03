@@ -79,7 +79,7 @@ export default function ItemManagement({
                     <CardTitle>Biblioteca de Itens</CardTitle>
                     <CardDescription>Gerencie todos os itens cadastrados.</CardDescription>
                 </div>
-                <Button className="w-full sm:w-auto" onClick={() => { onSetEditingItem(null); onSetIsAddItemDialogOpen(true); }}>
+                <Button size="sm" className="w-full sm:w-auto" onClick={() => { onSetEditingItem(null); onSetIsAddItemDialogOpen(true); }}>
                     <Plus className="mr-2 h-4 w-4" />
                     Cadastrar Item
                 </Button>
