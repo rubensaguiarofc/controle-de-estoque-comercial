@@ -106,11 +106,17 @@ export function BarcodeDisplayDialog({ isOpen, onOpenChange, item }: BarcodeDisp
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col items-center justify-center p-4">
-          <canvas ref={canvasRef} />
+          {item.barcode ? (
+            <canvas ref={canvasRef} />
+          ) : (
+            <div className="text-center text-muted-foreground p-8">
+              Este item ainda não possui um código de barras gerado.
+            </div>
+          )}
         </div>
         <DialogFooter className="sm:justify-end gap-2">
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Fechar</Button>
-            <Button type="button" onClick={handlePrint}>Imprimir Etiqueta</Button>
+            <Button type="button" onClick={handlePrint} disabled={!item.barcode}>Imprimir Etiqueta</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
