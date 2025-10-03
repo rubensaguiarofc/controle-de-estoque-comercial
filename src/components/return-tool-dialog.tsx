@@ -177,7 +177,7 @@ export function ReturnToolDialog({ isOpen, onOpenChange, record, onConfirm }: Re
               <SignatureCanvas
                 ref={signaturePadRef}
                 penColor="black"
-                canvasProps={{ id: 'signature', className: 'w-full h-[150px]' }}
+                canvasProps={{ id: 'signature', className: 'w-full h-[120px]' }}
               />
             </div>
           </div>

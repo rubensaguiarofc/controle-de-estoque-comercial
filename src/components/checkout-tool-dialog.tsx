@@ -106,7 +106,7 @@ export function CheckoutToolDialog({ isOpen, onOpenChange, tool, onConfirm }: Ch
               <SignatureCanvas
                 ref={signaturePadRef}
                 penColor="black"
-                canvasProps={{ id: 'signature-checkout', className: 'w-full h-[150px]' }}
+                canvasProps={{ id: 'signature-checkout', className: 'w-full h-[120px]' }}
               />
             </div>
           </div>
