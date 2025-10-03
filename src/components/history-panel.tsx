@@ -22,6 +22,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Badge } from "./ui/badge";
 import { SignatureDisplayDialog } from "./signature-display-dialog";
 import { ScrollArea } from "./ui/scroll-area";
+import { WithdrawalRecordDetailsDialog } from "./withdrawal-record-details-dialog";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -45,7 +46,8 @@ export function HistoryPanel({ itemHistory, toolHistory, onDeleteItemRecord, onD
   const [dateFilter, setDateFilter] = useState<Date | undefined>();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState("items");
-  const [viewingRecord, setViewingRecord] = useState<ToolRecord | null>(null);
+  const [viewingToolRecord, setViewingToolRecord] = useState<ToolRecord | null>(null);
+  const [viewingItemRecord, setViewingItemRecord] = useState<WithdrawalRecord | null>(null);
 
   const historyToDisplay = activeTab === 'items' ? itemHistory : toolHistory;
 
@@ -193,9 +195,9 @@ export function HistoryPanel({ itemHistory, toolHistory, onDeleteItemRecord, onD
         </div>
         <ScrollArea className="flex-grow rounded-md border">
           {activeTab === 'items' ? (
-            <ItemHistoryTab paginatedHistory={paginatedHistory as WithdrawalRecord[]} onDeleteRecord={onDeleteItemRecord} />
+            <ItemHistoryTab paginatedHistory={paginatedHistory as WithdrawalRecord[]} onDeleteRecord={onDeleteItemRecord} onViewDetails={setViewingItemRecord} />
           ) : (
-            <ToolHistoryTab paginatedHistory={paginatedHistory as ToolRecord[]} onDeleteRecord={onDeleteToolRecord} onShowDetails={setViewingRecord} />
+            <ToolHistoryTab paginatedHistory={paginatedHistory as ToolRecord[]} onDeleteRecord={onDeleteToolRecord} onShowDetails={setViewingToolRecord} />
           )}
         </ScrollArea>
       </CardContent>
@@ -214,33 +216,54 @@ export function HistoryPanel({ itemHistory, toolHistory, onDeleteItemRecord, onD
       </CardFooter>
     </Card>
      <SignatureDisplayDialog 
-        record={viewingRecord}
-        isOpen={!!viewingRecord}
-        onOpenChange={(isOpen) => !isOpen && setViewingRecord(null)}
+        record={viewingToolRecord}
+        isOpen={!!viewingToolRecord}
+        onOpenChange={(isOpen) => !isOpen && setViewingToolRecord(null)}
+      />
+      <WithdrawalRecordDetailsDialog
+        record={viewingItemRecord}
+        isOpen={!!viewingItemRecord}
+        onOpenChange={(isOpen) => !isOpen && setViewingItemRecord(null)}
       />
     </>
   );
 }
 
 // Sub-component for Item History
-function ItemHistoryTab({ paginatedHistory, onDeleteRecord }: { paginatedHistory: WithdrawalRecord[], onDeleteRecord: (id: string) => void }) {
+function ItemHistoryTab({ paginatedHistory, onDeleteRecord, onViewDetails }: { paginatedHistory: WithdrawalRecord[], onDeleteRecord: (id: string) => void, onViewDetails: (record: WithdrawalRecord) => void }) {
     return (
       <Table>
-        <TableHeader><TableRow><TableHead>Data</TableHead><TableHead>Item</TableHead><TableHead>Qtd.</TableHead><TableHead>Quem</TableHead><TableHead>Destino</TableHead><TableHead className="text-right">Ações</TableHead></TableRow></TableHeader>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Data</TableHead>
+            <TableHead>Item</TableHead>
+            <TableHead>Qtd.</TableHead>
+            <TableHead className="hidden md:table-cell">Quem</TableHead>
+            <TableHead className="hidden md:table-cell">Destino</TableHead>
+            <TableHead className="text-right">Ações</TableHead>
+          </TableRow>
+        </TableHeader>
         <TableBody>
           {paginatedHistory.length > 0 ? paginatedHistory.map((record) => (
-            <TableRow key={record.id}>
+            <TableRow key={record.id} onClick={() => onViewDetails(record)} className="cursor-pointer">
               <TableCell className="text-muted-foreground whitespace-nowrap">{new Date(record.date).toLocaleDateString('pt-BR')}</TableCell>
               <TableCell className="font-medium">{record.item.name}</TableCell>
               <TableCell>{record.quantity}{record.unit}</TableCell>
-              <TableCell>{record.requestedBy}</TableCell>
-              <TableCell>{record.requestedFor}</TableCell>
+              <TableCell className="hidden md:table-cell">{record.requestedBy}</TableCell>
+              <TableCell className="hidden md:table-cell">{record.requestedFor}</TableCell>
               <TableCell className="text-right">
                 <AlertDialog>
-                  <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="text-destructive hover:text-destructive"><Trash className="h-4 w-4" /></Button></AlertDialogTrigger>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={(e) => e.stopPropagation()}>
+                      <Trash className="h-4 w-4" />
+                    </Button>
+                  </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader><AlertDialogTitle>Você tem certeza?</AlertDialogTitle><AlertDialogDescription>Essa ação não pode ser desfeita. Isso excluirá permanentemente o registro.</AlertDialogDescription></AlertDialogHeader>
-                    <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={() => onDeleteRecord(record.id)}>Excluir</AlertDialogAction></AlertDialogFooter>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel onClick={(e) => e.stopPropagation()}>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => onDeleteRecord(record.id)}>Excluir</AlertDialogAction>
+                    </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
               </TableCell>
@@ -302,3 +325,4 @@ function ToolHistoryTab({ paginatedHistory, onDeleteRecord, onShowDetails }: { p
       </Table>
     );
 }
+
