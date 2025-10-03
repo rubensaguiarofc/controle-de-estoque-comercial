@@ -35,7 +35,7 @@ export function SignatureDisplayDialog({ isOpen, onOpenChange, record }: Signatu
                             <CardTitle className="text-lg">Assinatura de Retirada</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-2">
-                            <div className="aspect-video w-full bg-slate-100 rounded-md flex items-center justify-center overflow-hidden">
+                            <div className="h-[120px] w-full bg-slate-100 rounded-md flex items-center justify-center overflow-hidden">
                                 {checkoutSignature ? (
                                     <img src={checkoutSignature} alt="Assinatura de Retirada" className="w-full h-full object-contain" />
                                 ) : (
@@ -56,7 +56,7 @@ export function SignatureDisplayDialog({ isOpen, onOpenChange, record }: Signatu
                             <CardTitle className="text-lg">Assinatura de Devolução</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-2">
-                             <div className="aspect-video w-full bg-slate-100 rounded-md flex items-center justify-center overflow-hidden">
+                             <div className="h-[120px] w-full bg-slate-100 rounded-md flex items-center justify-center overflow-hidden">
                                 {returnSignature ? (
                                     <img src={returnSignature} alt="Assinatura de Devolução" className="w-full h-full object-contain" />
                                 ) : (
