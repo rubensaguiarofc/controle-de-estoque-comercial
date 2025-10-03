@@ -8,6 +8,7 @@ import type { StockItem } from "@/lib/types";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
+import { useToast } from "@/hooks/use-toast";
 
 interface SearchScannerDialogProps {
   isOpen: boolean;
@@ -18,6 +19,7 @@ interface SearchScannerDialogProps {
 }
 
 export function SearchScannerDialog({ isOpen, onOpenChange, stockItems, onSuccess, onNotFound }: SearchScannerDialogProps) {
+  const { toast } = useToast();
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const codeReaderRef = useRef(new BrowserMultiFormatReader());
@@ -34,17 +36,14 @@ export function SearchScannerDialog({ isOpen, onOpenChange, stockItems, onSucces
   useEffect(() => {
     if (!isOpen) {
       stopCamera();
+      return;
     }
-  }, [isOpen, stopCamera]);
-
-  useEffect(() => {
-    if (!isOpen) return;
 
     let isMounted = true;
     const codeReader = codeReaderRef.current;
 
     const startScanner = async () => {
-      if (!videoRef.current) return;
+      if (!isMounted) return;
 
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
@@ -52,6 +51,7 @@ export function SearchScannerDialog({ isOpen, onOpenChange, stockItems, onSucces
           stream.getTracks().forEach(track => track.stop());
           return;
         }
+
         setHasCameraPermission(true);
         streamRef.current = stream;
 
@@ -82,7 +82,13 @@ export function SearchScannerDialog({ isOpen, onOpenChange, stockItems, onSucces
       } catch (error) {
         console.error('Error starting search camera stream:', error);
         if (isMounted) {
-          setHasCameraPermission(false);
+            setHasCameraPermission(false);
+            toast({
+                variant: 'destructive',
+                title: 'Acesso à Câmera Negado',
+                description: 'Por favor, habilite a permissão da câmera nas configurações do seu navegador.',
+            });
+            onOpenChange(false);
         }
       }
     };
@@ -93,7 +99,7 @@ export function SearchScannerDialog({ isOpen, onOpenChange, stockItems, onSucces
       isMounted = false;
       stopCamera();
     };
-  }, [isOpen, stockItems, onSuccess, onNotFound, stopCamera]);
+  }, [isOpen, stockItems, onSuccess, onNotFound, stopCamera, onOpenChange, toast]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -105,6 +111,11 @@ export function SearchScannerDialog({ isOpen, onOpenChange, stockItems, onSucces
           </DialogHeader>
           <div className="relative w-full aspect-video bg-black rounded-md overflow-hidden">
             <video ref={videoRef} className="w-full h-full object-cover" playsInline />
+            {hasCameraPermission === null && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                    <p className="text-white">Solicitando acesso à câmera...</p>
+                </div>
+            )}
             <div className="absolute inset-0 flex items-center justify-center p-8">
               <div className="w-full max-w-xs h-24 border-4 border-dashed border-primary rounded-lg opacity-75" />
             </div>

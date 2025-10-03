@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { X, ScanText } from "lucide-react";
+import { X } from "lucide-react";
 import { BrowserMultiFormatReader, NotFoundException, BarcodeFormat, DecodeHintType } from '@zxing/library';
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -29,34 +29,12 @@ export function BarcodeScanner({ onScan, onCancel }: BarcodeScannerProps) {
     codeReaderRef.current.reset();
   }, []);
 
-  // Get camera permission on mount
   useEffect(() => {
-    navigator.mediaDevices.getUserMedia({ video: true })
-      .then(stream => {
-        stream.getTracks().forEach(track => track.stop());
-        setHasCameraPermission(true);
-      })
-      .catch(error => {
-        console.error('Error getting camera permission:', error);
-        setHasCameraPermission(false);
-        toast({
-          variant: 'destructive',
-          title: 'Acesso à Câmera Negado',
-          description: 'Por favor, habilite a permissão da câmera nas configurações do seu navegador.',
-        });
-        onCancel(); // Go back if no permission
-      });
-  }, [toast, onCancel]);
-
-  // Start scanner when permission is granted
-  useEffect(() => {
-    const codeReader = codeReaderRef.current;
     let isMounted = true;
+    const codeReader = codeReaderRef.current;
 
     const startScanner = async () => {
-      if (!videoRef.current || !hasCameraPermission) {
-        return;
-      }
+      if (!isMounted) return;
 
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
@@ -64,6 +42,8 @@ export function BarcodeScanner({ onScan, onCancel }: BarcodeScannerProps) {
           stream.getTracks().forEach(track => track.stop());
           return;
         }
+
+        setHasCameraPermission(true);
         streamRef.current = stream;
 
         if (videoRef.current) {
@@ -82,34 +62,34 @@ export function BarcodeScanner({ onScan, onCancel }: BarcodeScannerProps) {
 
         await codeReader.decodeFromStream(stream, videoRef.current, (result, err) => {
           if (result && isMounted) {
-            toast({
-              title: "Código de Barras Escaneado",
-              description: `Código: ${result.getText()}`,
-            });
             onScan(result.getText());
           }
           if (err && !(err instanceof NotFoundException) && isMounted) {
             console.error('Barcode scan error:', err);
           }
         });
+
       } catch (error) {
         console.error('Error starting camera stream:', error);
         if (isMounted) {
-          setHasCameraPermission(false);
-          onCancel();
+            setHasCameraPermission(false);
+            toast({
+                variant: 'destructive',
+                title: 'Acesso à Câmera Negado',
+                description: 'Por favor, habilite a permissão da câmera nas configurações do seu navegador.',
+            });
+            onCancel();
         }
       }
     };
 
-    if (hasCameraPermission) {
-      startScanner();
-    }
+    startScanner();
 
     return () => {
       isMounted = false;
       stopCamera();
     };
-  }, [hasCameraPermission, onCancel, onScan, stopCamera, toast]);
+  }, [onCancel, onScan, stopCamera, toast]);
 
   return (
     <div className="flex flex-col items-center gap-4">
@@ -119,6 +99,11 @@ export function BarcodeScanner({ onScan, onCancel }: BarcodeScannerProps) {
       </DialogHeader>
       <div className="relative w-full aspect-video bg-black rounded-md overflow-hidden">
         <video ref={videoRef} className="w-full h-full object-cover" playsInline />
+        {hasCameraPermission === null && (
+            <div className="absolute inset-0 flex items-center justify-center">
+                <p className="text-white">Solicitando acesso à câmera...</p>
+            </div>
+        )}
         <div className="absolute inset-0 flex items-center justify-center p-8">
           <div className="w-full max-w-xs h-24 border-4 border-dashed border-primary rounded-lg opacity-75" />
         </div>
