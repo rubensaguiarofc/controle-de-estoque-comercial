@@ -108,30 +108,32 @@ export default function StockReleaseApp() {
   }, [history]);
 
   // Item Management Handlers
-  const handleItemDialogSubmit = (itemData: Omit<StockItem, 'id'>) => {
+  const handleItemDialogSubmit = useCallback((itemData: Omit<StockItem, 'id'>) => {
     if (editingItem) {
       // Update
       setStockItems(prev => prev.map(item => item.id === editingItem.id ? { ...item, ...itemData } : item));
       toast({ title: "Item Atualizado", description: `${itemData.name} foi atualizado.` });
     } else {
       // Add
-      const newIdNumber = (stockItems.length > 0 ? Math.max(...stockItems.map(item => parseInt(item.id.split('-')[1]))) + 1 : 1).toString().padStart(3, '0');
-      const newId = `ITM-${newIdNumber}`;
-      const itemWithId: StockItem = { ...itemData, id: newId, barcode: itemData.barcode || '' };
-      setStockItems(prev => [...prev, itemWithId]);
+      setStockItems(prev => {
+        const newIdNumber = (prev.length > 0 ? Math.max(...prev.map(item => parseInt(item.id.split('-')[1]))) + 1 : 1).toString().padStart(3, '0');
+        const newId = `ITM-${newIdNumber}`;
+        const itemWithId: StockItem = { ...itemData, id: newId, barcode: itemData.barcode || '' };
+        return [...prev, itemWithId]
+      });
       toast({ title: "Item Adicionado", description: `${itemData.name} foi adicionado.` });
     }
     setAddItemDialogOpen(false);
     setEditingItem(null);
-  };
+  }, [editingItem, toast]);
 
-  const handleItemDialogClose = (isOpen: boolean) => {
+  const handleItemDialogClose = useCallback((isOpen: boolean) => {
     if (!isOpen) setEditingItem(null);
     setAddItemDialogOpen(isOpen);
-  }
+  }, []);
 
   // Tool Management Handlers
-  const handleToolDialogSubmit = (toolData: Omit<Tool, 'id'>) => {
+  const handleToolDialogSubmit = useCallback((toolData: Omit<Tool, 'id'>) => {
     if (editingTool) {
       // Update
       setTools(prev => prev.map(tool => tool.id === editingTool.id ? { ...tool, ...toolData } : tool));
@@ -145,18 +147,18 @@ export default function StockReleaseApp() {
     }
     setAddToolDialogOpen(false);
     setEditingTool(null);
-  }
+  }, [editingTool, toast]);
 
-  const handleToolDialogClose = (isOpen: boolean) => {
+  const handleToolDialogClose = useCallback((isOpen: boolean) => {
     if (!isOpen) setEditingTool(null);
     setAddToolDialogOpen(isOpen);
-  }
+  }, []);
 
-  const handleNewWithdrawal = (newRecords: WithdrawalRecord[]) => {
+  const handleNewWithdrawal = useCallback((newRecords: WithdrawalRecord[]) => {
     setHistory(prev => [...newRecords, ...prev]);
-  };
+  }, []);
   
-  const handleDeleteRecord = (recordId: string) => {
+  const handleDeleteRecord = useCallback((recordId: string) => {
     setHistory(prevHistory => {
       const updatedHistory = prevHistory.filter(record => record.id !== recordId);
       toast({
@@ -165,9 +167,9 @@ export default function StockReleaseApp() {
       });
       return updatedHistory;
     });
-  };
+  }, [toast]);
 
-  const handleDeleteToolRecord = (recordId: string) => {
+  const handleDeleteToolRecord = useCallback((recordId: string) => {
     setToolHistory(prevHistory => {
       const updatedHistory = prevHistory.filter(record => record.id !== recordId);
       toast({
@@ -176,7 +178,7 @@ export default function StockReleaseApp() {
       });
       return updatedHistory;
     });
-  };
+  }, [toast]);
 
   const renderContent = () => {
     switch (activeView) {
@@ -372,3 +374,5 @@ function HistorySkeleton() {
       </div>
     );
 }
+
+    

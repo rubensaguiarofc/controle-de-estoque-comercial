@@ -1,6 +1,6 @@
 
 "use client";
-
+import React from 'react';
 import type { WithdrawalItem } from "@/lib/types";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -13,7 +13,7 @@ interface WithdrawalCartProps {
   onUpdateQuantity: (itemId: string, quantity: number) => void;
 }
 
-export function WithdrawalCart({ items, onRemove, onUpdateQuantity }: WithdrawalCartProps) {
+export const WithdrawalCart = React.memo(function WithdrawalCart({ items, onRemove, onUpdateQuantity }: WithdrawalCartProps) {
   if (items.length === 0) {
     return (
       <div className="flex items-center justify-center h-24 border-2 border-dashed rounded-lg bg-muted/50">
@@ -62,4 +62,6 @@ export function WithdrawalCart({ items, onRemove, onUpdateQuantity }: Withdrawal
         </Table>
     </div>
   );
-}
+});
+
+    

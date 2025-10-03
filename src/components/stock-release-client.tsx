@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState, forwardRef } from "react";
+import { useEffect, useState, forwardRef, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -44,7 +44,7 @@ const StockReleaseClient = forwardRef<unknown, StockReleaseClientProps>(
       setCurrentDate(format(new Date(), "eeee, dd 'de' MMMM 'de' yyyy", { locale: ptBR }));
     }, []);
     
-    const handleAppendItem = (item: WithdrawalItem) => {
+    const handleAppendItem = useCallback((item: WithdrawalItem) => {
       setWithdrawalItems(prev => {
         const existingItemIndex = prev.findIndex(cartItem => cartItem.item.id === item.item.id);
         if (existingItemIndex > -1) {
@@ -63,28 +63,28 @@ const StockReleaseClient = forwardRef<unknown, StockReleaseClientProps>(
           return [...prev, item];
         }
       });
-    };
+    }, [toast]);
     
-    const handleRemoveItem = (itemId: string) => {
+    const handleRemoveItem = useCallback((itemId: string) => {
       setWithdrawalItems(prev => prev.filter(item => item.item.id !== itemId));
-    };
+    }, []);
 
-    const handleUpdateItemQuantity = (itemId: string, quantity: number) => {
+    const handleUpdateItemQuantity = useCallback((itemId: string, quantity: number) => {
       if (quantity <= 0) {
         handleRemoveItem(itemId);
         return;
       }
       setWithdrawalItems(prev => prev.map(item => item.item.id === itemId ? { ...item, quantity } : item));
-    }
+    }, [handleRemoveItem]);
 
-    const handleClearCart = () => {
+    const handleClearCart = useCallback(() => {
       form.reset({ requestedBy: "", requestedFor: "" });
       setWithdrawalItems([]);
       toast({ title: "Campos Limpos", description: "Todos os campos de entrada foram redefinidos." });
-    };
+    }, [form, toast]);
 
 
-    const onSubmit = (values: WithdrawalFormValues) => {
+    const onSubmit = useCallback((values: WithdrawalFormValues) => {
       if (withdrawalItems.length === 0) {
         toast({
           variant: "destructive",
@@ -112,7 +112,7 @@ const StockReleaseClient = forwardRef<unknown, StockReleaseClientProps>(
         requestedFor: "",
       });
       setWithdrawalItems([]);
-    };
+    }, [withdrawalItems, onUpdateHistory, toast, form]);
 
     return (
         <WithdrawalForm
@@ -134,3 +134,5 @@ const StockReleaseClient = forwardRef<unknown, StockReleaseClientProps>(
 
 StockReleaseClient.displayName = 'StockReleaseClient';
 export default StockReleaseClient;
+
+    
