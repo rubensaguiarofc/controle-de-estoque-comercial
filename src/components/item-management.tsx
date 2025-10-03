@@ -102,7 +102,7 @@ export default function ItemManagement({
                   <TableHead>Nome</TableHead>
                   <TableHead className="hidden md:table-cell">Especificações</TableHead>
                   <TableHead className="hidden md:table-cell">Código de Barras</TableHead>
-                  <TableHead className="text-right min-w-[120px]">Ações</TableHead>
+                  <TableHead className="text-center min-w-[120px]">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -112,8 +112,8 @@ export default function ItemManagement({
                       <TableCell className="font-medium whitespace-nowrap p-4">{item.name}</TableCell>
                       <TableCell className="hidden md:table-cell whitespace-nowrap p-4">{item.specifications}</TableCell>
                       <TableCell className="hidden md:table-cell font-mono text-sm whitespace-nowrap p-4">{item.barcode || 'N/A'}</TableCell>
-                      <TableCell className="text-right p-4">
-                        <div className="flex gap-1 justify-end">
+                      <TableCell className="text-center p-4">
+                        <div className="flex gap-1 justify-center">
                           {item.barcode ? (
                             <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setBarcodeItem(item);}}>
                                 <Barcode className="h-4 w-4" />
