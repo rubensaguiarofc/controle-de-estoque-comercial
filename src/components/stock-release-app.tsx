@@ -12,6 +12,7 @@ import { Sidebar, SidebarContent, SidebarInset, SidebarItem, SidebarTrigger } fr
 import { AddItemDialog } from "./add-item-dialog";
 import { Skeleton } from "./ui/skeleton";
 import { AddToolDialog } from "./add-tool-dialog";
+import { cn } from "@/lib/utils";
 
 const StockReleaseClient = dynamic(() => import('./stock-release-client'), {
   loading: () => <ClientSkeleton />,
@@ -222,9 +223,16 @@ export default function StockReleaseApp() {
     }
   };
 
+  const navItems = [
+    { view: "release" as View, icon: RefreshCw, label: "Lançamento" },
+    { view: "items" as View, icon: Boxes, label: "Itens" },
+    { view: "tools" as View, icon: Wrench, label: "Ferramentas" },
+    { view: "history" as View, icon: History, label: "Histórico" },
+  ];
+
   return (
     <div className="flex h-screen bg-muted/40">
-      <Sidebar>
+      <Sidebar className="hidden md:block">
         <SidebarContent className="flex flex-col">
           <div className="flex-grow">
             <h2 className="text-2xl font-bold p-4 flex items-center gap-2">
@@ -232,22 +240,40 @@ export default function StockReleaseApp() {
               Controle
             </h2>
             <nav className="flex flex-col gap-2 p-4">
-              <SidebarItem icon={<RefreshCw />} isActive={activeView === 'release'} onClick={() => setActiveView("release")}>Lançamento</SidebarItem>
-              <SidebarItem icon={<Boxes />} isActive={activeView === 'items'} onClick={() => setActiveView("items")}>Itens</SidebarItem>
-              <SidebarItem icon={<Wrench />} isActive={activeView === 'tools'} onClick={() => setActiveView("tools")}>Ferramentas</SidebarItem>
-              <SidebarItem icon={<History />} isActive={activeView === 'history'} onClick={() => setActiveView("history")}>Histórico</SidebarItem>
+              {navItems.map(item => (
+                <SidebarItem key={item.view} icon={<item.icon />} isActive={activeView === item.view} onClick={() => setActiveView(item.view)}>{item.label}</SidebarItem>
+              ))}
             </nav>
           </div>
         </SidebarContent>
       </Sidebar>
-      <div className="flex flex-col flex-1">
+      <div className="flex flex-col flex-1 pb-16 md:pb-0">
         <header className="flex h-14 items-center gap-4 border-b bg-background px-6">
-            <SidebarTrigger />
+            <SidebarTrigger className="md:hidden" />
             <h1 className="text-lg font-semibold md:text-2xl capitalize">{activeView}</h1>
         </header>
         <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-6 overflow-auto">
           {renderContent()}
         </main>
+      </div>
+
+       {/* Mobile Bottom Navigation */}
+       <div className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-background border-t z-50">
+        <nav className="flex h-full">
+          {navItems.map(item => (
+            <button
+              key={item.view}
+              onClick={() => setActiveView(item.view)}
+              className={cn(
+                "flex-1 flex flex-col items-center justify-center text-xs gap-1 transition-colors",
+                activeView === item.view ? "text-primary font-bold" : "text-muted-foreground"
+              )}
+            >
+              <item.icon className="h-5 w-5" />
+              <span>{item.label}</span>
+            </button>
+          ))}
+        </nav>
       </div>
 
       <AddItemDialog
