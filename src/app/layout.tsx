@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
+import { FooterAd } from '@/components/footer-ad';
 
 export const metadata: Metadata = {
   title: 'Controle de Estoque',
@@ -25,11 +26,7 @@ export default function RootLayout({
       <body className="font-body antialiased bg-background overflow-x-hidden">
         {children}
         <Toaster />
-        <footer className="fixed bottom-0 left-0 right-0 bg-muted/60 p-4 text-center text-sm text-muted-foreground backdrop-blur-sm">
-          <div className="animate-pulse-slow">
-            Espaço para publicidade
-          </div>
-        </footer>
+        <FooterAd />
       </body>
     </html>
   );

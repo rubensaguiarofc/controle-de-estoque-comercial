@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 
 import type { StockItem, WithdrawalRecord, Tool, ToolRecord, EntryRecord } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
-import { Boxes, History, Menu, RefreshCw, Wrench, LogIn, PackagePlus } from "lucide-react";
+import { Boxes, History, Menu, RefreshCw, Wrench, PackagePlus } from "lucide-react";
 
 import { AddItemDialog } from "./add-item-dialog";
 import { Skeleton } from "./ui/skeleton";
@@ -127,13 +127,16 @@ export default function StockReleaseApp() {
   }, [history, entryHistory]);
 
   // Item Management Handlers
-  const handleItemDialogSubmit = useCallback((itemData: Omit<StockItem, 'id'>) => {
+  const handleItemDialogSubmit = useCallback((itemData: Omit<StockItem, 'id' | 'quantity'> & { quantity?: number }) => {
     let itemToSave: StockItem;
     if (editingItem) {
+      // When editing, we don't change the quantity directly from this form.
+      // We only update name, specs, and barcode.
       itemToSave = { ...editingItem, name: itemData.name, specifications: itemData.specifications, barcode: itemData.barcode };
       setStockItems(prev => prev.map(item => item.id === editingItem.id ? itemToSave : item));
     } else {
-      const newIdNumber = (stockItems.length > 0 ? Math.max(...stockItems.map(item => parseInt(item.id.split('-')[1]))) + 1 : 1).toString().padStart(3, '0');
+      // When creating a new item.
+      const newIdNumber = (stockItems.length > 0 ? Math.max(...stockItems.map(item => parseInt(item.id.split('-')[1]) || 0)) + 1 : 1).toString().padStart(3, '0');
       const newId = `ITM-${newIdNumber}`;
       itemToSave = { ...itemData, id: newId, quantity: itemData.quantity || 0 };
       setStockItems(prev => [itemToSave, ...prev]);
