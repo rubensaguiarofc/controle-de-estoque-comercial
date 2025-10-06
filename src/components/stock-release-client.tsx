@@ -168,7 +168,7 @@ const StockReleaseClient = forwardRef<unknown, StockReleaseClientProps>(
           onAppendItem={handleAppendItem}
           onRemoveItem={handleRemoveItem}
           onUpdateItemQuantity={handleUpdateItemQuantity}
-          onClearCart={onClearCart}
+          onClearCart={handleClearCart}
         />
     );
   }
