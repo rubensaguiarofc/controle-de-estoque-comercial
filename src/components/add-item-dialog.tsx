@@ -21,6 +21,10 @@ const BarcodeScanner = dynamic(() => import('./barcode-scanner').then(mod => mod
 const formSchema = z.object({
   name: z.string().min(1, "O nome do item é obrigatório.").toUpperCase(),
   specifications: z.string().min(1, "As especificações são obrigatórias.").toUpperCase(),
+  quantity: z.preprocess(
+    (val) => (val === "" ? undefined : Number(val)),
+    z.number({ invalid_type_error: "Deve ser um número." }).min(0, "A quantidade não pode ser negativa.").optional()
+  ),
   barcode: z.string().optional(),
 });
 
@@ -40,22 +44,27 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: 
 
   const form = useForm<AddItemFormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: { name: "", specifications: "", barcode: "" },
+    defaultValues: { name: "", specifications: "", quantity: 0, barcode: "" },
   });
 
   useEffect(() => {
     if (isOpen) {
       if (editingItem) {
-        form.reset(editingItem);
+        form.reset({
+          name: editingItem.name,
+          specifications: editingItem.specifications,
+          quantity: editingItem.quantity,
+          barcode: editingItem.barcode || ""
+        });
       } else {
-        form.reset({ name: "", specifications: "", barcode: "" });
+        form.reset({ name: "", specifications: "", quantity: 0, barcode: "" });
       }
       setView("form");
     }
   }, [isOpen, editingItem, form]);
 
   const handleDialogSubmit = (values: AddItemFormValues) => {
-    onAddItem(values);
+    onAddItem({ ...values, quantity: values.quantity || 0 });
   };
 
   const renderContent = () => {

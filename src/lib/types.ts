@@ -1,7 +1,9 @@
+
 export type StockItem = {
   id: string;
   name: string;
   specifications: string;
+  quantity: number;
   barcode?: string;
 };
 
@@ -19,6 +21,15 @@ export type WithdrawalRecord = {
   unit: string;
   requestedBy: string; // Quem
   requestedFor:string; // Para Quem
+};
+
+export type EntryRecord = {
+    id: string;
+    date: string;
+    item: StockItem;
+    quantity: number;
+    unit: string;
+    addedBy: string;
 };
 
 export type Tool = {

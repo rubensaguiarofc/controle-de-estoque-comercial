@@ -32,9 +32,15 @@ export function ItemDetailsDialog({ isOpen, onOpenChange, item }: ItemDetailsDia
                 <Label htmlFor="item-specs">Especificações</Label>
                 <Input id="item-specs" value={item.specifications} readOnly />
             </div>
-            <div className="space-y-2">
-                <Label htmlFor="item-barcode">Código de Barras</Label>
-                <Input id="item-barcode" value={item.barcode || 'N/A'} readOnly />
+            <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                    <Label htmlFor="item-barcode">Código de Barras</Label>
+                    <Input id="item-barcode" value={item.barcode || 'N/A'} readOnly />
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="item-quantity">Qtd. em Estoque</Label>
+                    <Input id="item-quantity" value={item.quantity} readOnly />
+                </div>
             </div>
         </div>
         <DialogFooter className="sm:justify-end">

@@ -57,6 +57,19 @@ export function AddItemForm({ editingItem, onOpenChange, onSwitchToScanner }: Ad
         />
         <FormField
           control={form.control}
+          name="quantity"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Quantidade {editingItem ? 'Atual' : 'Inicial'}</FormLabel>
+              <FormControl>
+                <Input type="number" placeholder="0" {...field} readOnly={!!editingItem} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
           name="barcode"
           render={({ field }) => (
             <FormItem>

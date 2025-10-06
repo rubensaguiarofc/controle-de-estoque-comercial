@@ -4,7 +4,7 @@ import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 
 export const metadata: Metadata = {
-  title: 'Controle de Saída',
+  title: 'Controle de Estoque',
   description: 'Gerenciado por Alternativa Solutions',
 };
 

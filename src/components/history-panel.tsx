@@ -8,7 +8,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { Calendar as CalendarIcon, FileDown, Trash, X } from "lucide-react";
 
-import type { WithdrawalRecord, ToolRecord } from "@/lib/types";
+import type { WithdrawalRecord, ToolRecord, EntryRecord } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -29,8 +29,10 @@ const ITEMS_PER_PAGE = 10;
 interface HistoryPanelProps {
   itemHistory: WithdrawalRecord[];
   toolHistory: ToolRecord[];
+  entryHistory: EntryRecord[];
   onDeleteItemRecord: (recordId: string) => void;
   onDeleteToolRecord: (recordId: string) => void;
+  onDeleteEntryRecord: (recordId: string) => void;
 }
 
 // Extend the window interface for jspdf-autotable
@@ -40,23 +42,31 @@ declare global {
   }
 }
 
-export function HistoryPanel({ itemHistory, toolHistory, onDeleteItemRecord, onDeleteToolRecord }: HistoryPanelProps) {
+export function HistoryPanel({ itemHistory, toolHistory, entryHistory, onDeleteItemRecord, onDeleteToolRecord, onDeleteEntryRecord }: HistoryPanelProps) {
   const { toast } = useToast();
   const [currentPage, setCurrentPage] = useState(1);
   const [dateFilter, setDateFilter] = useState<Date | undefined>();
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeTab, setActiveTab] = useState("items");
+  const [activeTab, setActiveTab] = useState("withdrawals");
   const [viewingToolRecord, setViewingToolRecord] = useState<ToolRecord | null>(null);
   const [viewingItemRecord, setViewingItemRecord] = useState<WithdrawalRecord | null>(null);
 
-  const historyToDisplay = activeTab === 'items' ? itemHistory : toolHistory;
+  const historyToDisplay = useMemo(() => {
+    switch (activeTab) {
+      case 'withdrawals': return itemHistory;
+      case 'entries': return entryHistory;
+      case 'tools': return toolHistory;
+      default: return [];
+    }
+  }, [activeTab, itemHistory, entryHistory, toolHistory]);
+
 
   const filteredHistory = useMemo(() => {
     let filtered = historyToDisplay;
 
     if (dateFilter) {
         filtered = filtered.filter(record => {
-            const recordDate = new Date(activeTab === 'items' ? (record as WithdrawalRecord).date : (record as ToolRecord).checkoutDate);
+            const recordDate = new Date((record as any).date || (record as ToolRecord).checkoutDate);
             return recordDate.getFullYear() === dateFilter.getFullYear() &&
                    recordDate.getMonth() === dateFilter.getMonth() &&
                    recordDate.getDate() === dateFilter.getDate();
@@ -65,13 +75,18 @@ export function HistoryPanel({ itemHistory, toolHistory, onDeleteItemRecord, onD
 
     if (searchTerm) {
         const lowercasedSearch = searchTerm.toLowerCase();
-        if (activeTab === 'items') {
+        if (activeTab === 'withdrawals') {
             filtered = (filtered as WithdrawalRecord[]).filter(record =>
                 record.item.name.toLowerCase().includes(lowercasedSearch) ||
                 record.requestedBy.toLowerCase().includes(lowercasedSearch) ||
                 record.requestedFor.toLowerCase().includes(lowercasedSearch)
             );
-        } else {
+        } else if (activeTab === 'entries') {
+             filtered = (filtered as EntryRecord[]).filter(record =>
+                record.item.name.toLowerCase().includes(lowercasedSearch) ||
+                record.addedBy.toLowerCase().includes(lowercasedSearch)
+            );
+        } else { // tools
             filtered = (filtered as ToolRecord[]).filter(record =>
                 record.tool.name.toLowerCase().includes(lowercasedSearch) ||
                 record.tool.assetId.toLowerCase().includes(lowercasedSearch) ||
@@ -82,8 +97,8 @@ export function HistoryPanel({ itemHistory, toolHistory, onDeleteItemRecord, onD
     }
     
     return filtered.sort((a, b) => {
-      const dateA = new Date(activeTab === 'items' ? (a as WithdrawalRecord).date : (a as ToolRecord).checkoutDate).getTime();
-      const dateB = new Date(activeTab === 'items' ? (b as WithdrawalRecord).date : (b as ToolRecord).checkoutDate).getTime();
+      const dateA = new Date((a as any).date || (a as ToolRecord).checkoutDate).getTime();
+      const dateB = new Date((b as any).date || (b as ToolRecord).checkoutDate).getTime();
       return dateB - dateA;
     });
   }, [historyToDisplay, dateFilter, searchTerm, activeTab]);
@@ -103,16 +118,17 @@ export function HistoryPanel({ itemHistory, toolHistory, onDeleteItemRecord, onD
     }
   
     const doc = new jsPDF();
-    const title = activeTab === 'items' ? "Histórico de Retirada de Itens" : "Histórico de Movimentação de Ferramentas";
-    const filename = activeTab === 'items' ? `historico_itens_${format(new Date(), 'yyyy-MM-dd')}.pdf` : `historico_ferramentas_${format(new Date(), 'yyyy-MM-dd')}.pdf`;
+    let title = "";
+    let filename = "";
     
     doc.setFontSize(18);
-    doc.text(title, 14, 22);
     doc.setFontSize(11);
     doc.setTextColor(100);
     doc.text(`Relatório gerado em: ${format(new Date(), 'dd/MM/yyyy HH:mm:ss')}`, 14, 30);
   
-    if (activeTab === 'items') {
+    if (activeTab === 'withdrawals') {
+        title = "Histórico de Retirada de Itens";
+        filename = `historico_retiradas_${format(new Date(), 'yyyy-MM-dd')}.pdf`;
         (doc as any).autoTable({
             startY: 35,
             head: [['Data', 'Item', 'Specs', 'Qtd.', 'Quem Retirou', 'Destino']],
@@ -124,7 +140,23 @@ export function HistoryPanel({ itemHistory, toolHistory, onDeleteItemRecord, onD
             headStyles: { fillColor: [22, 163, 74], textColor: [255, 255, 255], fontStyle: 'bold' },
             alternateRowStyles: { fillColor: [242, 242, 242] },
           });
-    } else {
+    } else if (activeTab === 'entries') {
+        title = "Histórico de Entrada de Itens";
+        filename = `historico_entradas_${format(new Date(), 'yyyy-MM-dd')}.pdf`;
+        (doc as any).autoTable({
+            startY: 35,
+            head: [['Data', 'Item', 'Specs', 'Qtd.', 'Adicionado Por']],
+            body: (filteredHistory as EntryRecord[]).map(record => [
+              format(new Date(record.date), 'dd/MM/yy'), record.item.name, record.item.specifications,
+              `${record.quantity} ${record.unit}`, record.addedBy,
+            ]),
+            styles: { font: 'helvetica', fontSize: 9, cellPadding: 2.5 },
+            headStyles: { fillColor: [22, 74, 163], textColor: [255, 255, 255], fontStyle: 'bold' },
+            alternateRowStyles: { fillColor: [242, 242, 242] },
+          });
+    } else { // tools
+        title = "Histórico de Movimentação de Ferramentas";
+        filename = `historico_ferramentas_${format(new Date(), 'yyyy-MM-dd')}.pdf`;
         (doc as any).autoTable({
             startY: 35,
             head: [['Ferramenta', 'Patrimônio', 'Retirado por', 'Local', 'Data Retirada', 'Data Devolução', 'Status']],
@@ -139,7 +171,8 @@ export function HistoryPanel({ itemHistory, toolHistory, onDeleteItemRecord, onD
             alternateRowStyles: { fillColor: [242, 242, 242] },
           });
     }
-
+    
+    doc.text(title, 14, 22);
     doc.save(filename);
     toast({ title: "Exportação Concluída", description: "Seu arquivo PDF foi baixado." });
   };
@@ -147,6 +180,12 @@ export function HistoryPanel({ itemHistory, toolHistory, onDeleteItemRecord, onD
   const clearFilters = () => {
     setDateFilter(undefined);
     setSearchTerm('');
+    setCurrentPage(1);
+  };
+
+  const handleTabChange = (newTab: string) => {
+    setActiveTab(newTab);
+    clearFilters();
   };
 
   return (
@@ -165,9 +204,10 @@ export function HistoryPanel({ itemHistory, toolHistory, onDeleteItemRecord, onD
         </div>
       </CardHeader>
       <CardContent className="flex flex-col flex-grow">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="items">Itens</TabsTrigger>
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+            <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="withdrawals">Saídas</TabsTrigger>
+                <TabsTrigger value="entries">Entradas</TabsTrigger>
                 <TabsTrigger value="tools">Ferramentas</TabsTrigger>
             </TabsList>
         </Tabs>
@@ -194,8 +234,10 @@ export function HistoryPanel({ itemHistory, toolHistory, onDeleteItemRecord, onD
             </div>
         </div>
         <ScrollArea className="flex-grow rounded-md border">
-          {activeTab === 'items' ? (
-            <ItemHistoryTab paginatedHistory={paginatedHistory as WithdrawalRecord[]} onDeleteRecord={onDeleteItemRecord} onViewDetails={setViewingItemRecord} />
+          {activeTab === 'withdrawals' ? (
+            <ItemWithdrawalHistoryTab paginatedHistory={paginatedHistory as WithdrawalRecord[]} onDeleteRecord={onDeleteItemRecord} onViewDetails={setViewingItemRecord} />
+          ) : activeTab === 'entries' ? (
+            <ItemEntryHistoryTab paginatedHistory={paginatedHistory as EntryRecord[]} onDeleteRecord={onDeleteEntryRecord} />
           ) : (
             <ToolHistoryTab paginatedHistory={paginatedHistory as ToolRecord[]} onDeleteRecord={onDeleteToolRecord} onShowDetails={setViewingToolRecord} />
           )}
@@ -229,8 +271,8 @@ export function HistoryPanel({ itemHistory, toolHistory, onDeleteItemRecord, onD
   );
 }
 
-// Sub-component for Item History
-function ItemHistoryTab({ paginatedHistory, onDeleteRecord, onViewDetails }: { paginatedHistory: WithdrawalRecord[], onDeleteRecord: (id: string) => void, onViewDetails: (record: WithdrawalRecord) => void }) {
+// Sub-component for Item Withdrawal History
+function ItemWithdrawalHistoryTab({ paginatedHistory, onDeleteRecord, onViewDetails }: { paginatedHistory: WithdrawalRecord[], onDeleteRecord: (id: string) => void, onViewDetails: (record: WithdrawalRecord) => void }) {
     return (
       <Table>
         <TableHeader>
@@ -238,7 +280,7 @@ function ItemHistoryTab({ paginatedHistory, onDeleteRecord, onViewDetails }: { p
             <TableHead>Data</TableHead>
             <TableHead>Item</TableHead>
             <TableHead>Qtd.</TableHead>
-            <TableHead className="hidden md:table-cell">Quem</TableHead>
+            <TableHead className="hidden md:table-cell">Quem Retirou</TableHead>
             <TableHead className="hidden md:table-cell">Destino</TableHead>
             <TableHead className="text-right">Ações</TableHead>
           </TableRow>
@@ -259,7 +301,7 @@ function ItemHistoryTab({ paginatedHistory, onDeleteRecord, onViewDetails }: { p
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
-                    <AlertDialogHeader><AlertDialogTitle>Você tem certeza?</AlertDialogTitle><AlertDialogDescription>Essa ação não pode ser desfeita. Isso excluirá permanentemente o registro.</AlertDialogDescription></AlertDialogHeader>
+                    <AlertDialogHeader><AlertDialogTitle>Você tem certeza?</AlertDialogTitle><AlertDialogDescription>Essa ação não pode ser desfeita. Isso excluirá permanentemente o registro e não irá reverter a baixa no estoque.</AlertDialogDescription></AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel onClick={(e) => e.stopPropagation()}>Cancelar</AlertDialogCancel>
                       <AlertDialogAction onClick={() => onDeleteRecord(record.id)}>Excluir</AlertDialogAction>
@@ -268,11 +310,55 @@ function ItemHistoryTab({ paginatedHistory, onDeleteRecord, onViewDetails }: { p
                 </AlertDialog>
               </TableCell>
             </TableRow>
-          )) : <TableRow><TableCell colSpan={6} className="text-center h-24 text-muted-foreground">Nenhum registro encontrado.</TableCell></TableRow>}
+          )) : <TableRow><TableCell colSpan={6} className="text-center h-24 text-muted-foreground">Nenhum registro de saída encontrado.</TableCell></TableRow>}
         </TableBody>
       </Table>
     );
 }
+
+// Sub-component for Item Entry History
+function ItemEntryHistoryTab({ paginatedHistory, onDeleteRecord }: { paginatedHistory: EntryRecord[], onDeleteRecord: (id: string) => void }) {
+    return (
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Data</TableHead>
+            <TableHead>Item</TableHead>
+            <TableHead>Qtd.</TableHead>
+            <TableHead>Adicionado Por</TableHead>
+            <TableHead className="text-right">Ações</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {paginatedHistory.length > 0 ? paginatedHistory.map((record) => (
+            <TableRow key={record.id}>
+              <TableCell className="text-muted-foreground whitespace-nowrap">{new Date(record.date).toLocaleDateString('pt-BR')}</TableCell>
+              <TableCell className="font-medium">{record.item.name}</TableCell>
+              <TableCell>{record.quantity} {record.unit}</TableCell>
+              <TableCell>{record.addedBy}</TableCell>
+              <TableCell className="text-right">
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={(e) => e.stopPropagation()}>
+                      <Trash className="h-4 w-4" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader><AlertDialogTitle>Você tem certeza?</AlertDialogTitle><AlertDialogDescription>Essa ação não pode ser desfeita. Isso excluirá o registro de entrada e não irá reverter a adição no estoque.</AlertDialogDescription></AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel onClick={(e) => e.stopPropagation()}>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => onDeleteRecord(record.id)}>Excluir</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </TableCell>
+            </TableRow>
+          )) : <TableRow><TableCell colSpan={5} className="text-center h-24 text-muted-foreground">Nenhum registro de entrada encontrado.</TableCell></TableRow>}
+        </TableBody>
+      </Table>
+    );
+}
+
 
 // Sub-component for Tool History
 function ToolHistoryTab({ paginatedHistory, onDeleteRecord, onShowDetails }: { paginatedHistory: ToolRecord[], onDeleteRecord: (id: string) => void, onShowDetails: (record: ToolRecord) => void }) {
@@ -325,4 +411,3 @@ function ToolHistoryTab({ paginatedHistory, onDeleteRecord, onShowDetails }: { p
       </Table>
     );
 }
-

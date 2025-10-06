@@ -3,7 +3,7 @@
 
 import React, { useState } from "react";
 import { UseFormReturn } from "react-hook-form";
-import { ScanLine, Plus, X } from "lucide-react";
+import { ScanLine, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -74,7 +74,7 @@ export function WithdrawalForm({
     if (item) {
       const finalQuantity = Number(quantity) || 1;
       onAppendItem({ item, quantity: finalQuantity, unit });
-      toast({ title: 'Item Adicionado', description: `"${item.name}" foi adicionado à cesta.` });
+      
       setCurrentItemId('');
       setQuantity('');
       setUnit('UN');
@@ -89,7 +89,7 @@ export function WithdrawalForm({
             <CardHeader>
               <div className="flex justify-between items-center">
                 <div>
-                  <CardTitle>Registrar Retirada</CardTitle>
+                  <CardTitle>Registrar Saída de Estoque</CardTitle>
                   <CardDescription>{currentDate}</CardDescription>
                 </div>
                 <Button type="button" variant="outline" size="icon" onClick={() => setSearchScannerOpen(true)}>
@@ -110,8 +110,8 @@ export function WithdrawalForm({
                           </SelectTrigger>
                         <SelectContent>
                           {stockItems.map((item) => (
-                            <SelectItem key={item.id} value={item.id}>
-                              {item.name} - {item.specifications}
+                            <SelectItem key={item.id} value={item.id} disabled={item.quantity <= 0}>
+                              {item.name} - ({item.quantity} em estoque)
                             </SelectItem>
                           ))}
                         </SelectContent>

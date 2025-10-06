@@ -45,8 +45,26 @@ const StockReleaseClient = forwardRef<unknown, StockReleaseClientProps>(
     }, []);
     
     const handleAppendItem = useCallback((item: WithdrawalItem) => {
+      const stockItem = stockItems.find(i => i.id === item.item.id);
+      if (!stockItem) return;
+
+      const existingItemIndex = withdrawalItems.findIndex(cartItem => cartItem.item.id === item.item.id);
+      let newQuantity = item.quantity;
+
+      if (existingItemIndex > -1) {
+          newQuantity += withdrawalItems[existingItemIndex].quantity;
+      }
+
+      if (stockItem.quantity < newQuantity) {
+          toast({
+              variant: "destructive",
+              title: "Estoque Insuficiente",
+              description: `Apenas ${stockItem.quantity} unidades de "${item.item.name}" disponíveis.`,
+          });
+          return;
+      }
+
       setWithdrawalItems(prev => {
-        const existingItemIndex = prev.findIndex(cartItem => cartItem.item.id === item.item.id);
         if (existingItemIndex > -1) {
           const updatedItems = [...prev];
           updatedItems[existingItemIndex].quantity += item.quantity;
@@ -63,19 +81,30 @@ const StockReleaseClient = forwardRef<unknown, StockReleaseClientProps>(
           return [...prev, item];
         }
       });
-    }, [toast]);
+    }, [toast, stockItems, withdrawalItems]);
     
     const handleRemoveItem = useCallback((itemId: string) => {
       setWithdrawalItems(prev => prev.filter(item => item.item.id !== itemId));
     }, []);
 
     const handleUpdateItemQuantity = useCallback((itemId: string, quantity: number) => {
+      const stockItem = stockItems.find(i => i.id === itemId);
+      if (stockItem && quantity > stockItem.quantity) {
+          toast({
+              variant: "destructive",
+              title: "Estoque Insuficiente",
+              description: `Apenas ${stockItem.quantity} unidades disponíveis.`,
+          });
+          setWithdrawalItems(prev => prev.map(item => item.item.id === itemId ? { ...item, quantity: stockItem.quantity } : item));
+          return;
+      }
+
       if (quantity <= 0) {
         handleRemoveItem(itemId);
         return;
       }
       setWithdrawalItems(prev => prev.map(item => item.item.id === itemId ? { ...item, quantity } : item));
-    }, [handleRemoveItem]);
+    }, [handleRemoveItem, stockItems, toast]);
 
     const handleClearCart = useCallback(() => {
       form.reset({ requestedBy: "", requestedFor: "" });
@@ -92,6 +121,19 @@ const StockReleaseClient = forwardRef<unknown, StockReleaseClientProps>(
           description: "Adicione pelo menos um item para registrar uma retirada.",
         });
         return;
+      }
+
+      // Final validation before submitting
+      for (const cartItem of withdrawalItems) {
+        const stockItem = stockItems.find(i => i.id === cartItem.item.id);
+        if (!stockItem || cartItem.quantity > stockItem.quantity) {
+          toast({
+            variant: "destructive",
+            title: "Estoque Insuficiente",
+            description: `Não há estoque suficiente para "${cartItem.item.name}".`,
+          });
+          return;
+        }
       }
       
       const newRecords: WithdrawalRecord[] = withdrawalItems.map(cartItem => ({
@@ -112,7 +154,7 @@ const StockReleaseClient = forwardRef<unknown, StockReleaseClientProps>(
         requestedFor: "",
       });
       setWithdrawalItems([]);
-    }, [withdrawalItems, onUpdateHistory, toast, form]);
+    }, [withdrawalItems, onUpdateHistory, toast, form, stockItems]);
 
     return (
         <WithdrawalForm
@@ -126,7 +168,7 @@ const StockReleaseClient = forwardRef<unknown, StockReleaseClientProps>(
           onAppendItem={handleAppendItem}
           onRemoveItem={handleRemoveItem}
           onUpdateItemQuantity={handleUpdateItemQuantity}
-          onClearCart={handleClearCart}
+          onClearCart={onClearCart}
         />
     );
   }
@@ -134,5 +176,3 @@ const StockReleaseClient = forwardRef<unknown, StockReleaseClientProps>(
 
 StockReleaseClient.displayName = 'StockReleaseClient';
 export default StockReleaseClient;
-
-    

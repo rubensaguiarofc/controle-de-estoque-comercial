@@ -13,6 +13,7 @@ import { Input } from './ui/input';
 import { BarcodeDisplayDialog } from './barcode-display-dialog';
 import { ScrollArea } from './ui/scroll-area';
 import { ItemDetailsDialog } from './item-details-dialog';
+import { Badge } from './ui/badge';
 
 interface ItemManagementProps {
   stockItems: StockItem[];
@@ -101,7 +102,7 @@ export default function ItemManagement({
                 <TableRow>
                   <TableHead>Nome</TableHead>
                   <TableHead className="hidden md:table-cell">Especificações</TableHead>
-                  <TableHead className="hidden md:table-cell">Código de Barras</TableHead>
+                  <TableHead className="hidden sm:table-cell">Qtd. em Estoque</TableHead>
                   <TableHead className="text-center min-w-[120px]">Ações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -111,7 +112,11 @@ export default function ItemManagement({
                     <TableRow key={item.id} onClick={() => setViewingItem(item)} className="cursor-pointer">
                       <TableCell className="font-medium whitespace-nowrap p-4">{item.name}</TableCell>
                       <TableCell className="hidden md:table-cell whitespace-nowrap p-4">{item.specifications}</TableCell>
-                      <TableCell className="hidden md:table-cell font-mono text-sm whitespace-nowrap p-4">{item.barcode || 'N/A'}</TableCell>
+                      <TableCell className="hidden sm:table-cell p-4">
+                        <Badge variant={item.quantity <= 0 ? 'destructive' : (item.quantity < 10 ? 'secondary' : 'default')}>
+                          {item.quantity}
+                        </Badge>
+                      </TableCell>
                       <TableCell className="text-center p-4">
                         <div className="flex gap-1 justify-center">
                           {item.barcode ? (

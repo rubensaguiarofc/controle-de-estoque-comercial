@@ -3,10 +3,10 @@
 
 import { useEffect, useState, useCallback, useMemo } from "react";
 import dynamic from 'next/dynamic';
-import type { StockItem, WithdrawalRecord, Tool, ToolRecord } from "@/lib/types";
+import type { StockItem, WithdrawalRecord, Tool, ToolRecord, EntryRecord } from "@/lib/types";
 import { MOCK_STOCK_ITEMS } from "@/lib/mock-data";
 import { useToast } from "@/hooks/use-toast";
-import { Boxes, History, Menu, PackagePlus, RefreshCw, Wrench } from "lucide-react";
+import { Boxes, History, Menu, PackagePlus, RefreshCw, Wrench, LogIn } from "lucide-react";
 
 import { AddItemDialog } from "./add-item-dialog";
 import { Skeleton } from "./ui/skeleton";
@@ -16,6 +16,10 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { Button } from "./ui/button";
 
 const StockReleaseClient = dynamic(() => import('./stock-release-client'), {
+  loading: () => <ClientSkeleton />,
+  ssr: false,
+});
+const StockEntryClient = dynamic(() => import('./stock-entry-client'), {
   loading: () => <ClientSkeleton />,
   ssr: false,
 });
@@ -33,12 +37,13 @@ const ToolManagement = dynamic(() => import('./tool-management'), {
 });
 
 
-type View = "release" | "items" | "history" | "tools";
+type View = "release" | "entry" | "items" | "history" | "tools";
 
 export default function StockReleaseApp() {
   const { toast } = useToast();
   const [stockItems, setStockItems] = useState<StockItem[]>([]);
   const [history, setHistory] = useState<WithdrawalRecord[]>([]);
+  const [entryHistory, setEntryHistory] = useState<EntryRecord[]>([]);
   const [tools, setTools] = useState<Tool[]>([]);
   const [toolHistory, setToolHistory] = useState<ToolRecord[]>([]);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
@@ -55,9 +60,12 @@ export default function StockReleaseApp() {
 
   useEffect(() => {
     try {
-      // Load stock and history
+      // Load stock, history, and entries
       const storedHistory = localStorage.getItem("withdrawalHistory");
       if (storedHistory) setHistory(JSON.parse(storedHistory));
+
+      const storedEntryHistory = localStorage.getItem("entryHistory");
+      if (storedEntryHistory) setEntryHistory(JSON.parse(storedEntryHistory));
       
       const storedStockItems = localStorage.getItem("stockItems");
       if (storedStockItems) {
@@ -84,8 +92,9 @@ export default function StockReleaseApp() {
   useEffect(() => {
     if (!isInitialLoad) {
       try {
-        localStorage.setItem("withdrawalHistory", JSON.stringify(history));
         localStorage.setItem("stockItems", JSON.stringify(stockItems));
+        localStorage.setItem("withdrawalHistory", JSON.stringify(history));
+        localStorage.setItem("entryHistory", JSON.stringify(entryHistory));
         localStorage.setItem("tools", JSON.stringify(tools));
         localStorage.setItem("toolHistory", JSON.stringify(toolHistory.sort((a, b) => new Date(b.checkoutDate).getTime() - new Date(a.checkoutDate).getTime())));
       } catch (error) {
@@ -93,33 +102,40 @@ export default function StockReleaseApp() {
         toast({ variant: 'destructive', title: "Erro ao Salvar Dados", description: "Não foi possível salvar as alterações."});
       }
     }
-  }, [history, stockItems, tools, toolHistory, isInitialLoad, toast]);
+  }, [history, stockItems, tools, toolHistory, entryHistory, isInitialLoad, toast]);
 
-  const { uniqueRequesters, uniqueDestinations } = useMemo(() => {
+  const { uniqueRequesters, uniqueDestinations, uniqueAdders } = useMemo(() => {
     const requesters = new Set<string>();
     const destinations = new Set<string>();
     history.forEach(record => {
       if (record.requestedBy) requesters.add(record.requestedBy);
       if (record.requestedFor) destinations.add(record.requestedFor);
     });
+
+    const adders = new Set<string>();
+    entryHistory.forEach(record => {
+        if (record.addedBy) adders.add(record.addedBy);
+    });
+
     return {
       uniqueRequesters: Array.from(requesters),
       uniqueDestinations: Array.from(destinations),
+      uniqueAdders: Array.from(adders),
     };
-  }, [history]);
+  }, [history, entryHistory]);
 
   // Item Management Handlers
   const handleItemDialogSubmit = useCallback((itemData: Omit<StockItem, 'id'>) => {
     if (editingItem) {
       // Update
-      setStockItems(prev => prev.map(item => item.id === editingItem.id ? { ...item, ...itemData } : item));
+      setStockItems(prev => prev.map(item => item.id === editingItem.id ? { ...item, name: itemData.name, specifications: itemData.specifications, barcode: itemData.barcode } : item));
       toast({ title: "Item Atualizado", description: `${itemData.name} foi atualizado.` });
     } else {
       // Add
       setStockItems(prev => {
         const newIdNumber = (prev.length > 0 ? Math.max(...prev.map(item => parseInt(item.id.split('-')[1]))) + 1 : 1).toString().padStart(3, '0');
         const newId = `ITM-${newIdNumber}`;
-        const itemWithId: StockItem = { ...itemData, id: newId, barcode: itemData.barcode || '' };
+        const itemWithId: StockItem = { ...itemData, id: newId, quantity: itemData.quantity || 0 };
         return [...prev, itemWithId]
       });
       toast({ title: "Item Adicionado", description: `${itemData.name} foi adicionado.` });
@@ -157,14 +173,52 @@ export default function StockReleaseApp() {
 
   const handleNewWithdrawal = useCallback((newRecords: WithdrawalRecord[]) => {
     setHistory(prev => [...newRecords, ...prev]);
+
+    // Update stock quantities
+    setStockItems(prevStock => {
+        const stockUpdates = new Map(prevStock.map(item => [item.id, item.quantity]));
+        newRecords.forEach(record => {
+            const currentQuantity = stockUpdates.get(record.item.id) ?? 0;
+            stockUpdates.set(record.item.id, currentQuantity - record.quantity);
+        });
+        return prevStock.map(item => ({...item, quantity: stockUpdates.get(item.id) ?? item.quantity}));
+    });
   }, []);
   
-  const handleDeleteRecord = useCallback((recordId: string) => {
+  const handleNewEntry = useCallback((newRecords: EntryRecord[]) => {
+    setEntryHistory(prev => [...newRecords, ...prev]);
+
+    // Update stock quantities
+    setStockItems(prevStock => {
+        const stockUpdates = new Map(prevStock.map(item => [item.id, item.quantity]));
+        newRecords.forEach(record => {
+            const currentQuantity = stockUpdates.get(record.item.id) ?? 0;
+            stockUpdates.set(record.item.id, currentQuantity + record.quantity);
+        });
+        return prevStock.map(item => ({...item, quantity: stockUpdates.get(item.id) ?? item.quantity}));
+    });
+  }, []);
+
+
+  const handleDeleteWithdrawalRecord = useCallback((recordId: string) => {
     setHistory(prevHistory => {
+      // Note: This does not revert the stock change for simplicity.
       const updatedHistory = prevHistory.filter(record => record.id !== recordId);
       toast({
-        title: "Registro Excluído",
-        description: "O registro de retirada foi removido do histórico.",
+        title: "Registro de Saída Excluído",
+        description: "O registro foi removido do histórico.",
+      });
+      return updatedHistory;
+    });
+  }, [toast]);
+  
+  const handleDeleteEntryRecord = useCallback((recordId: string) => {
+    setEntryHistory(prevHistory => {
+      // Note: This does not revert the stock change for simplicity.
+      const updatedHistory = prevHistory.filter(record => record.id !== recordId);
+      toast({
+        title: "Registro de Entrada Excluído",
+        description: "O registro foi removido do histórico.",
       });
       return updatedHistory;
     });
@@ -182,6 +236,9 @@ export default function StockReleaseApp() {
   }, [toast]);
 
   const renderContent = () => {
+    if (isInitialLoad) {
+      return <ManagementSkeleton />;
+    }
     switch (activeView) {
       case "release":
         return (
@@ -190,6 +247,14 @@ export default function StockReleaseApp() {
             onUpdateHistory={handleNewWithdrawal}
             uniqueRequesters={uniqueRequesters}
             uniqueDestinations={uniqueDestinations}
+          />
+        );
+      case "entry":
+        return (
+          <StockEntryClient
+            stockItems={stockItems}
+            onUpdateHistory={handleNewEntry}
+            uniqueAdders={uniqueAdders}
           />
         );
       case "items":
@@ -205,8 +270,10 @@ export default function StockReleaseApp() {
         return (
           <HistoryPanel
             itemHistory={history}
+            entryHistory={entryHistory}
             toolHistory={toolHistory}
-            onDeleteItemRecord={handleDeleteRecord}
+            onDeleteItemRecord={handleDeleteWithdrawalRecord}
+            onDeleteEntryRecord={handleDeleteEntryRecord}
             onDeleteToolRecord={handleDeleteToolRecord}
           />
         );
@@ -227,7 +294,8 @@ export default function StockReleaseApp() {
   };
 
   const navItems = [
-    { view: "release" as View, icon: RefreshCw, label: "Lançamento" },
+    { view: "release" as View, icon: RefreshCw, label: "Saída" },
+    { view: "entry" as View, icon: LogIn, label: "Entrada" },
     { view: "items" as View, icon: Boxes, label: "Itens" },
     { view: "tools" as View, icon: Wrench, label: "Ferramentas" },
     { view: "history" as View, icon: History, label: "Histórico" },
@@ -370,5 +438,3 @@ function HistorySkeleton() {
       </div>
     );
 }
-
-    
