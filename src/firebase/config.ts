@@ -13,7 +13,10 @@ const firebaseConfig = {
 
 export function getFirebaseConfig() {
   if (!firebaseConfig.apiKey) {
-    throw new Error('Missing Firebase config: NEXT_PUBLIC_FIREBASE_API_KEY')
+    // During static builds the environment variables may not be present.
+    // Return the config object (with undefined values) and let runtime
+    // initialization decide whether to actually initialize Firebase.
+    console.warn('Warning: NEXT_PUBLIC_FIREBASE_API_KEY is not set. Firebase will not be initialized during build.');
   }
   return firebaseConfig;
 }

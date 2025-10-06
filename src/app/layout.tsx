@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import Providers from '@/providers';
 import { Toaster } from '@/components/ui/toaster';
 import { FooterAd } from '@/components/footer-ad';
 
@@ -24,9 +25,11 @@ export default function RootLayout({
         />
       </head>
       <body className="font-body antialiased bg-background overflow-x-hidden">
-        {children}
-        <Toaster />
-        <FooterAd />
+        <Providers>
+          {children}
+          <Toaster />
+          <FooterAd />
+        </Providers>
       </body>
     </html>
   );
