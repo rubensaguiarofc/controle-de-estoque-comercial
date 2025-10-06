@@ -6,7 +6,7 @@ import type { StockItem } from '@/lib/types';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
-import { Edit, Trash, Search, Plus, Barcode } from 'lucide-react';
+import { Edit, Trash, Search, Plus, Barcode, Printer } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from './ui/input';
@@ -14,6 +14,8 @@ import { BarcodeDisplayDialog } from './barcode-display-dialog';
 import { ScrollArea } from './ui/scroll-area';
 import { ItemDetailsDialog } from './item-details-dialog';
 import { Badge } from './ui/badge';
+import jsPDF from 'jspdf';
+import JsBarcode from 'jsbarcode';
 
 interface ItemManagementProps {
   stockItems: StockItem[];
@@ -59,6 +61,91 @@ export default function ItemManagement({
     });
   };
 
+  const handlePrintAllBarcodes = () => {
+    const itemsWithBarcode = stockItems.filter(item => item.barcode);
+    if (itemsWithBarcode.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "Nenhum código de barras",
+        description: "Não há itens com código de barras para imprimir."
+      });
+      return;
+    }
+
+    const doc = new jsPDF('p', 'mm', 'a4');
+    const tempCanvas = document.createElement('canvas');
+
+    const PAGE_WIDTH = doc.internal.pageSize.getWidth();
+    const PAGE_HEIGHT = doc.internal.pageSize.getHeight();
+    const MARGIN_X = 10;
+    const MARGIN_Y = 15;
+    const LABEL_WIDTH = (PAGE_WIDTH - (MARGIN_X * 2)) / 3;
+    const LABEL_HEIGHT = 25;
+    const GUTTER_X = 0;
+    const GUTTER_Y = 5;
+
+    let x = MARGIN_X;
+    let y = MARGIN_Y;
+
+    itemsWithBarcode.forEach((item, index) => {
+      if (y + LABEL_HEIGHT > PAGE_HEIGHT - MARGIN_Y) {
+        doc.addPage();
+        x = MARGIN_X;
+        y = MARGIN_Y;
+      }
+      
+      try {
+        const barcodeValue = item.barcode!;
+        const textToDisplay = barcodeValue.split('-').pop() || barcodeValue;
+
+        JsBarcode(tempCanvas, barcodeValue, {
+          format: "CODE128",
+          width: 1.5,
+          height: 30,
+          displayValue: false, // O valor será adicionado manualmente
+        });
+        const barcodeDataUrl = tempCanvas.toDataURL('image/png');
+
+        // Adiciona um retângulo para visualizar a área da etiqueta
+        // doc.rect(x, y, LABEL_WIDTH, LABEL_HEIGHT);
+
+        // Centraliza o conteúdo dentro da etiqueta
+        const contentX = x + LABEL_WIDTH / 2;
+
+        doc.setFontSize(8);
+        const itemName = item.name.length > 35 ? item.name.substring(0, 32) + '...' : item.name;
+        doc.text(itemName.toUpperCase(), contentX, y + 4, { align: 'center' });
+        
+        doc.setFontSize(6);
+        const itemSpecs = item.specifications.length > 45 ? item.specifications.substring(0, 42) + '...' : item.specifications;
+        doc.text(itemSpecs.toUpperCase(), contentX, y + 7, { align: 'center' });
+
+        const barcodeWidth = 40; // Largura fixa para o código de barras na etiqueta
+        const barcodeHeight = 10;
+        const barcodeX = x + (LABEL_WIDTH - barcodeWidth) / 2;
+        doc.addImage(barcodeDataUrl, 'PNG', barcodeX, y + 9, barcodeWidth, barcodeHeight);
+        
+        doc.setFontSize(8);
+        doc.text(textToDisplay, contentX, y + 22, { align: 'center' });
+
+        x += LABEL_WIDTH + GUTTER_X;
+        if (x + LABEL_WIDTH > PAGE_WIDTH - MARGIN_X) {
+          x = MARGIN_X;
+          y += LABEL_HEIGHT + GUTTER_Y;
+        }
+
+      } catch (e) {
+        console.error(`Erro ao gerar etiqueta para ${item.name}:`, e);
+      }
+    });
+
+    doc.save(`etiquetas_todos_itens_${new Date().toISOString().split('T')[0]}.pdf`);
+    toast({
+      title: "Download Iniciado",
+      description: "O PDF com todas as etiquetas está sendo gerado."
+    });
+  };
+
   const filteredItems = useMemo(() => {
     if (!searchQuery) {
       return stockItems;
@@ -80,10 +167,16 @@ export default function ItemManagement({
                     <CardTitle>Biblioteca de Itens</CardTitle>
                     <CardDescription>Gerencie todos os itens cadastrados.</CardDescription>
                 </div>
-                <Button size="sm" className="w-full sm:w-auto" onClick={() => { onSetEditingItem(null); onSetIsAddItemDialogOpen(true); }}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Cadastrar Item
-                </Button>
+                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                    <Button size="sm" className="w-full sm:w-auto" onClick={() => { onSetEditingItem(null); onSetIsAddItemDialogOpen(true); }}>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Cadastrar Item
+                    </Button>
+                    <Button variant="outline" size="sm" className="w-full sm:w-auto" onClick={handlePrintAllBarcodes}>
+                        <Printer className="mr-2 h-4 w-4" />
+                        Imprimir Todas as Etiquetas
+                    </Button>
+                </div>
             </div>
             <div className="relative pt-4">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
