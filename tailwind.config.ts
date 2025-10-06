@@ -99,11 +99,16 @@ export default {
           '0%': { transform: 'translateY(0)' },
           '100%': { transform: 'translateY(calc(100% - 2px))' },
         },
+        'pulse-slow': {
+          '0%, 100%': { opacity: '1' },
+          '50%': { opacity: '0.7' },
+        }
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
         'scan': 'scan 2.5s ease-in-out infinite alternate',
+        'pulse-slow': 'pulse-slow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
       },
     },
   },
