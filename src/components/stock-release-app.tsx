@@ -6,13 +6,14 @@ import dynamic from 'next/dynamic';
 import type { StockItem, WithdrawalRecord, Tool, ToolRecord } from "@/lib/types";
 import { MOCK_STOCK_ITEMS } from "@/lib/mock-data";
 import { useToast } from "@/hooks/use-toast";
-import { Boxes, History, PackagePlus, RefreshCw, Wrench } from "lucide-react";
+import { Boxes, History, Menu, PackagePlus, RefreshCw, Wrench } from "lucide-react";
 
-import { Sidebar, SidebarContent, SidebarInset, SidebarItem, SidebarTrigger } from "./ui/sidebar-vertical";
 import { AddItemDialog } from "./add-item-dialog";
 import { Skeleton } from "./ui/skeleton";
 import { AddToolDialog } from "./add-tool-dialog";
 import { cn } from "@/lib/utils";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "./ui/dropdown-menu";
+import { Button } from "./ui/button";
 
 const StockReleaseClient = dynamic(() => import('./stock-release-client'), {
   loading: () => <ClientSkeleton />,
@@ -233,50 +234,45 @@ export default function StockReleaseApp() {
   ];
 
   return (
-    <div className="flex h-screen bg-muted/40">
-      <Sidebar className="hidden md:block">
-        <SidebarContent className="flex flex-col">
-          <div className="flex-grow">
-            <h2 className="text-2xl font-bold p-4 flex items-center gap-2">
-              <PackagePlus />
-              Controle
-            </h2>
-            <nav className="flex flex-col gap-2 p-4">
-              {navItems.map(item => (
-                <SidebarItem key={item.view} icon={<item.icon />} isActive={activeView === item.view} onClick={() => setActiveView(item.view)}>{item.label}</SidebarItem>
-              ))}
-            </nav>
-          </div>
-        </SidebarContent>
-      </Sidebar>
-      <div className="flex flex-col flex-1 pb-16 md:pb-0">
-        <header className="flex h-14 items-center gap-4 border-b bg-background px-6">
-            <SidebarTrigger className="md:hidden" />
-            <h1 className="text-lg font-semibold md:text-2xl capitalize">{navItems.find(i => i.view === activeView)?.label}</h1>
-        </header>
-        <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-6 overflow-auto">
-          {renderContent()}
-        </main>
-      </div>
+    <div className="flex flex-col h-screen bg-muted/40">
+      <header className="flex h-14 items-center gap-4 border-b bg-background px-4">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="icon">
+              <Menu className="h-5 w-5" />
+              <span className="sr-only">Abrir menu de navegação</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            <DropdownMenuLabel>Navegação</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {navItems.map(item => (
+              <DropdownMenuItem
+                key={item.view}
+                onClick={() => setActiveView(item.view)}
+                className={cn(
+                  "flex items-center gap-2",
+                  activeView === item.view && "bg-accent"
+                )}
+              >
+                <item.icon className="h-4 w-4" />
+                <span>{item.label}</span>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
 
-       {/* Mobile Bottom Navigation */}
-       <div className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-background border-t z-50">
-        <nav className="flex h-full">
-          {navItems.map(item => (
-            <button
-              key={item.view}
-              onClick={() => setActiveView(item.view)}
-              className={cn(
-                "flex-1 flex flex-col items-center justify-center text-xs gap-1 transition-colors",
-                activeView === item.view ? "text-primary font-bold" : "text-muted-foreground"
-              )}
-            >
-              <item.icon className="h-5 w-5" />
-              <span>{item.label}</span>
-            </button>
-          ))}
-        </nav>
-      </div>
+        <div className="flex-1 flex items-center gap-2">
+            <PackagePlus className="h-6 w-6"/>
+            <h1 className="text-lg font-semibold md:text-xl">
+                Controle de Estoque
+            </h1>
+        </div>
+      </header>
+
+      <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-6 overflow-auto pb-20">
+        {renderContent()}
+      </main>
 
       <AddItemDialog
           isOpen={isAddItemDialogOpen}
