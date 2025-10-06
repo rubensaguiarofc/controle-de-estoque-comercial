@@ -26,6 +26,78 @@
         }
       },
       "required": ["uid", "email"]
+    },
+    "StockItem": {
+      "title": "Stock Item",
+      "description": "An item in the inventory.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "specifications": { "type": "string" },
+        "quantity": { "type": "number" },
+        "barcode": { "type": "string" }
+      },
+      "required": ["id", "name", "specifications", "quantity"]
+    },
+    "WithdrawalRecord": {
+      "title": "Withdrawal Record",
+      "description": "A record of a stock withdrawal.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "item": { "$ref": "#/entities/StockItem" },
+        "quantity": { "type": "number" },
+        "unit": { "type": "string" },
+        "requestedBy": { "type": "string" },
+        "requestedFor": { "type": "string" }
+      },
+      "required": ["id", "date", "item", "quantity", "unit", "requestedBy", "requestedFor"]
+    },
+    "EntryRecord": {
+      "title": "Entry Record",
+      "description": "A record of a stock entry.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "item": { "$ref": "#/entities/StockItem" },
+        "quantity": { "type": "number" },
+        "unit": { "type": "string" },
+        "addedBy": { "type": "string" }
+      },
+      "required": ["id", "date", "item", "quantity", "unit", "addedBy"]
+    },
+    "Tool": {
+      "title": "Tool",
+      "description": "A tool in the inventory.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "assetId": { "type": "string" }
+      },
+      "required": ["id", "name", "assetId"]
+    },
+    "ToolRecord": {
+      "title": "Tool Record",
+      "description": "A record of a tool checkout/return.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "tool": { "$ref": "#/entities/Tool" },
+        "checkoutDate": { "type": "string", "format": "date-time" },
+        "checkedOutBy": { "type": "string" },
+        "usageLocation": { "type": "string" },
+        "checkoutSignature": { "type": "string" },
+        "returnDate": { "type": "string", "format": "date-time" },
+        "isDamaged": { "type": "boolean" },
+        "damageDescription": { "type": "string" },
+        "damagePhoto": { "type": "string" },
+        "returnSignature": { "type": "string" }
+      },
+      "required": ["id", "tool", "checkoutDate", "checkedOutBy", "usageLocation", "checkoutSignature"]
     }
   },
   "auth": {
