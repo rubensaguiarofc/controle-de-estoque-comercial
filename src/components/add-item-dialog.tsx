@@ -22,8 +22,8 @@ const formSchema = z.object({
   name: z.string().min(1, "O nome do item é obrigatório.").toUpperCase(),
   specifications: z.string().min(1, "As especificações são obrigatórias.").toUpperCase(),
   quantity: z.preprocess(
-    (val) => (val === "" ? undefined : Number(val)),
-    z.number({ invalid_type_error: "Deve ser um número." }).min(0, "A quantidade não pode ser negativa.").optional()
+    (val) => (val === "" || val === undefined || val === null ? 0 : Number(val)),
+    z.number({ invalid_type_error: "Deve ser um número." }).min(0, "A quantidade não pode ser negativa.")
   ),
   barcode: z.string().optional(),
 });

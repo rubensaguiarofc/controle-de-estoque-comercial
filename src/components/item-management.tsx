@@ -207,7 +207,7 @@ export default function ItemManagement({
                       <TableCell className="hidden md:table-cell whitespace-nowrap p-4">{item.specifications}</TableCell>
                       <TableCell className="hidden sm:table-cell p-4">
                         <Badge variant={item.quantity <= 0 ? 'destructive' : (item.quantity < 10 ? 'secondary' : 'default')}>
-                          {item.quantity}
+                          {item.quantity ?? 0}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-center p-4">
