@@ -1,19 +1,15 @@
-
 "use client";
 
 import type { Tool, ToolRecord } from '@/lib/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ToolLibrary } from './tool-library';
 import { ToolHistory } from './tool-history';
-import { useUser } from '@/firebase/auth/use-user';
-import { useFirestore } from '@/firebase';
-import { doc, writeBatch } from 'firebase/firestore';
 
 interface ToolManagementProps {
   tools: Tool[];
-  setTools: (tools: Tool[]) => Promise<void>;
+  setTools: (tools: Tool[]) => void;
   toolHistory: ToolRecord[];
-  setToolHistory: (history: ToolRecord[]) => Promise<void>;
+  setToolHistory: (history: ToolRecord[]) => void;
   onSetEditingTool: (tool: Tool | null) => void;
   onSetIsAddToolDialogOpen: (isOpen: boolean) => void;
 }
@@ -26,11 +22,8 @@ export default function ToolManagement({
   onSetEditingTool,
   onSetIsAddToolDialogOpen
 }: ToolManagementProps) {
-  const { user } = useUser();
-  const firestore = useFirestore();
 
-  const handleCheckout = async (tool: Tool, checkedOutBy: string, usageLocation: string, checkoutSignature: string) => {
-    if (!user || !firestore) return;
+  const handleCheckout = (tool: Tool, checkedOutBy: string, usageLocation: string, checkoutSignature: string) => {
     const newRecord: ToolRecord = {
       id: `TR-${Date.now()}`,
       tool,
@@ -39,30 +32,24 @@ export default function ToolManagement({
       usageLocation: usageLocation.toUpperCase(),
       checkoutSignature,
     };
-    
-    const recordRef = doc(firestore, 'users', user.uid, 'toolHistory', newRecord.id);
-    const batch = writeBatch(firestore);
-    batch.set(recordRef, newRecord);
-    await batch.commit();
-
-    // This will trigger a re-fetch in the parent component
     setToolHistory([newRecord, ...toolHistory]);
   };
 
-  const handleReturn = async (recordId: string, isDamaged: boolean, damageDescription?: string, damagePhoto?: string, signature?: string) => {
-    const updatedHistory = toolHistory.map(rec => 
-      rec.id === recordId 
-      ? { 
-          ...rec, 
-          returnDate: new Date().toISOString(),
-          isDamaged,
-          damageDescription: damageDescription?.toUpperCase(),
-          damagePhoto,
-          returnSignature: signature
-        } 
-      : rec
+  const handleReturn = (recordId: string, isDamaged: boolean, damageDescription?: string, damagePhoto?: string, signature?: string) => {
+    setToolHistory(currentHistory => 
+      currentHistory.map(rec => 
+        rec.id === recordId 
+        ? { 
+            ...rec, 
+            returnDate: new Date().toISOString(),
+            isDamaged,
+            damageDescription: damageDescription?.toUpperCase(),
+            damagePhoto,
+            returnSignature: signature
+          } 
+        : rec
+      )
     );
-    await setToolHistory(updatedHistory);
   };
   
   return (
