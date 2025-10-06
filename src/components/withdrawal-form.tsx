@@ -47,7 +47,7 @@ export function WithdrawalForm({
   const { toast } = useToast();
   const [isSearchScannerOpen, setSearchScannerOpen] = useState(false);
   const [currentItemId, setCurrentItemId] = useState<string>('');
-  const [quantity, setQuantity] = useState<number | string>(1);
+  const [quantity, setQuantity] = useState<number | string>('');
   const [unit, setUnit] = useState('UN');
 
   const handleScanSuccess = (foundItem: StockItem) => {
@@ -119,7 +119,7 @@ export function WithdrawalForm({
                     </FormItem>
                     <FormItem>
                       <FormLabel>Qtd.</FormLabel>
-                      <Input type="number" placeholder="1" value={quantity} onChange={(e) => setQuantity(e.target.value)} />
+                      <Input type="number" placeholder="" value={quantity} onChange={(e) => setQuantity(e.target.value)} />
                     </FormItem>
                      <FormItem className="hidden md:block">
                       <FormLabel>Unidade</FormLabel>
