@@ -2,6 +2,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
+import { FirebaseProvider } from '@/firebase/provider';
 
 export const metadata: Metadata = {
   title: 'Controle de Estoque',
@@ -24,13 +25,10 @@ export default function RootLayout({
         />
       </head>
       <body className="font-body antialiased bg-background overflow-x-hidden">
-        {children}
+        <FirebaseProvider>
+          {children}
+        </FirebaseProvider>
         <Toaster />
-        <footer className="fixed bottom-0 left-0 right-0 z-10 w-full bg-muted/30 p-2 backdrop-blur-sm">
-          <div className="mx-auto flex h-16 max-w-lg animate-pulse-slow cursor-pointer items-center justify-center rounded-lg border border-dashed bg-card/80 text-center text-muted-foreground transition-colors hover:border-primary hover:bg-muted/80">
-            <span>Espaço para publicidade</span>
-          </div>
-        </footer>
       </body>
     </html>
   );

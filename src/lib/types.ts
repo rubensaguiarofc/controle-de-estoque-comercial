@@ -51,3 +51,10 @@ export type ToolRecord = {
   damagePhoto?: string; // Data URI da foto
   returnSignature?: string; // Data URI da assinatura de devolução
 };
+
+export type User = {
+  uid: string;
+  email: string | null;
+  displayName: string | null;
+  photoURL: string | null;
+};

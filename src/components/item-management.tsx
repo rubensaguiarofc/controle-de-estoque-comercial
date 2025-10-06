@@ -19,7 +19,7 @@ import JsBarcode from 'jsbarcode';
 
 interface ItemManagementProps {
   stockItems: StockItem[];
-  onSetStockItems: (items: StockItem[]) => void;
+  onSetStockItems: (items: StockItem[]) => void | Promise<void>;
   onSetIsAddItemDialogOpen: (isOpen: boolean) => void;
   onSetEditingItem: (item: StockItem | null) => void;
 }

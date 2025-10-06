@@ -3,10 +3,19 @@
 
 import { useEffect, useState, useCallback, useMemo } from "react";
 import dynamic from 'next/dynamic';
+import {
+  collection,
+  doc,
+  getDocs,
+  writeBatch,
+  query,
+  orderBy,
+} from 'firebase/firestore';
+import { getAuth, signOut } from 'firebase/auth';
+
 import type { StockItem, WithdrawalRecord, Tool, ToolRecord, EntryRecord } from "@/lib/types";
-import { MOCK_STOCK_ITEMS } from "@/lib/mock-data";
 import { useToast } from "@/hooks/use-toast";
-import { Boxes, History, Menu, PackagePlus, RefreshCw, Wrench, LogIn } from "lucide-react";
+import { Boxes, History, Menu, RefreshCw, Wrench, LogIn, LogOut } from "lucide-react";
 
 import { AddItemDialog } from "./add-item-dialog";
 import { Skeleton } from "./ui/skeleton";
@@ -14,6 +23,8 @@ import { AddToolDialog } from "./add-tool-dialog";
 import { cn } from "@/lib/utils";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import { Button } from "./ui/button";
+import { useUser } from "@/firebase/auth/use-user";
+import { useFirestore } from "@/firebase";
 
 const StockReleaseClient = dynamic(() => import('./stock-release-client'), {
   loading: () => <ClientSkeleton />,
@@ -41,6 +52,9 @@ type View = "release" | "entry" | "items" | "history" | "tools";
 
 export default function StockReleaseApp() {
   const { toast } = useToast();
+  const { user } = useUser();
+  const firestore = useFirestore();
+
   const [stockItems, setStockItems] = useState<StockItem[]>([]);
   const [history, setHistory] = useState<WithdrawalRecord[]>([]);
   const [entryHistory, setEntryHistory] = useState<EntryRecord[]>([]);
@@ -58,51 +72,49 @@ export default function StockReleaseApp() {
 
   const [activeView, setActiveView] = useState<View>("release");
 
-  useEffect(() => {
+  const fetchData = useCallback(async () => {
+    if (!user || !firestore) return;
+    setIsInitialLoad(true);
     try {
-      // Load stock, history, and entries
-      const storedHistory = localStorage.getItem("withdrawalHistory");
-      if (storedHistory) setHistory(JSON.parse(storedHistory));
+      const collections = {
+        stockItems: collection(firestore, 'users', user.uid, 'stockItems'),
+        withdrawalHistory: collection(firestore, 'users', user.uid, 'withdrawalHistory'),
+        entryHistory: collection(firestore, 'users', user.uid, 'entryHistory'),
+        tools: collection(firestore, 'users', user.uid, 'tools'),
+        toolHistory: collection(firestore, 'users', user.uid, 'toolHistory'),
+      };
 
-      const storedEntryHistory = localStorage.getItem("entryHistory");
-      if (storedEntryHistory) setEntryHistory(JSON.parse(storedEntryHistory));
-      
-      const storedStockItems = localStorage.getItem("stockItems");
-      if (storedStockItems) {
-        setStockItems(JSON.parse(storedStockItems));
-      } else {
-        setStockItems(MOCK_STOCK_ITEMS);
-      }
+      const [
+        stockItemsSnap,
+        historySnap,
+        entryHistorySnap,
+        toolsSnap,
+        toolHistorySnap,
+      ] = await Promise.all([
+        getDocs(query(collections.stockItems, orderBy('name'))),
+        getDocs(query(collections.withdrawalHistory, orderBy('date', 'desc'))),
+        getDocs(query(collections.entryHistory, orderBy('date', 'desc'))),
+        getDocs(query(collections.tools, orderBy('name'))),
+        getDocs(query(collections.toolHistory, orderBy('checkoutDate', 'desc'))),
+      ]);
 
-      // Load tools and tool history
-      const storedTools = localStorage.getItem("tools");
-      if (storedTools) setTools(JSON.parse(storedTools));
-
-      const storedToolHistory = localStorage.getItem("toolHistory");
-      if (storedToolHistory) setToolHistory(JSON.parse(storedToolHistory));
+      setStockItems(stockItemsSnap.docs.map(d => d.data() as StockItem));
+      setHistory(historySnap.docs.map(d => d.data() as WithdrawalRecord));
+      setEntryHistory(entryHistorySnap.docs.map(d => d.data() as EntryRecord));
+      setTools(toolsSnap.docs.map(d => d.data() as Tool));
+      setToolHistory(toolHistorySnap.docs.map(d => d.data() as ToolRecord));
 
     } catch (error) {
-      console.error("Failed to parse data from localStorage", error);
-      toast({ variant: 'destructive', title: "Erro ao Carregar Dados", description: "Não foi possível carregar os dados salvos."});
+      console.error("Failed to fetch data from Firestore", error);
+      toast({ variant: 'destructive', title: "Erro ao Carregar Dados", description: "Não foi possível carregar os dados do Firestore." });
     } finally {
       setIsInitialLoad(false);
     }
-  }, [toast]);
+  }, [user, firestore, toast]);
 
   useEffect(() => {
-    if (!isInitialLoad) {
-      try {
-        localStorage.setItem("stockItems", JSON.stringify(stockItems));
-        localStorage.setItem("withdrawalHistory", JSON.stringify(history));
-        localStorage.setItem("entryHistory", JSON.stringify(entryHistory));
-        localStorage.setItem("tools", JSON.stringify(tools));
-        localStorage.setItem("toolHistory", JSON.stringify(toolHistory.sort((a, b) => new Date(b.checkoutDate).getTime() - new Date(a.checkoutDate).getTime())));
-      } catch (error) {
-        console.error("Failed to save data to localStorage", error);
-        toast({ variant: 'destructive', title: "Erro ao Salvar Dados", description: "Não foi possível salvar as alterações."});
-      }
-    }
-  }, [history, stockItems, tools, toolHistory, entryHistory, isInitialLoad, toast]);
+    fetchData();
+  }, [fetchData]);
 
   const { uniqueRequesters, uniqueDestinations, uniqueAdders } = useMemo(() => {
     const requesters = new Set<string>();
@@ -125,24 +137,36 @@ export default function StockReleaseApp() {
   }, [history, entryHistory]);
 
   // Item Management Handlers
-  const handleItemDialogSubmit = useCallback((itemData: Omit<StockItem, 'id'>) => {
+  const handleItemDialogSubmit = useCallback(async (itemData: Omit<StockItem, 'id'>) => {
+    if (!user || !firestore) return;
+    
+    let itemToSave: StockItem;
+    const batch = writeBatch(firestore);
+
     if (editingItem) {
-      // Update
-      setStockItems(prev => prev.map(item => item.id === editingItem.id ? { ...item, name: itemData.name, specifications: itemData.specifications, barcode: itemData.barcode } : item));
-      toast({ title: "Item Atualizado", description: `${itemData.name} foi atualizado.` });
+      itemToSave = { ...editingItem, name: itemData.name, specifications: itemData.specifications, barcode: itemData.barcode };
+      const itemRef = doc(firestore, 'users', user.uid, 'stockItems', itemToSave.id);
+      batch.update(itemRef, { name: itemToSave.name, specifications: itemToSave.specifications, barcode: itemToSave.barcode });
     } else {
-      // Add
-      setStockItems(prev => {
-        const newIdNumber = (prev.length > 0 ? Math.max(...prev.map(item => parseInt(item.id.split('-')[1]))) + 1 : 1).toString().padStart(3, '0');
-        const newId = `ITM-${newIdNumber}`;
-        const itemWithId: StockItem = { ...itemData, id: newId, quantity: itemData.quantity || 0 };
-        return [...prev, itemWithId]
-      });
-      toast({ title: "Item Adicionado", description: `${itemData.name} foi adicionado.` });
+      const newIdNumber = (stockItems.length > 0 ? Math.max(...stockItems.map(item => parseInt(item.id.split('-')[1]))) + 1 : 1).toString().padStart(3, '0');
+      const newId = `ITM-${newIdNumber}`;
+      itemToSave = { ...itemData, id: newId, quantity: itemData.quantity || 0 };
+      const itemRef = doc(firestore, 'users', user.uid, 'stockItems', newId);
+      batch.set(itemRef, itemToSave);
     }
+
+    try {
+        await batch.commit();
+        await fetchData();
+        toast({ title: editingItem ? "Item Atualizado" : "Item Adicionado", description: `${itemToSave.name} foi salvo.` });
+    } catch(e) {
+        console.error(e);
+        toast({ variant: 'destructive', title: "Erro ao Salvar", description: "Não foi possível salvar o item." });
+    }
+
     setAddItemDialogOpen(false);
     setEditingItem(null);
-  }, [editingItem, toast]);
+  }, [editingItem, toast, user, firestore, stockItems, fetchData]);
 
   const handleItemDialogClose = useCallback((isOpen: boolean) => {
     if (!isOpen) setEditingItem(null);
@@ -150,90 +174,124 @@ export default function StockReleaseApp() {
   }, []);
 
   // Tool Management Handlers
-  const handleToolDialogSubmit = useCallback((toolData: Omit<Tool, 'id'>) => {
+  const handleToolDialogSubmit = useCallback(async (toolData: Omit<Tool, 'id'>) => {
+    if (!user || !firestore) return;
+    
+    let toolToSave: Tool;
+    const batch = writeBatch(firestore);
+
     if (editingTool) {
-      // Update
-      setTools(prev => prev.map(tool => tool.id === editingTool.id ? { ...tool, ...toolData } : tool));
-      toast({ title: "Ferramenta Atualizada", description: `${toolData.name} foi atualizada.` });
+      toolToSave = { ...editingTool, ...toolData };
+      const toolRef = doc(firestore, 'users', user.uid, 'tools', toolToSave.id);
+      batch.update(toolRef, toolData);
     } else {
-      // Add
       const newId = `TOOL-${Date.now()}`;
-      const toolWithId: Tool = { ...toolData, id: newId };
-      setTools(prev => [...prev, toolWithId]);
-      toast({ title: "Ferramenta Adicionada", description: `${toolData.name} foi adicionada.` });
+      toolToSave = { ...toolData, id: newId };
+      const toolRef = doc(firestore, 'users', user.uid, 'tools', newId);
+      batch.set(toolRef, toolToSave);
     }
+
+    try {
+        await batch.commit();
+        await fetchData();
+        toast({ title: editingTool ? "Ferramenta Atualizada" : "Ferramenta Adicionada", description: `${toolToSave.name} foi salva.` });
+    } catch(e) {
+        console.error(e);
+        toast({ variant: 'destructive', title: "Erro ao Salvar", description: "Não foi possível salvar a ferramenta." });
+    }
+
     setAddToolDialogOpen(false);
     setEditingTool(null);
-  }, [editingTool, toast]);
+  }, [editingTool, toast, user, firestore, fetchData]);
 
   const handleToolDialogClose = useCallback((isOpen: boolean) => {
     if (!isOpen) setEditingTool(null);
     setAddToolDialogOpen(isOpen);
   }, []);
 
-  const handleNewWithdrawal = useCallback((newRecords: WithdrawalRecord[]) => {
-    setHistory(prev => [...newRecords, ...prev]);
+  const handleNewWithdrawal = useCallback(async (newRecords: WithdrawalRecord[]) => {
+    if (!user || !firestore) return;
+    const batch = writeBatch(firestore);
 
-    // Update stock quantities
-    setStockItems(prevStock => {
-        const stockUpdates = new Map(prevStock.map(item => [item.id, item.quantity]));
-        newRecords.forEach(record => {
-            const currentQuantity = stockUpdates.get(record.item.id) ?? 0;
-            stockUpdates.set(record.item.id, currentQuantity - record.quantity);
-        });
-        return prevStock.map(item => ({...item, quantity: stockUpdates.get(item.id) ?? item.quantity}));
+    newRecords.forEach(record => {
+      const historyRef = doc(firestore, 'users', user.uid, 'withdrawalHistory', record.id);
+      batch.set(historyRef, record);
+
+      const itemRef = doc(firestore, 'users', user.uid, 'stockItems', record.item.id);
+      const currentQuantity = stockItems.find(i => i.id === record.item.id)?.quantity ?? 0;
+      batch.update(itemRef, { quantity: currentQuantity - record.quantity });
     });
-  }, []);
+    
+    try {
+        await batch.commit();
+        await fetchData();
+        toast({ title: "Sucesso!", description: `${newRecords.length} retirada(s) foram registradas.` });
+    } catch (e) {
+        console.error(e);
+        toast({ variant: "destructive", title: "Erro ao Registrar Retirada", description: "Não foi possível salvar os registros." });
+    }
+  }, [user, firestore, stockItems, fetchData, toast]);
   
-  const handleNewEntry = useCallback((newRecords: EntryRecord[]) => {
-    setEntryHistory(prev => [...newRecords, ...prev]);
+  const handleNewEntry = useCallback(async (newRecords: EntryRecord[]) => {
+    if (!user || !firestore) return;
+    const batch = writeBatch(firestore);
 
-    // Update stock quantities
-    setStockItems(prevStock => {
-        const stockUpdates = new Map(prevStock.map(item => [item.id, item.quantity]));
-        newRecords.forEach(record => {
-            const currentQuantity = stockUpdates.get(record.item.id) ?? 0;
-            stockUpdates.set(record.item.id, currentQuantity + record.quantity);
-        });
-        return prevStock.map(item => ({...item, quantity: stockUpdates.get(item.id) ?? item.quantity}));
-    });
-  }, []);
+    newRecords.forEach(record => {
+      const entryRef = doc(firestore, 'users', user.uid, 'entryHistory', record.id);
+      batch.set(entryRef, record);
 
+      const itemRef = doc(firestore, 'users', user.uid, 'stockItems', record.item.id);
+      const currentQuantity = stockItems.find(i => i.id === record.item.id)?.quantity ?? 0;
+      batch.update(itemRef, { quantity: currentQuantity + record.quantity });
+    });
 
-  const handleDeleteWithdrawalRecord = useCallback((recordId: string) => {
-    setHistory(prevHistory => {
-      // Note: This does not revert the stock change for simplicity.
-      const updatedHistory = prevHistory.filter(record => record.id !== recordId);
-      toast({
-        title: "Registro de Saída Excluído",
-        description: "O registro foi removido do histórico.",
-      });
-      return updatedHistory;
-    });
-  }, [toast]);
-  
-  const handleDeleteEntryRecord = useCallback((recordId: string) => {
-    setEntryHistory(prevHistory => {
-      // Note: This does not revert the stock change for simplicity.
-      const updatedHistory = prevHistory.filter(record => record.id !== recordId);
-      toast({
-        title: "Registro de Entrada Excluído",
-        description: "O registro foi removido do histórico.",
-      });
-      return updatedHistory;
-    });
-  }, [toast]);
+    try {
+        await batch.commit();
+        await fetchData();
+        toast({ title: "Sucesso!", description: `Entrada de ${newRecords.length} item(ns) registrada.` });
+    } catch(e) {
+        console.error(e);
+        toast({ variant: "destructive", title: "Erro ao Registrar Entrada", description: "Não foi possível salvar as entradas." });
+    }
+  }, [user, firestore, stockItems, fetchData, toast]);
 
-  const handleDeleteToolRecord = useCallback((recordId: string) => {
-    setToolHistory(prevHistory => {
-      const updatedHistory = prevHistory.filter(record => record.id !== recordId);
-      toast({
-        title: "Registro de Ferramenta Excluído",
-        description: "O registro foi removido permanentemente.",
-      });
-      return updatedHistory;
-    });
-  }, [toast]);
+  const handleDeleteRecord = useCallback(async (recordId: string, type: 'withdrawals' | 'entries' | 'tools') => {
+    if (!user || !firestore) return;
+
+    let collectionName: string;
+    let successMessage: string;
+    switch(type) {
+        case 'withdrawals': 
+            collectionName = 'withdrawalHistory';
+            successMessage = "Registro de Saída Excluído";
+            break;
+        case 'entries':
+            collectionName = 'entryHistory';
+            successMessage = "Registro de Entrada Excluído";
+            break;
+        case 'tools':
+            collectionName = 'toolHistory';
+            successMessage = "Registro de Ferramenta Excluído";
+            break;
+    }
+
+    try {
+        const batch = writeBatch(firestore);
+        const recordRef = doc(firestore, 'users', user.uid, collectionName, recordId);
+        batch.delete(recordRef);
+        await batch.commit();
+        await fetchData();
+        toast({ title: successMessage, description: "O registro foi removido permanentemente." });
+    } catch (e) {
+        console.error(e);
+        toast({ variant: "destructive", title: "Erro ao Excluir", description: "Não foi possível excluir o registro." });
+    }
+  }, [user, firestore, fetchData, toast]);
+
+  const handleSignOut = async () => {
+    await signOut(getAuth());
+    // The useUser hook will handle redirection
+  };
 
   const renderContent = () => {
     if (isInitialLoad) {
@@ -261,7 +319,19 @@ export default function StockReleaseApp() {
         return (
           <ItemManagement
             stockItems={stockItems}
-            onSetStockItems={setStockItems}
+            onSetStockItems={async (items) => {
+              if (!user || !firestore) return;
+              const batch = writeBatch(firestore);
+              const itemCollection = collection(firestore, 'users', user.uid, 'stockItems');
+              const snapshot = await getDocs(itemCollection);
+              snapshot.docs.forEach(d => batch.delete(d.ref));
+              items.forEach(item => {
+                const itemRef = doc(itemCollection, item.id);
+                batch.set(itemRef, item);
+              });
+              await batch.commit();
+              await fetchData();
+            }}
             onSetIsAddItemDialogOpen={setAddItemDialogOpen}
             onSetEditingItem={setEditingItem}
           />
@@ -272,18 +342,39 @@ export default function StockReleaseApp() {
             itemHistory={history}
             entryHistory={entryHistory}
             toolHistory={toolHistory}
-            onDeleteItemRecord={handleDeleteWithdrawalRecord}
-            onDeleteEntryRecord={handleDeleteEntryRecord}
-            onDeleteToolRecord={handleDeleteToolRecord}
+            onDeleteItemRecord={(id) => handleDeleteRecord(id, 'withdrawals')}
+            onDeleteEntryRecord={(id) => handleDeleteRecord(id, 'entries')}
+            onDeleteToolRecord={(id) => handleDeleteRecord(id, 'tools')}
           />
         );
       case "tools":
         return (
             <ToolManagement
               tools={tools}
-              setTools={setTools}
+              setTools={async (tools) => {
+                if (!user || !firestore) return;
+                const batch = writeBatch(firestore);
+                const toolCollection = collection(firestore, 'users', user.uid, 'tools');
+                const snapshot = await getDocs(toolCollection);
+                snapshot.docs.forEach(d => batch.delete(d.ref));
+                tools.forEach(tool => {
+                    const toolRef = doc(toolCollection, tool.id);
+                    batch.set(toolRef, tool);
+                });
+                await batch.commit();
+                await fetchData();
+              }}
               toolHistory={toolHistory}
-              setToolHistory={setToolHistory}
+              setToolHistory={async (history) => {
+                 if (!user || !firestore) return;
+                const batch = writeBatch(firestore);
+                history.forEach(record => {
+                    const recordRef = doc(collection(firestore, 'users', user.uid, 'toolHistory'), record.id);
+                    batch.set(recordRef, record, { merge: true });
+                });
+                await batch.commit();
+                await fetchData();
+              }}
               onSetEditingTool={setEditingTool}
               onSetIsAddToolDialogOpen={setAddToolDialogOpen}
             />
@@ -327,15 +418,21 @@ export default function StockReleaseApp() {
                 <span>{item.label}</span>
               </DropdownMenuItem>
             ))}
+             <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleSignOut} className="flex items-center gap-2 text-destructive focus:bg-destructive/10 focus:text-destructive">
+                <LogOut className="h-4 w-4" />
+                <span>Sair</span>
+              </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
 
         <div className="flex-1 flex items-center gap-2">
-            <PackagePlus className="h-6 w-6"/>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6"><path d="M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v2"/><path d="M21 14v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M3 10h18v4H3zM12 16v-4"/></svg>
             <h1 className="text-lg font-semibold md:text-xl">
                 Controle de Estoque
             </h1>
         </div>
+        {user && <img src={user.photoURL || ''} alt="User avatar" className="h-8 w-8 rounded-full" />}
       </header>
 
       <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-6 overflow-auto pb-28">
