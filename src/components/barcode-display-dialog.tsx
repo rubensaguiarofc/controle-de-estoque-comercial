@@ -43,7 +43,7 @@ export function BarcodeDisplayDialog({ isOpen, onOpenChange, item }: BarcodeDisp
     }
   }, [isOpen, item, item.barcode, toast]);
 
-  const handlePrint = () => {
+  const handlePrint = async () => {
     if (!item.barcode) {
         toast({ variant: 'destructive', title: 'Código de barras inválido' });
         return;
@@ -93,71 +93,9 @@ export function BarcodeDisplayDialog({ isOpen, onOpenChange, item }: BarcodeDisp
         doc.addImage(barcodeDataUrl, 'PNG', x, y, imgWidth, imgHeight);
 
         const filename = `etiqueta_${item.name.replace(/\s+/g, '_')}.pdf`;
-
-        // If running inside Capacitor native, write file to device and offer share/open
-        (async () => {
-          try {
-            const isCapacitor = typeof (window as any) !== 'undefined' && (window as any).Capacitor;
-            if (isCapacitor) {
-              // get data URI and extract base64
-              const dataUri = doc.output('datauristring') as string;
-              const base64 = dataUri.split(',')[1];
-
-              // try to access Capacitor plugins through window.Capacitor.Plugins first
-              const win = typeof window !== 'undefined' ? (window as any) : undefined;
-              let writeResult: any = null;
-              try {
-                const Plugins = win?.Capacitor?.Plugins;
-                const Filesystem = Plugins?.Filesystem;
-                const Directory = Plugins?.Filesystem?.Directory || Plugins?.Directory;
-                const Share = Plugins?.Share;
-                if (Filesystem && Filesystem.writeFile) {
-                  writeResult = await Filesystem.writeFile({ path: filename, data: base64, directory: Directory?.Documents });
-                } else {
-                  // fallback to dynamic import if running in environment where packages are available
-                  try {
-                    const fsModule = await (new Function('return import("@capacitor/filesystem")')());
-                    const shareModule = await (new Function('return import("@capacitor/share")')());
-                    const FilesystemDyn = (fsModule as any).Filesystem;
-                    const DirectoryDyn = (fsModule as any).Directory;
-                    const ShareDyn = (shareModule as any).Share;
-                    writeResult = await FilesystemDyn.writeFile({ path: filename, data: base64, directory: DirectoryDyn.Documents });
-                    if (ShareDyn && ShareDyn.share) {
-                      await ShareDyn.share({ title: filename, text: 'Etiqueta gerada', url: writeResult.uri || writeResult.path });
-                      return;
-                    }
-                  } catch (dynErr) {
-                    console.warn('Capacitor dynamic plugin import failed', dynErr);
-                  }
-                }
-
-                const fileUri = writeResult?.uri || writeResult?.path || null;
-                if (fileUri && Share && Share.share) {
-                  try {
-                    await Share.share({ title: filename, text: 'Etiqueta gerada', url: fileUri });
-                    return;
-                  } catch (shareErr) {
-                    toast({ title: 'PDF salvo', description: `Arquivo salvo em: ${fileUri}` });
-                    return;
-                  }
-                } else if (fileUri) {
-                  toast({ title: 'PDF salvo', description: `Arquivo salvo em: ${fileUri}` });
-                  return;
-                }
-              } catch (e) {
-                console.warn('Capacitor save failed, falling back to web download', e);
-              }
-
-              return;
-            }
-          } catch (e) {
-            console.warn('Capacitor save failed, falling back to web download', e);
-          }
-
-          // fallback for web: trigger normal download
-          doc.save(filename);
-          toast({ title: "PDF Gerado", description: "O download da etiqueta deve começar em breve." });
-        })();
+        // fallback for web: trigger normal download
+        doc.save(filename);
+        toast({ title: "PDF Gerado", description: "O download da etiqueta deve começar em breve." });
 
     } catch (e) {
         console.error("Erro ao gerar PDF:", e);

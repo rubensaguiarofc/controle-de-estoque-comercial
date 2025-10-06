@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 import './globals.css';
-import Providers from '@/providers';
-import { Toaster } from '@/components/ui/toaster';
-import { FooterAd } from '@/components/footer-ad';
+import Providers from '../providers';
+import { Toaster } from '../components/ui/toaster';
+import { FooterAd } from '../components/footer-ad';
 
 export const metadata: Metadata = {
   title: 'Controle de Estoque',

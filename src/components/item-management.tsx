@@ -61,7 +61,7 @@ export default function ItemManagement({
     });
   };
 
-  const handlePrintAllBarcodes = () => {
+  const handlePrintAllBarcodes = async () => {
     const itemsWithBarcode = stockItems.filter(item => item.barcode);
     if (itemsWithBarcode.length === 0) {
       toast({
@@ -87,7 +87,7 @@ export default function ItemManagement({
     let x = MARGIN_X;
     let y = MARGIN_Y;
 
-    itemsWithBarcode.forEach((item, index) => {
+  itemsWithBarcode.forEach((item, index) => {
       if (y + LABEL_HEIGHT > PAGE_HEIGHT - MARGIN_Y) {
         doc.addPage();
         x = MARGIN_X;
@@ -139,7 +139,9 @@ export default function ItemManagement({
       }
     });
 
-    doc.save(`etiquetas_todos_itens_${new Date().toISOString().split('T')[0]}.pdf`);
+    const filename = `etiquetas_todos_itens_${new Date().toISOString().split('T')[0]}.pdf`;
+    // Web fallback: always trigger download in browser
+    doc.save(filename);
     toast({
       title: "Download Iniciado",
       description: "O PDF com todas as etiquetas está sendo gerado."
