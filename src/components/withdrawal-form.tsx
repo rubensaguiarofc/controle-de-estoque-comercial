@@ -1,9 +1,9 @@
 
 "use client";
 
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { UseFormReturn } from "react-hook-form";
-import { ScanLine, Plus } from "lucide-react";
+import { ScanLine, Plus, PackageX } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -50,6 +50,8 @@ export const WithdrawalForm = React.forwardRef<HTMLFormElement, WithdrawalFormPr
   const [quantity, setQuantity] = useState<number | string>('');
   const [unit, setUnit] = useState('UN');
 
+  const hasStockAvailable = useMemo(() => stockItems.some(item => item.quantity > 0), [stockItems]);
+
   const handleScanSuccess = (foundItem: StockItem) => {
     onAppendItem({ item: foundItem, quantity: 1, unit: 'UN' });
     setSearchScannerOpen(false);
@@ -73,6 +75,10 @@ export const WithdrawalForm = React.forwardRef<HTMLFormElement, WithdrawalFormPr
     const item = stockItems.find(i => i.id === currentItemId);
     if (item) {
       const finalQuantity = Number(quantity) || 1;
+      if (finalQuantity <= 0) {
+        toast({ variant: 'destructive', title: 'Quantidade Inválida', description: 'A quantidade deve ser maior que zero.' });
+        return;
+      }
       onAppendItem({ item, quantity: finalQuantity, unit });
       
       setCurrentItemId('');
@@ -92,7 +98,7 @@ export const WithdrawalForm = React.forwardRef<HTMLFormElement, WithdrawalFormPr
                   <CardTitle>Registrar Saída de Estoque</CardTitle>
                   <CardDescription>{currentDate}</CardDescription>
                 </div>
-                <Button type="button" variant="outline" size="icon" onClick={() => setSearchScannerOpen(true)}>
+                <Button type="button" variant="outline" size="icon" onClick={() => setSearchScannerOpen(true)} disabled={!hasStockAvailable}>
                   <ScanLine className="h-4 w-4" />
                   <span className="sr-only">Buscar por código de barras</span>
                 </Button>
@@ -101,35 +107,43 @@ export const WithdrawalForm = React.forwardRef<HTMLFormElement, WithdrawalFormPr
             <CardContent className="flex flex-col gap-6">
               <div className="p-4 border rounded-lg space-y-4">
                 <h3 className="text-lg font-medium">Adicionar Item à Retirada</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-[1fr_80px] md:grid-cols-[1fr_80px_100px_auto] gap-2 items-end">
-                    <FormItem className="sm:col-span-2 md:col-span-1">
-                      <FormLabel>Item</FormLabel>
-                      <Select onValueChange={setCurrentItemId} value={currentItemId}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione um item" />
-                          </SelectTrigger>
-                        <SelectContent>
-                          {stockItems.map((item) => (
-                            <SelectItem key={item.id} value={item.id} disabled={item.quantity <= 0}>
-                              {item.name} - ({item.quantity} em estoque)
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </FormItem>
-                    <FormItem>
-                      <FormLabel>Qtd.</FormLabel>
-                      <Input type="number" placeholder="1" value={quantity} onChange={(e) => setQuantity(e.target.value)} />
-                    </FormItem>
-                     <FormItem className="hidden md:block">
-                      <FormLabel>Unidade</FormLabel>
-                      <Input placeholder="UN, KG, PC..." value={unit} onChange={(e) => setUnit(e.target.value.toUpperCase())} />
-                    </FormItem>
-                    <Button type="button" size="icon" onClick={handleAddItemToCart} className="bg-teal-500 hover:bg-teal-600 sm:col-start-2 md:col-start-4">
-                        <Plus className="h-4 w-4" />
-                        <span className="sr-only">Adicionar</span>
-                    </Button>
-                </div>
+                {hasStockAvailable ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-[1fr_80px] md:grid-cols-[1fr_80px_100px_auto] gap-2 items-end">
+                      <FormItem className="sm:col-span-2 md:col-span-1">
+                        <FormLabel>Item</FormLabel>
+                        <Select onValueChange={setCurrentItemId} value={currentItemId}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione um item" />
+                            </SelectTrigger>
+                          <SelectContent>
+                            {stockItems.map((item) => (
+                              <SelectItem key={item.id} value={item.id} disabled={item.quantity <= 0}>
+                                {item.name} - ({item.quantity} em estoque)
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </FormItem>
+                      <FormItem>
+                        <FormLabel>Qtd.</FormLabel>
+                        <Input type="number" placeholder="1" value={quantity} onChange={(e) => setQuantity(e.target.value)} min="1" />
+                      </FormItem>
+                       <FormItem className="hidden md:block">
+                        <FormLabel>Unidade</FormLabel>
+                        <Input placeholder="UN, KG, PC..." value={unit} onChange={(e) => setUnit(e.target.value.toUpperCase())} />
+                      </FormItem>
+                      <Button type="button" size="icon" onClick={handleAddItemToCart} className="bg-teal-500 hover:bg-teal-600 sm:col-start-2 md:col-start-4">
+                          <Plus className="h-4 w-4" />
+                          <span className="sr-only">Adicionar</span>
+                      </Button>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center text-center text-muted-foreground p-4 gap-2">
+                    <PackageX className="h-8 w-8" />
+                    <p className="font-medium">Não há itens em estoque para retirada.</p>
+                    <p className="text-sm">Vá para a aba de "Entrada" para adicionar novos itens ao estoque.</p>
+                  </div>
+                )}
               </div>
 
               <WithdrawalCart 
