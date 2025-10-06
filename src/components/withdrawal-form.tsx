@@ -31,7 +31,7 @@ interface WithdrawalFormProps {
   onClearCart: () => void;
 }
 
-export function WithdrawalForm({
+export const WithdrawalForm = React.forwardRef<HTMLFormElement, WithdrawalFormProps>(({
   form,
   currentDate,
   stockItems,
@@ -43,7 +43,7 @@ export function WithdrawalForm({
   onRemoveItem,
   onUpdateItemQuantity,
   onClearCart,
-}: WithdrawalFormProps) {
+}, ref) => {
   const { toast } = useToast();
   const [isSearchScannerOpen, setSearchScannerOpen] = useState(false);
   const [currentItemId, setCurrentItemId] = useState<string>('');
@@ -84,7 +84,7 @@ export function WithdrawalForm({
   return (
     <>
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <form ref={ref} onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           <Card className="shadow-lg">
             <CardHeader>
               <div className="flex justify-between items-center">
@@ -119,7 +119,7 @@ export function WithdrawalForm({
                     </FormItem>
                     <FormItem>
                       <FormLabel>Qtd.</FormLabel>
-                      <Input type="number" placeholder="" value={quantity} onChange={(e) => setQuantity(e.target.value)} />
+                      <Input type="number" placeholder="1" value={quantity} onChange={(e) => setQuantity(e.target.value)} />
                     </FormItem>
                      <FormItem className="hidden md:block">
                       <FormLabel>Unidade</FormLabel>
@@ -195,4 +195,6 @@ export function WithdrawalForm({
       )}
     </>
   );
-}
+});
+
+WithdrawalForm.displayName = 'WithdrawalForm';

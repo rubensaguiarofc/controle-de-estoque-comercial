@@ -26,7 +26,7 @@ interface StockReleaseClientProps {
   uniqueDestinations: string[];
 }
 
-const StockReleaseClient = forwardRef<unknown, StockReleaseClientProps>(
+const StockReleaseClient = forwardRef<HTMLFormElement, StockReleaseClientProps>(
   ({ stockItems, onUpdateHistory, uniqueRequesters, uniqueDestinations }, ref) => {
     const { toast } = useToast();
     const [currentDate, setCurrentDate] = useState("");
@@ -158,6 +158,7 @@ const StockReleaseClient = forwardRef<unknown, StockReleaseClientProps>(
 
     return (
         <WithdrawalForm
+          ref={ref}
           form={form}
           currentDate={currentDate}
           stockItems={stockItems}

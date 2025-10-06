@@ -47,6 +47,7 @@ export const WithdrawalCart = React.memo(function WithdrawalCart({ items, onRemo
                             value={quantity}
                             onChange={(e) => onUpdateQuantity(item.id, parseInt(e.target.value) || 1)}
                             className="h-8"
+                            min="1"
                         />
                     </TableCell>
                     <TableCell>{unit}</TableCell>
@@ -63,5 +64,3 @@ export const WithdrawalCart = React.memo(function WithdrawalCart({ items, onRemo
     </div>
   );
 });
-
-    
