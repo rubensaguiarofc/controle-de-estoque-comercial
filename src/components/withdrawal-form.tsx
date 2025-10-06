@@ -47,7 +47,7 @@ export function WithdrawalForm({
   const { toast } = useToast();
   const [isSearchScannerOpen, setSearchScannerOpen] = useState(false);
   const [currentItemId, setCurrentItemId] = useState<string>('');
-  const [quantity, setQuantity] = useState(1);
+  const [quantity, setQuantity] = useState<number | string>(1);
   const [unit, setUnit] = useState('UN');
 
   const handleScanSuccess = (foundItem: StockItem) => {
@@ -72,10 +72,11 @@ export function WithdrawalForm({
     }
     const item = stockItems.find(i => i.id === currentItemId);
     if (item) {
-      onAppendItem({ item, quantity, unit });
+      const finalQuantity = Number(quantity) || 1;
+      onAppendItem({ item, quantity: finalQuantity, unit });
       toast({ title: 'Item Adicionado', description: `"${item.name}" foi adicionado à cesta.` });
       setCurrentItemId('');
-      setQuantity(1);
+      setQuantity('');
       setUnit('UN');
     }
   };
@@ -118,7 +119,7 @@ export function WithdrawalForm({
                     </FormItem>
                     <FormItem>
                       <FormLabel>Qtd.</FormLabel>
-                      <Input type="number" value={quantity} onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))} />
+                      <Input type="number" placeholder="1" value={quantity} onChange={(e) => setQuantity(e.target.value)} />
                     </FormItem>
                      <FormItem className="hidden md:block">
                       <FormLabel>Unidade</FormLabel>
