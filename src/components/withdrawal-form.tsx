@@ -79,6 +79,12 @@ export const WithdrawalForm = React.forwardRef<HTMLFormElement, WithdrawalFormPr
         toast({ variant: 'destructive', title: 'Quantidade Inválida', description: 'A quantidade deve ser maior que zero.' });
         return;
       }
+      // validate against available stock before appending
+      if (item.quantity < finalQuantity) {
+        toast({ variant: 'destructive', title: 'Estoque Insuficiente', description: `Apenas ${item.quantity} unidades de "${item.name}" disponíveis.` });
+        return;
+      }
+
       onAppendItem({ item, quantity: finalQuantity, unit });
       
       setCurrentItemId('');
@@ -86,6 +92,18 @@ export const WithdrawalForm = React.forwardRef<HTMLFormElement, WithdrawalFormPr
       setUnit('UN');
     }
   };
+
+  // disable submit if any cart item is invalid or exceeds stock
+  const isSubmitDisabled = useMemo(() => {
+    if (!withdrawalItems || withdrawalItems.length === 0) return true;
+    for (const cartItem of withdrawalItems) {
+      const stockItem = stockItems.find(i => i.id === cartItem.item.id);
+      if (!stockItem) return true;
+      if (cartItem.quantity <= 0) return true;
+      if (cartItem.quantity > stockItem.quantity) return true;
+    }
+    return false;
+  }, [withdrawalItems, stockItems]);
 
   return (
     <>
@@ -98,10 +116,18 @@ export const WithdrawalForm = React.forwardRef<HTMLFormElement, WithdrawalFormPr
                   <CardTitle>Registrar Saída de Estoque</CardTitle>
                   <CardDescription>{currentDate}</CardDescription>
                 </div>
-                <Button type="button" variant="outline" size="icon" onClick={() => setSearchScannerOpen(true)} disabled={!hasStockAvailable}>
-                  <ScanLine className="h-4 w-4" />
-                  <span className="sr-only">Buscar por código de barras</span>
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button type="button" variant="outline" size="icon" onClick={() => setSearchScannerOpen(true)}>
+                    <ScanLine className="h-4 w-4" />
+                    <span className="sr-only">Buscar por código de barras</span>
+                  </Button>
+                  {process.env.NODE_ENV !== 'production' && (
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setSearchScannerOpen(true)}>
+                      <ScanLine className="h-4 w-4 mr-2" />
+                      Abrir Scanner (debug)
+                    </Button>
+                  )}
+                </div>
               </div>
             </CardHeader>
             <CardContent className="flex flex-col gap-6">
@@ -193,7 +219,7 @@ export const WithdrawalForm = React.forwardRef<HTMLFormElement, WithdrawalFormPr
             </CardContent>
             <CardFooter className="px-6 pt-6 flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={onClearCart}>Limpar Tudo</Button>
-              <Button type="submit">Salvar Retirada</Button>
+              <Button type="submit" disabled={isSubmitDisabled}>Salvar Retirada</Button>
             </CardFooter>
           </Card>
         </form>

@@ -43,7 +43,7 @@ export function BarcodeDisplayDialog({ isOpen, onOpenChange, item }: BarcodeDisp
     }
   }, [isOpen, item, item.barcode, toast]);
 
-  const handlePrint = () => {
+  const handlePrint = async () => {
     if (!item.barcode) {
         toast({ variant: 'destructive', title: 'Código de barras inválido' });
         return;
@@ -91,7 +91,10 @@ export function BarcodeDisplayDialog({ isOpen, onOpenChange, item }: BarcodeDisp
         const y = 20;
 
         doc.addImage(barcodeDataUrl, 'PNG', x, y, imgWidth, imgHeight);
-        doc.save(`etiqueta_${item.name.replace(/\s+/g, '_')}.pdf`);
+
+        const filename = `etiqueta_${item.name.replace(/\s+/g, '_')}.pdf`;
+        // fallback for web: trigger normal download
+        doc.save(filename);
         toast({ title: "PDF Gerado", description: "O download da etiqueta deve começar em breve." });
 
     } catch (e) {

@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import * as RechartsPrimitive from "recharts"
+import type * as RechartsPrimitive from "recharts"
 
 import { cn } from "@/lib/utils"
 
@@ -39,7 +39,8 @@ const ChartContainer = React.forwardRef<
   React.ComponentProps<"div"> & {
     config: ChartConfig
     children: React.ComponentProps<
-      typeof RechartsPrimitive.ResponsiveContainer
+      // ResponsiveContainer is loaded dynamically at runtime
+      any
     >["children"]
   }
 >(({ id, className, children, config, ...props }, ref) => {
@@ -58,9 +59,9 @@ const ChartContainer = React.forwardRef<
         {...props}
       >
         <ChartStyle id={chartId} config={config} />
-        <RechartsPrimitive.ResponsiveContainer>
+        <DynamicResponsiveContainer>
           {children}
-        </RechartsPrimitive.ResponsiveContainer>
+        </DynamicResponsiveContainer>
       </div>
     </ChartContext.Provider>
   )
@@ -100,7 +101,37 @@ ${colorConfig
   )
 }
 
-const ChartTooltip = RechartsPrimitive.Tooltip
+// Dynamic loader for recharts primitives on the client only
+function useRecharts() {
+  const [R, setR] = React.useState<any>(null)
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const mod = require("recharts")
+    setR(mod)
+  }, [])
+
+  return R
+}
+
+// ResponsiveContainer wrapper that loads on client
+function DynamicResponsiveContainer({ children }: { children: React.ReactNode }) {
+  const R = useRecharts()
+  if (!R) {
+    // Render placeholder during SSR/build to avoid errors
+    return <div style={{ width: "100%", height: "100%" }}>{children}</div>
+  }
+  const ResponsiveContainer = R.ResponsiveContainer
+  return <ResponsiveContainer>{children}</ResponsiveContainer>
+}
+
+const ChartTooltip = (props: any) => {
+  const R = useRecharts()
+  if (!R) return null
+  const Tooltip = R.Tooltip
+  return <Tooltip {...props} />
+}
 
 const ChartTooltipContent = React.forwardRef<
   HTMLDivElement,
@@ -256,7 +287,13 @@ const ChartTooltipContent = React.forwardRef<
 )
 ChartTooltipContent.displayName = "ChartTooltip"
 
-const ChartLegend = RechartsPrimitive.Legend
+
+const ChartLegend = (props: any) => {
+  const R = useRecharts()
+  if (!R) return null
+  const Legend = R.Legend
+  return <Legend {...props} />
+}
 
 const ChartLegendContent = React.forwardRef<
   HTMLDivElement,
