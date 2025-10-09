@@ -111,44 +111,6 @@ export function ToolHistory({ tools, history, onCheckout, onReturn }: ToolHistor
             
             <div className="space-y-4">
                 <h3 className="text-lg font-medium">Ferramentas em Uso</h3>
-<<<<<<< HEAD
-                <ScrollArea className="bg-card border border-border rounded-lg">
-                  <Table>
-                      <TableHeader>
-                          <TableRow>
-                              <TableHead>Ferramenta</TableHead>
-                              <TableHead className="hidden md:table-cell">Retirado por</TableHead>
-                              <TableHead className="hidden md:table-cell">Local</TableHead>
-                              <TableHead className="hidden md:table-cell">Data Retirada</TableHead>
-                              <TableHead>Status</TableHead>
-                              <TableHead className="text-center">Ação</TableHead>
-                          </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                          {toolsOutRecords.length > 0 ? toolsOutRecords.map(record => (
-                              <TableRow key={record.id} onClick={() => setViewingRecord(record)} className="cursor-pointer">
-                                  <TableCell className="font-medium">{record.tool.name} <span className="text-muted-foreground text-xs md:hidden">({record.tool.assetId})</span></TableCell>
-                                  <TableCell className="hidden md:table-cell">{record.checkedOutBy}</TableCell>
-                                  <TableCell className="hidden md:table-cell">{record.usageLocation}</TableCell>
-                                  <TableCell className="whitespace-nowrap hidden md:table-cell">{new Date(record.checkoutDate).toLocaleDateString('pt-BR')}</TableCell>
-                                  <TableCell>
-                                      <Badge>Em uso</Badge>
-                                  </TableCell>
-                                  <TableCell className="text-center">
-                                      <Button size="sm" onClick={(e) => {e.stopPropagation(); handleOpenReturnDialog(record);}}>Devolver</Button>
-                                  </TableCell>
-                              </TableRow>
-                          )) : (
-                              <TableRow>
-                                  <TableCell colSpan={7} className="text-center h-24 text-muted-foreground">
-                                  Nenhuma ferramenta em uso no momento.
-                                  </TableCell>
-                              </TableRow>
-                          )}
-                      </TableBody>
-                  </Table>
-                </ScrollArea>
-=======
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                   {toolsOutRecords.length > 0 ? toolsOutRecords.map(record => (
                     <Card key={record.id} className="overflow-hidden hover:bg-muted/50 transition-colors flex flex-col">
@@ -174,7 +136,6 @@ export function ToolHistory({ tools, history, onCheckout, onReturn }: ToolHistor
                     </div>
                   )}
                 </div>
->>>>>>> origin/main
             </div>
           </CardContent>
       </Card>

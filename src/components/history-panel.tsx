@@ -5,13 +5,7 @@ import { format } from "date-fns";
 import { ptBR } from 'date-fns/locale';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-<<<<<<< HEAD
-import { Filesystem, Directory } from '@capacitor/filesystem';
-import { Share } from '@capacitor/share';
-import { Calendar as CalendarIcon, FileDown, Trash, X } from "lucide-react";
-=======
 import { Calendar as CalendarIcon, FileDown, Trash, X, Undo2 } from "lucide-react";
->>>>>>> origin/main
 
 import type { WithdrawalRecord, ToolRecord, EntryRecord } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -20,14 +14,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-<<<<<<< HEAD
-import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-=======
->>>>>>> origin/main
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-// Using inline Card UI for return flow instead of Dialog modal
-import { Check, CornerUpLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsList, TabsTrigger } from "./ui/tabs";
 import { Badge } from "./ui/badge";
@@ -45,11 +32,7 @@ interface HistoryPanelProps {
   onDeleteItemRecord: (recordId: string) => void;
   onDeleteToolRecord: (recordId: string) => void;
   onDeleteEntryRecord: (recordId: string) => void;
-<<<<<<< HEAD
-  onReturnItemRecord?: (recordId: string, quantity: number, note?: string) => void;
-=======
   onReturnItem: (recordId: string, quantity: number) => void;
->>>>>>> origin/main
 }
 
 declare global {
@@ -58,11 +41,7 @@ declare global {
   }
 }
 
-<<<<<<< HEAD
-export function HistoryPanel({ itemHistory, toolHistory, entryHistory, onDeleteItemRecord, onDeleteToolRecord, onDeleteEntryRecord, onReturnItemRecord }: HistoryPanelProps) {
-=======
 export function HistoryPanel({ itemHistory, toolHistory, entryHistory, onDeleteItemRecord, onDeleteToolRecord, onDeleteEntryRecord, onReturnItem }: HistoryPanelProps) {
->>>>>>> origin/main
   const { toast } = useToast();
   const [currentPage, setCurrentPage] = useState(1);
   const [dateFilter, setDateFilter] = useState<Date | undefined>();
@@ -83,7 +62,7 @@ export function HistoryPanel({ itemHistory, toolHistory, entryHistory, onDeleteI
 
 
   const filteredHistory = useMemo(() => {
-    let filtered = historyToDisplay as (WithdrawalRecord | EntryRecord | ToolRecord)[];
+    let filtered = historyToDisplay;
 
     if (dateFilter) {
         filtered = filtered.filter(record => {
@@ -132,40 +111,7 @@ export function HistoryPanel({ itemHistory, toolHistory, entryHistory, onDeleteI
   }, [filteredHistory, currentPage]);
   
 
-  const salvarECompartilharPdf = async (doc: jsPDF, filename: string) => {
-    try {
-      // jsPDF can output a data URI which contains base64 PDF data
-      const dataUri = doc.output('datauristring') as string; // data:application/pdf;base64,....
-      const base64 = dataUri.split(',')[1];
-
-      // Write the file to the app cache directory
-      await Filesystem.writeFile({ path: filename, data: base64, directory: Directory.Cache });
-
-      // Get a platform-specific URI that can be shared
-      let uri = '';
-      try {
-        const uriRes = await Filesystem.getUri({ path: filename, directory: Directory.Cache });
-        uri = uriRes.uri;
-      } catch (e) {
-        // Some platforms may not support getUri; fall back to a file:// path
-        uri = `${Directory.Cache}/${filename}`;
-      }
-
-      // Invoke native share sheet so user can save or send the PDF
-      await Share.share({ title: filename, url: uri });
-      toast({ title: "Exportação Concluída", description: "Use o compartilhamento nativo para salvar/enviar o arquivo." });
-    } catch (err) {
-      // Fallback for web or any failure: trigger browser download
-      try {
-        doc.save(filename);
-        toast({ title: "Exportação Concluída", description: "Seu arquivo PDF foi baixado." });
-      } catch (e) {
-        toast({ variant: "destructive", title: "Erro ao exportar", description: "Não foi possível salvar o PDF." });
-      }
-    }
-  };
-
-  const handleExportToPDF = async () => {
+  const handleExportToPDF = () => {
     if (filteredHistory.length === 0) {
       toast({ variant: "destructive", title: "Nenhum dado para exportar" });
       return;
@@ -226,7 +172,8 @@ export function HistoryPanel({ itemHistory, toolHistory, entryHistory, onDeleteI
     }
     
     doc.text(title, 14, 22);
-    await salvarECompartilharPdf(doc, filename);
+    doc.save(filename);
+    toast({ title: "Exportação Concluída", description: "Seu arquivo PDF foi baixado." });
   };
 
   const clearFilters = () => {
@@ -307,73 +254,6 @@ export function HistoryPanel({ itemHistory, toolHistory, entryHistory, onDeleteI
             <div className="px-4 sm:px-0 space-y-4">
               {renderHistoryList()}
             </div>
-<<<<<<< HEAD
-            <Button variant="outline" size="sm" onClick={handleExportToPDF} className="w-full sm:w-auto">
-                <FileDown className="mr-2 h-4 w-4" />
-                Exportar PDF
-            </Button>
-        </div>
-      </CardHeader>
-      <CardContent className="flex flex-col flex-grow">
-        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="withdrawals">Saídas</TabsTrigger>
-                <TabsTrigger value="entries">Entradas</TabsTrigger>
-                <TabsTrigger value="tools">Ferramentas</TabsTrigger>
-            </TabsList>
-        </Tabs>
-        <div className="flex flex-col sm:flex-row gap-2 my-4">
-            <div className="relative flex-grow">
-                <Input placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-            </div>
-            <div className="flex gap-2">
-              <Popover>
-                  <PopoverTrigger asChild>
-                      <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !dateFilter && "text-muted-foreground")}>
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {dateFilter ? format(dateFilter, "PPP", { locale: ptBR }) : <span>Filtrar por data</span>}
-                      </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={dateFilter} onSelect={setDateFilter} initialFocus locale={ptBR} /></PopoverContent>
-              </Popover>
-              { (dateFilter || searchTerm) &&
-                <Button variant="ghost" size="icon" onClick={clearFilters}>
-                    <X className="h-4 w-4" />
-                    <span className="sr-only">Limpar Filtros</span>
-                </Button>
-              }
-            </div>
-        </div>
-  <ScrollArea className="flex-grow bg-card border border-border rounded-lg">
-          {activeTab === 'withdrawals' ? (
-            <ItemWithdrawalHistoryTab paginatedHistory={paginatedHistory as WithdrawalRecord[]} onDeleteRecord={onDeleteItemRecord} onViewDetails={setViewingItemRecord} onReturnItemRecord={onReturnItemRecord} />
-          ) : activeTab === 'entries' ? (
-            <ItemEntryHistoryTab paginatedHistory={paginatedHistory as EntryRecord[]} onDeleteRecord={onDeleteEntryRecord} />
-          ) : (
-            <ToolHistoryTab paginatedHistory={paginatedHistory as ToolRecord[]} onDeleteRecord={onDeleteToolRecord} onShowDetails={setViewingToolRecord} />
-          )}
-        </ScrollArea>
-      </CardContent>
-      <CardFooter className="pt-6">
-        <div className="flex items-center justify-end w-full">
-            <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))} disabled={currentPage === 1}>
-                    Anterior
-                </Button>
-                <span className="text-sm text-muted-foreground self-center">Página {currentPage} de {totalPages}</span>
-                <Button variant="outline" size="sm" onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))} disabled={currentPage === totalPages}>
-                    Próxima
-                </Button>
-            </div>
-        </div>
-      </CardFooter>
-    </Card>
-     <SignatureDisplayDialog 
-        record={viewingToolRecord}
-        isOpen={!!viewingToolRecord}
-        onOpenChange={(isOpen) => !isOpen && setViewingToolRecord(null)}
-      />
-=======
           </ScrollArea>
         </CardContent>
         <CardFooter className="pt-6 bg-card">
@@ -395,7 +275,6 @@ export function HistoryPanel({ itemHistory, toolHistory, entryHistory, onDeleteI
           isOpen={!!viewingToolRecord}
           onOpenChange={(isOpen) => !isOpen && setViewingToolRecord(null)}
         />
->>>>>>> origin/main
       <WithdrawalRecordDetailsDialog
           record={viewingItemRecord}
           isOpen={!!viewingItemRecord}
@@ -411,102 +290,6 @@ export function HistoryPanel({ itemHistory, toolHistory, entryHistory, onDeleteI
   );
 }
 
-<<<<<<< HEAD
-// Sub-component for Item Withdrawal History
-function ItemWithdrawalHistoryTab({ paginatedHistory, onDeleteRecord, onViewDetails, onReturnItemRecord }: { paginatedHistory: WithdrawalRecord[], onDeleteRecord: (id: string) => void, onViewDetails: (record: WithdrawalRecord) => void, onReturnItemRecord?: (recordId: string, quantity: number, note?: string) => void }) {
-  const [returnDialogOpen, setReturnDialogOpen] = useState(false);
-  const [returningRecord, setReturningRecord] = useState<WithdrawalRecord | null>(null);
-  const [returnQty, setReturnQty] = useState<number>(0);
-  const [returnNote, setReturnNote] = useState<string>('');
-
-  const openReturnDialog = (record: WithdrawalRecord) => {
-    setReturningRecord(record);
-    setReturnQty(Math.min(record.quantity - (record.returnedQuantity || 0), record.quantity));
-    setReturnNote('');
-    setReturnDialogOpen(true);
-  };
-
-  const handleConfirmReturn = () => {
-    if (!returningRecord) return;
-    if (onReturnItemRecord) onReturnItemRecord(returningRecord.id, returnQty, returnNote || undefined);
-    setReturnDialogOpen(false);
-    setReturningRecord(null);
-  };
-    return (
-      <>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Data</TableHead>
-            <TableHead>Item</TableHead>
-            <TableHead>Qtd.</TableHead>
-            <TableHead className="hidden md:table-cell">Quem Retirou</TableHead>
-            <TableHead className="hidden md:table-cell">Destino</TableHead>
-            <TableHead className="text-right">Ações</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {paginatedHistory.length > 0 ? paginatedHistory.map((record) => (
-            <TableRow key={record.id} onClick={() => onViewDetails(record)} className="cursor-pointer">
-              <TableCell className="text-muted-foreground whitespace-nowrap">{new Date(record.date).toLocaleDateString('pt-BR')}</TableCell>
-              <TableCell className="font-medium">{record.item.name}</TableCell>
-              <TableCell>{record.quantity}{record.unit}</TableCell>
-              <TableCell className="hidden md:table-cell">{record.requestedBy}</TableCell>
-              <TableCell className="hidden md:table-cell">{record.requestedFor}</TableCell>
-              <TableCell className="text-right">
-                <div className="flex items-center justify-end gap-2">
-                  <Button variant="ghost" size="icon" className="text-green-600 hover:text-green-700" onClick={(e) => { e.stopPropagation(); openReturnDialog(record); }} title="Registrar Devolução">
-                    <CornerUpLeft className="h-4 w-4" />
-                  </Button>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={(e) => e.stopPropagation()}>
-                        <Trash className="h-4 w-4" />
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader><AlertDialogTitle>Você tem certeza?</AlertDialogTitle><AlertDialogDescription>Essa ação não pode ser desfeita. Isso excluirá permanentemente o registro e não irá reverter a baixa no estoque.</AlertDialogDescription></AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel onClick={(e) => e.stopPropagation()}>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => onDeleteRecord(record.id)}>Excluir</AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
-              </TableCell>
-            </TableRow>
-          )) : <TableRow><TableCell colSpan={6} className="text-center h-24 text-muted-foreground">Nenhum registro de saída encontrado.</TableCell></TableRow>}
-        </TableBody>
-  </Table>
-
-      <Dialog open={returnDialogOpen} onOpenChange={setReturnDialogOpen}>
-        <DialogContent className="sm:max-w-[480px]">
-          <DialogHeader>
-            <DialogTitle>Registrar Devolução</DialogTitle>
-            <DialogDescription>Informe a quantidade devolvida para o item selecionado.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div>
-              <label className="block text-sm font-medium text-muted-foreground">Item</label>
-              <div className="mt-1 text-sm">{returningRecord?.item.name} ({returningRecord?.item.id})</div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-muted-foreground">Quantidade a devolver</label>
-              <Input type="number" min={1} max={returningRecord ? Math.max(1, (returningRecord.quantity - (returningRecord.returnedQuantity || 0))) : undefined} value={returnQty} onChange={(e) => setReturnQty(Number(e.target.value || 0))} />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-muted-foreground">Nota (opcional)</label>
-              <Input value={returnNote} onChange={(e) => setReturnNote(e.target.value)} />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setReturnDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleConfirmReturn}><Check className="mr-2 h-4 w-4"/>Registrar</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      </>
-=======
 // Item Withdrawal History
 function ItemWithdrawalHistoryList({ records, onViewDetails, onOpenReturnDialog, onDeleteRecord }: { records: WithdrawalRecord[], onViewDetails: (record: WithdrawalRecord) => void, onOpenReturnDialog: (record: WithdrawalRecord) => void, onDeleteRecord: (id: string) => void }) {
     return (
@@ -550,7 +333,6 @@ function ItemWithdrawalHistoryList({ records, onViewDetails, onOpenReturnDialog,
                 </Card>
             ))}
         </div>
->>>>>>> origin/main
     );
 }
 

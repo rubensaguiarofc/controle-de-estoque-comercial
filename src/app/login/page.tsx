@@ -1,10 +1,4 @@
-import { redirect } from 'next/navigation'
 
-<<<<<<< HEAD
-export default function LoginRedirect() {
-	// Server-side redirect to avoid prerendering client-only login page
-	redirect('/')
-=======
 'use client';
 
 import { useEffect } from 'react';
@@ -18,6 +12,4 @@ export default function LoginPage() {
   }, [router]);
 
   return null; // A página não exibirá nenhum conteúdo
->>>>>>> origin/main
 }
-

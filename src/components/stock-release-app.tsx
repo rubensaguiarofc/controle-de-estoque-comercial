@@ -234,27 +234,6 @@ export default function StockReleaseApp() {
     }
   }, [toast]);
 
-<<<<<<< HEAD
-  const handleReturnItemRecord = useCallback((recordId: string, quantity: number, note?: string) => {
-    setHistory(prev => prev.map(rec => rec.id === recordId ? { ...rec, returnedQuantity: (rec.returnedQuantity || 0) + quantity, returns: [...(rec.returns || []), { date: new Date().toISOString(), quantity, note }] } : rec));
-
-    // Update stock quantities (add back)
-    setStockItems(currentStock => {
-      const updatedStock = [...currentStock];
-      const record = history.find(r => r.id === recordId);
-      if (record) {
-        const idx = updatedStock.findIndex(i => i.id === record.item.id);
-        if (idx > -1) {
-          updatedStock[idx].quantity += quantity;
-        }
-      }
-      return updatedStock;
-    });
-
-    toast({ title: 'Devolução Registrada', description: `Quantidade devolvida: ${quantity}` });
-  }, [history, toast]);
-
-=======
   const navItems = [
     { view: "release" as View, title: "Saída de Estoque", description: "Registrar retirada de itens do estoque.", icon: RefreshCw },
     { view: "entry" as View, title: "Entrada de Estoque", description: "Adicionar novos itens ao estoque.", icon: PackagePlus },
@@ -262,7 +241,6 @@ export default function StockReleaseApp() {
     { view: "tools" as View, title: "Gerenciar Ferramentas", description: "Adicionar, editar e controlar ferramentas.", icon: Wrench },
     { view: "history" as View, title: "Histórico Geral", description: "Visualizar todas as movimentações.", icon: History },
   ];
->>>>>>> origin/main
 
   const renderContent = () => {
     if (isInitialLoad) return <ManagementSkeleton />;
@@ -276,66 +254,12 @@ export default function StockReleaseApp() {
     }
     
     switch (activeView) {
-<<<<<<< HEAD
-      case "release":
-        return (
-          <StockReleaseClient
-            stockItems={stockItems}
-            onUpdateHistory={handleNewWithdrawal}
-            uniqueRequesters={uniqueRequesters}
-            uniqueDestinations={uniqueDestinations}
-          />
-        );
-      case "entry":
-        return (
-          <StockEntryClient
-            stockItems={stockItems}
-            onUpdateHistory={handleNewEntry}
-            uniqueAdders={uniqueAdders}
-          />
-        );
-      case "items":
-        return (
-          <ItemManagement
-            stockItems={stockItems}
-            onSetStockItems={setStockItems}
-            onSetIsAddItemDialogOpen={setAddItemDialogOpen}
-            onSetEditingItem={setEditingItem}
-          />
-        );
-      case "history":
-        return (
-          <HistoryPanel
-            itemHistory={history}
-            entryHistory={entryHistory}
-            toolHistory={toolHistory}
-            onDeleteItemRecord={(id) => handleDeleteRecord(id, 'withdrawals')}
-            onDeleteEntryRecord={(id) => handleDeleteRecord(id, 'entries')}
-            onDeleteToolRecord={(id) => handleDeleteRecord(id, 'tools')}
-            onReturnItemRecord={(id, qty, note) => handleReturnItemRecord(id, qty, note)}
-          />
-        );
-      case "tools":
-        return (
-            <ToolManagement
-              tools={tools}
-              setTools={setTools}
-              toolHistory={toolHistory}
-              setToolHistory={setToolHistory}
-              onSetEditingTool={setEditingTool}
-              onSetIsAddToolDialogOpen={setAddToolDialogOpen}
-            />
-        );
-      default:
-        return null;
-=======
       case "release": return <StockReleaseClient stockItems={stockItems} onUpdateHistory={handleNewWithdrawal} uniqueRequesters={uniqueRequesters} uniqueDestinations={uniqueDestinations} />;
       case "entry": return <StockEntryClient stockItems={stockItems} onUpdateHistory={handleNewEntry} uniqueAdders={uniqueAdders} />;
       case "items": return <ItemManagement stockItems={stockItems} onSetStockItems={setStockItems} onSetIsAddItemDialogOpen={setAddItemDialogOpen} onSetEditingItem={setEditingItem} />;
       case "history": return <HistoryPanel itemHistory={history} entryHistory={entryHistory} toolHistory={toolHistory} onDeleteItemRecord={(id) => handleDeleteRecord(id, 'withdrawals')} onDeleteEntryRecord={(id) => handleDeleteRecord(id, 'entries')} onDeleteToolRecord={(id) => handleDeleteRecord(id, 'tools')} onReturnItem={handleReturnItem} />;
       case "tools": return <ToolManagement tools={tools} setTools={setTools} toolHistory={toolHistory} setToolHistory={setToolHistory} onSetEditingTool={setEditingTool} onSetIsAddToolDialogOpen={setAddToolDialogOpen} />;
       default: return null;
->>>>>>> origin/main
     }
   };
 
