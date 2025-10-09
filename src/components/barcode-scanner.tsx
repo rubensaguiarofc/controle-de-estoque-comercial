@@ -60,14 +60,16 @@ export function BarcodeScanner({ onScan, onCancel }: BarcodeScannerProps) {
         hints.set(DecodeHintType.POSSIBLE_FORMATS, formats);
         hints.set(DecodeHintType.TRY_HARDER, true);
 
-        await codeReader.decodeFromStream(stream, videoRef.current, (result, err) => {
+        if (videoRef.current) {
+          await codeReader.decodeFromStream(stream, videoRef.current, (result, err) => {
           if (result && isMounted) {
             onScan(result.getText());
           }
           if (err && !(err instanceof NotFoundException) && isMounted) {
             console.error('Barcode scan error:', err);
           }
-        });
+          });
+        }
 
       } catch (error) {
         console.error('Error starting camera stream:', error);

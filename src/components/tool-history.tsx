@@ -113,7 +113,7 @@ export function ToolHistory({ tools, history, onCheckout, onReturn }: ToolHistor
             
             <div className="space-y-4">
                 <h3 className="text-lg font-medium">Ferramentas em Uso</h3>
-                <ScrollArea className="rounded-md border">
+                <ScrollArea className="bg-card border border-border rounded-lg">
                   <Table>
                       <TableHeader>
                           <TableRow>

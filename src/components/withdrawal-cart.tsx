@@ -16,7 +16,7 @@ interface WithdrawalCartProps {
 export const WithdrawalCart = React.memo(function WithdrawalCart({ items, onRemove, onUpdateQuantity }: WithdrawalCartProps) {
   if (items.length === 0) {
     return (
-      <div className="flex items-center justify-center h-24 border-2 border-dashed rounded-lg bg-muted/50">
+      <div className="flex items-center justify-center h-24 border-2 border-dashed rounded-lg bg-background">
         <p className="text-muted-foreground">Sua cesta de retirada está vazia.</p>
       </div>
     );

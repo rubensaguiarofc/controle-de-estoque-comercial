@@ -222,6 +222,25 @@ export default function StockReleaseApp() {
     }
   }, [toast]);
 
+  const handleReturnItemRecord = useCallback((recordId: string, quantity: number, note?: string) => {
+    setHistory(prev => prev.map(rec => rec.id === recordId ? { ...rec, returnedQuantity: (rec.returnedQuantity || 0) + quantity, returns: [...(rec.returns || []), { date: new Date().toISOString(), quantity, note }] } : rec));
+
+    // Update stock quantities (add back)
+    setStockItems(currentStock => {
+      const updatedStock = [...currentStock];
+      const record = history.find(r => r.id === recordId);
+      if (record) {
+        const idx = updatedStock.findIndex(i => i.id === record.item.id);
+        if (idx > -1) {
+          updatedStock[idx].quantity += quantity;
+        }
+      }
+      return updatedStock;
+    });
+
+    toast({ title: 'Devolução Registrada', description: `Quantidade devolvida: ${quantity}` });
+  }, [history, toast]);
+
 
   const renderContent = () => {
     if (isInitialLoad) {
@@ -263,6 +282,7 @@ export default function StockReleaseApp() {
             onDeleteItemRecord={(id) => handleDeleteRecord(id, 'withdrawals')}
             onDeleteEntryRecord={(id) => handleDeleteRecord(id, 'entries')}
             onDeleteToolRecord={(id) => handleDeleteRecord(id, 'tools')}
+            onReturnItemRecord={(id, qty, note) => handleReturnItemRecord(id, qty, note)}
           />
         );
       case "tools":

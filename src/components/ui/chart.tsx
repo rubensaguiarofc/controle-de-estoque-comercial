@@ -120,7 +120,7 @@ function DynamicResponsiveContainer({ children }: { children: React.ReactNode })
   const R = useRecharts()
   if (!R) {
     // Render placeholder during SSR/build to avoid errors
-    return <div style={{ width: "100%", height: "100%" }}>{children}</div>
+    return <div style={{ inlineSize: "100%", blockSize: "100%" }}>{children}</div>
   }
   const ResponsiveContainer = R.ResponsiveContainer
   return <ResponsiveContainer>{children}</ResponsiveContainer>

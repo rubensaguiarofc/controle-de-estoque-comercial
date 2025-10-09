@@ -35,8 +35,8 @@ dependencies {
     implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
-    implementation project(':capacitor-android')
-    // Not using Capacitor annotation/processor; plugin implemented using the public Plugin API to avoid missing artifacts
+    implementation "com.getcapacitor:capacitor-android:$capacitorVersion"
+    annotationProcessor "com.getcapacitor:capacitor-android-annotation-processor:$capacitorVersion"
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
