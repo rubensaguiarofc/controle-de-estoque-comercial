@@ -186,13 +186,8 @@ export const WithdrawalForm = React.forwardRef<HTMLFormElement, WithdrawalFormPr
                     <FormItem>
                       <FormLabel>Quem (Retirou)</FormLabel>
                       <FormControl>
-                        <Input placeholder="Nome do responsável" {...field} list="requesters-datalist" />
+                        <Input placeholder="Nome do responsável" {...field} autoComplete="off" />
                       </FormControl>
-                      <datalist id="requesters-datalist">
-                        {uniqueRequesters.map((requester) => (
-                          <option key={requester} value={requester} />
-                        ))}
-                      </datalist>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -204,13 +199,8 @@ export const WithdrawalForm = React.forwardRef<HTMLFormElement, WithdrawalFormPr
                     <FormItem>
                       <FormLabel>Para Quem (Destino)</FormLabel>
                       <FormControl>
-                        <Input placeholder="Nome ou departamento" {...field} list="destinations-datalist" />
+                        <Input placeholder="Nome ou departamento" {...field} autoComplete="off" />
                       </FormControl>
-                      <datalist id="destinations-datalist">
-                        {uniqueDestinations.map((destination) => (
-                          <option key={destination} value={destination} />
-                        ))}
-                      </datalist>
                       <FormMessage />
                     </FormItem>
                   )}

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
@@ -5,15 +6,15 @@ import dynamic from 'next/dynamic';
 
 import type { StockItem, WithdrawalRecord, Tool, ToolRecord, EntryRecord } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
-import { Boxes, History, Menu, RefreshCw, Wrench, PackagePlus } from "lucide-react";
+import { Boxes, History, Menu, RefreshCw, Wrench, PackagePlus, ArrowLeft } from "lucide-react";
 
 import { AddItemDialog } from "./add-item-dialog";
 import { Skeleton } from "./ui/skeleton";
 import { AddToolDialog } from "./add-tool-dialog";
 import { MOCK_STOCK_ITEMS } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import { Button } from "./ui/button";
+import { HoverEffect } from "./ui/card-hover-effect";
 
 const StockReleaseClient = dynamic(() => import('./stock-release-client'), {
   loading: () => <ClientSkeleton />,
@@ -32,12 +33,12 @@ const HistoryPanel = dynamic(() => import('./history-panel').then(mod => mod.His
   ssr: false,
 });
 const ToolManagement = dynamic(() => import('./tool-management'), {
-  loading: () => <ManagementSkeleton />, // Re-use skeleton for now
+  loading: () => <ManagementSkeleton />,
   ssr: false,
 });
 
 
-type View = "release" | "entry" | "items" | "history" | "tools";
+type View = "dashboard" | "release" | "entry" | "items" | "history" | "tools";
 
 export default function StockReleaseApp() {
   const { toast } = useToast();
@@ -48,24 +49,20 @@ export default function StockReleaseApp() {
   const [toolHistory, setToolHistory] = useState<ToolRecord[]>([]);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   
-  // Item Dialog State
   const [isAddItemDialogOpen, setAddItemDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<StockItem | null>(null);
 
-  // Tool Dialog State
   const [isAddToolDialogOpen, setAddToolDialogOpen] = useState(false);
   const [editingTool, setEditingTool] = useState<Tool | null>(null);
 
-  const [activeView, setActiveView] = useState<View>("release");
+  const [activeView, setActiveView] = useState<View>("dashboard");
 
-  // Load data from localStorage on initial render
   useEffect(() => {
     try {
       const savedItems = localStorage.getItem("stockItems");
       if (savedItems) {
         setStockItems(JSON.parse(savedItems));
       } else {
-        // Load mock data if nothing is in localStorage
         setStockItems(MOCK_STOCK_ITEMS);
       }
 
@@ -88,7 +85,6 @@ export default function StockReleaseApp() {
     }
   }, [toast]);
 
-  // Generic data saver function
   const saveDataToLocalStorage = useCallback(<T,>(key: string, data: T) => {
     try {
       const jsonValue = JSON.stringify(data);
@@ -126,16 +122,12 @@ export default function StockReleaseApp() {
     };
   }, [history, entryHistory]);
 
-  // Item Management Handlers
   const handleItemDialogSubmit = useCallback((itemData: Omit<StockItem, 'id' | 'quantity'> & { quantity?: number }) => {
     let itemToSave: StockItem;
     if (editingItem) {
-      // When editing, we don't change the quantity directly from this form.
-      // We only update name, specs, and barcode.
       itemToSave = { ...editingItem, name: itemData.name, specifications: itemData.specifications, barcode: itemData.barcode };
       setStockItems(prev => prev.map(item => item.id === editingItem.id ? itemToSave : item));
     } else {
-      // When creating a new item.
       const newIdNumber = (stockItems.length > 0 ? Math.max(...stockItems.map(item => parseInt(item.id.split('-')[1]) || 0)) + 1 : 1).toString().padStart(3, '0');
       const newId = `ITM-${newIdNumber}`;
       itemToSave = { ...itemData, id: newId, quantity: itemData.quantity || 0 };
@@ -151,7 +143,6 @@ export default function StockReleaseApp() {
     setAddItemDialogOpen(isOpen);
   }, []);
 
-  // Tool Management Handlers
   const handleToolDialogSubmit = useCallback((toolData: Omit<Tool, 'id'>) => {
     let toolToSave: Tool;
     if (editingTool) {
@@ -175,7 +166,6 @@ export default function StockReleaseApp() {
   const handleNewWithdrawal = useCallback((newRecords: WithdrawalRecord[]) => {
     setHistory(prev => [...newRecords, ...prev]);
     
-    // Update stock quantities
     setStockItems(currentStock => {
       const updatedStock = [...currentStock];
       newRecords.forEach(record => {
@@ -192,7 +182,6 @@ export default function StockReleaseApp() {
   const handleNewEntry = useCallback((newRecords: EntryRecord[]) => {
     setEntryHistory(prev => [...newRecords, ...prev]);
     
-    // Update stock quantities
     setStockItems(currentStock => {
       const updatedStock = [...currentStock];
       newRecords.forEach(record => {
@@ -204,6 +193,29 @@ export default function StockReleaseApp() {
       return updatedStock;
     });
   }, []);
+
+  const handleReturnItem = useCallback((recordId: string, quantity: number) => {
+    setHistory(prev => prev.map(rec => {
+      if (rec.id === recordId) {
+        return {
+          ...rec,
+          returnedQuantity: (rec.returnedQuantity || 0) + quantity,
+        };
+      }
+      return rec;
+    }));
+
+    const record = history.find(rec => rec.id === recordId);
+    if (record) {
+      setStockItems(prev => prev.map(item => {
+        if (item.id === record.item.id) {
+          return { ...item, quantity: item.quantity + quantity };
+        }
+        return item;
+      }));
+      toast({ title: "Item Devolvido", description: `${quantity} unidade(s) de ${record.item.name} foram devolvidas ao estoque.` });
+    }
+  }, [history, toast]);
 
   const handleDeleteRecord = useCallback((recordId: string, type: 'withdrawals' | 'entries' | 'tools') => {
     switch(type) {
@@ -222,6 +234,7 @@ export default function StockReleaseApp() {
     }
   }, [toast]);
 
+<<<<<<< HEAD
   const handleReturnItemRecord = useCallback((recordId: string, quantity: number, note?: string) => {
     setHistory(prev => prev.map(rec => rec.id === recordId ? { ...rec, returnedQuantity: (rec.returnedQuantity || 0) + quantity, returns: [...(rec.returns || []), { date: new Date().toISOString(), quantity, note }] } : rec));
 
@@ -241,12 +254,29 @@ export default function StockReleaseApp() {
     toast({ title: 'Devolução Registrada', description: `Quantidade devolvida: ${quantity}` });
   }, [history, toast]);
 
+=======
+  const navItems = [
+    { view: "release" as View, title: "Saída de Estoque", description: "Registrar retirada de itens do estoque.", icon: RefreshCw },
+    { view: "entry" as View, title: "Entrada de Estoque", description: "Adicionar novos itens ao estoque.", icon: PackagePlus },
+    { view: "items" as View, title: "Gerenciar Itens", description: "Adicionar, editar ou remover tipos de itens.", icon: Boxes },
+    { view: "tools" as View, title: "Gerenciar Ferramentas", description: "Adicionar, editar e controlar ferramentas.", icon: Wrench },
+    { view: "history" as View, title: "Histórico Geral", description: "Visualizar todas as movimentações.", icon: History },
+  ];
+>>>>>>> origin/main
 
   const renderContent = () => {
-    if (isInitialLoad) {
-      return <ManagementSkeleton />;
+    if (isInitialLoad) return <ManagementSkeleton />;
+
+    if (activeView === 'dashboard') {
+      return (
+          <div className="max-w-5xl mx-auto px-8">
+              <HoverEffect items={navItems.map(item => ({ ...item, content: <item.icon className="h-8 w-8 mx-auto text-white" />, onClick: () => setActiveView(item.view) }))} />
+          </div>
+      );
     }
+    
     switch (activeView) {
+<<<<<<< HEAD
       case "release":
         return (
           <StockReleaseClient
@@ -298,83 +328,63 @@ export default function StockReleaseApp() {
         );
       default:
         return null;
+=======
+      case "release": return <StockReleaseClient stockItems={stockItems} onUpdateHistory={handleNewWithdrawal} uniqueRequesters={uniqueRequesters} uniqueDestinations={uniqueDestinations} />;
+      case "entry": return <StockEntryClient stockItems={stockItems} onUpdateHistory={handleNewEntry} uniqueAdders={uniqueAdders} />;
+      case "items": return <ItemManagement stockItems={stockItems} onSetStockItems={setStockItems} onSetIsAddItemDialogOpen={setAddItemDialogOpen} onSetEditingItem={setEditingItem} />;
+      case "history": return <HistoryPanel itemHistory={history} entryHistory={entryHistory} toolHistory={toolHistory} onDeleteItemRecord={(id) => handleDeleteRecord(id, 'withdrawals')} onDeleteEntryRecord={(id) => handleDeleteRecord(id, 'entries')} onDeleteToolRecord={(id) => handleDeleteRecord(id, 'tools')} onReturnItem={handleReturnItem} />;
+      case "tools": return <ToolManagement tools={tools} setTools={setTools} toolHistory={toolHistory} setToolHistory={setToolHistory} onSetEditingTool={setEditingTool} onSetIsAddToolDialogOpen={setAddToolDialogOpen} />;
+      default: return null;
+>>>>>>> origin/main
     }
   };
 
-  const navItems = [
-    { view: "release" as View, icon: RefreshCw, label: "Saída" },
-    { view: "entry" as View, icon: PackagePlus, label: "Entrada" },
-    { view: "items" as View, icon: Boxes, label: "Itens" },
-    { view: "tools" as View, icon: Wrench, label: "Ferramentas" },
-    { view: "history" as View, icon: History, label: "Histórico" },
-  ];
-
   return (
-    <div className="flex flex-col h-screen bg-muted/40">
-      <header className="flex h-14 items-center gap-4 border-b bg-background px-4">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="icon">
-              <Menu className="h-5 w-5" />
-              <span className="sr-only">Abrir menu de navegação</span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start">
-            <DropdownMenuLabel>Navegação</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {navItems.map(item => (
-              <DropdownMenuItem
-                key={item.view}
-                onClick={() => setActiveView(item.view)}
-                className={cn(
-                  "flex items-center gap-2",
-                  activeView === item.view && "bg-accent"
-                )}
-              >
-                <item.icon className="h-4 w-4" />
-                <span>{item.label}</span>
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+    <div className="flex flex-col h-screen bg-black text-white">
+        <header className="flex h-16 items-center gap-4 border-b border-gray-800 px-4 shrink-0">
+          {activeView !== 'dashboard' && (
+              <Button variant="ghost" size="icon" onClick={() => setActiveView('dashboard')}>
+                  <ArrowLeft className="h-5 w-5" />
+                  <span className="sr-only">Voltar para o ínicio</span>
+              </Button>
+          )}
+          <div className="flex-1 flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 text-gray-300"><path d="M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v2"/><path d="M21 14v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M3 10h18v4H3zM12 16v-4"/></svg>
+              <h1 className="text-lg font-semibold md:text-xl text-gray-200">
+                  Controle de Almoxarifado
+              </h1>
+          </div>
+        </header>
 
-        <div className="flex-1 flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6"><path d="M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v2"/><path d="M21 14v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M3 10h18v4H3zM12 16v-4"/></svg>
-            <h1 className="text-lg font-semibold md:text-xl">
-                Controle de Estoque
-            </h1>
-        </div>
-      </header>
+        <main className="flex-1 overflow-auto bg-grid-small-white/[0.2] relative">
+          {renderContent()}
+        </main>
 
-      <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-6 overflow-auto pb-28">
-        {renderContent()}
-      </main>
+        <AddItemDialog
+            isOpen={isAddItemDialogOpen}
+            onOpenChange={handleItemDialogClose}
+            onAddItem={handleItemDialogSubmit}
+            editingItem={editingItem}
+        />
 
-      <AddItemDialog
-          isOpen={isAddItemDialogOpen}
-          onOpenChange={handleItemDialogClose}
-          onAddItem={handleItemDialogSubmit}
-          editingItem={editingItem}
-      />
-
-      <AddToolDialog
-          isOpen={isAddToolDialogOpen}
-          onOpenChange={handleToolDialogClose}
-          onAddTool={handleToolDialogSubmit}
-          editingTool={editingTool}
-      />
+        <AddToolDialog
+            isOpen={isAddToolDialogOpen}
+            onOpenChange={handleToolDialogClose}
+            onAddTool={handleToolDialogSubmit}
+            editingTool={editingTool}
+        />
     </div>
   );
 }
 
 function ClientSkeleton() {
   return (
-    <div className="space-y-6">
-      <Skeleton className="h-56 w-full" />
-      <Skeleton className="h-32 w-full" />
+    <div className="space-y-6 p-4 md:p-6">
+      <Skeleton className="h-56 w-full bg-gray-800" />
+      <Skeleton className="h-32 w-full bg-gray-800" />
       <div className="flex justify-end gap-2">
-        <Skeleton className="h-10 w-24" />
-        <Skeleton className="h-10 w-24" />
+        <Skeleton className="h-10 w-24 bg-gray-800" />
+        <Skeleton className="h-10 w-24 bg-gray-800" />
       </div>
     </div>
   );
@@ -382,32 +392,32 @@ function ClientSkeleton() {
 
 function ManagementSkeleton() {
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 p-4 md:p-6">
       <div className="flex justify-between">
         <div className="space-y-2">
-            <Skeleton className="h-8 w-48" />
-            <Skeleton className="h-4 w-64" />
+            <Skeleton className="h-8 w-48 bg-gray-800" />
+            <Skeleton className="h-4 w-64 bg-gray-800" />
         </div>
-        <Skeleton className="h-10 w-32" />
+        <Skeleton className="h-10 w-32 bg-gray-800" />
       </div>
-      <Skeleton className="h-10 w-full" />
-      <Skeleton className="h-80 w-full" />
+      <Skeleton className="h-10 w-full bg-gray-800" />
+      <Skeleton className="h-80 w-full bg-gray-800" />
     </div>
   );
 }
 
 function HistorySkeleton() {
     return (
-        <div className="space-y-4">
+        <div className="space-y-4 p-4 md:p-6">
             <div className="flex justify-between">
                 <div className="space-y-2">
-                    <Skeleton className="h-8 w-48" />
-                    <Skeleton className="h-4 w-64" />
+                    <Skeleton className="h-8 w-48 bg-gray-800" />
+                    <Skeleton className="h-4 w-64 bg-gray-800" />
                 </div>
-                <Skeleton className="h-10 w-32" />
+                <Skeleton className="h-10 w-32 bg-gray-800" />
             </div>
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-[500px] w-full" />
+            <Skeleton className="h-10 w-full bg-gray-800" />
+            <Skeleton className="h-[500px] w-full bg-gray-800" />
         </div>
     )
 }

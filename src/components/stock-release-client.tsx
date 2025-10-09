@@ -64,23 +64,23 @@ const StockReleaseClient = forwardRef<HTMLFormElement, StockReleaseClientProps>(
           return;
       }
 
-      setWithdrawalItems(prev => {
-        if (existingItemIndex > -1) {
+      if (existingItemIndex > -1) {
+        setWithdrawalItems(prev => {
           const updatedItems = [...prev];
           updatedItems[existingItemIndex].quantity += item.quantity;
-          toast({
-            title: "Quantidade Atualizada",
-            description: `A quantidade de "${item.item.name}" foi atualizada na cesta.`,
-          });
           return updatedItems;
-        } else {
-          toast({
-            title: "Item Adicionado",
-            description: `"${item.item.name}" foi adicionado à cesta.`,
-          });
-          return [...prev, item];
-        }
-      });
+        });
+        toast({
+          title: "Quantidade Atualizada",
+          description: `A quantidade de "${item.item.name}" foi atualizada na cesta.`,
+        });
+      } else {
+        setWithdrawalItems(prev => [...prev, item]);
+        toast({
+          title: "Item Adicionado",
+          description: `"${item.item.name}" foi adicionado à cesta.`,
+        });
+      }
     }, [toast, stockItems, withdrawalItems]);
     
     const handleRemoveItem = useCallback((itemId: string) => {

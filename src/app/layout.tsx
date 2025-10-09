@@ -1,12 +1,17 @@
+
 import type { Metadata } from 'next';
 import './globals.css';
+<<<<<<< HEAD
 import Providers from '../providers';
 import { Toaster } from '../components/ui/toaster';
 import { FooterAd } from '../components/footer-ad';
+=======
+import { Toaster } from '@/components/ui/toaster';
+>>>>>>> origin/main
 
 export const metadata: Metadata = {
-  title: 'Controle de Estoque',
-  description: 'Gerenciado por Alternativa Solutions',
+  title: 'Controle de Almoxarifado',
+  description: 'Uma ferramenta moderna para controle de estoque e ferramentas.',
 };
 
 export default function RootLayout({
@@ -15,6 +20,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
+<<<<<<< HEAD
     <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -30,6 +36,13 @@ export default function RootLayout({
           <Toaster />
           <FooterAd />
         </Providers>
+=======
+    <html lang="pt-BR" suppressHydrationWarning>
+      <head />
+      <body className={"bg-black text-white antialiased"}>
+        {children}
+        <Toaster />
+>>>>>>> origin/main
       </body>
     </html>
   );

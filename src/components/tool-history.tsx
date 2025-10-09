@@ -7,12 +7,10 @@ import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Badge } from './ui/badge';
 import { ReturnToolDialog } from './return-tool-dialog';
 import { CheckoutToolDialog } from './checkout-tool-dialog';
 import { SignatureDisplayDialog } from './signature-display-dialog';
-import { ScrollArea } from './ui/scroll-area';
 
 interface ToolHistoryProps {
   tools: Tool[];
@@ -113,6 +111,7 @@ export function ToolHistory({ tools, history, onCheckout, onReturn }: ToolHistor
             
             <div className="space-y-4">
                 <h3 className="text-lg font-medium">Ferramentas em Uso</h3>
+<<<<<<< HEAD
                 <ScrollArea className="bg-card border border-border rounded-lg">
                   <Table>
                       <TableHeader>
@@ -149,6 +148,33 @@ export function ToolHistory({ tools, history, onCheckout, onReturn }: ToolHistor
                       </TableBody>
                   </Table>
                 </ScrollArea>
+=======
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {toolsOutRecords.length > 0 ? toolsOutRecords.map(record => (
+                    <Card key={record.id} className="overflow-hidden hover:bg-muted/50 transition-colors flex flex-col">
+                      <CardContent className="p-4 cursor-pointer flex-grow" onClick={() => setViewingRecord(record)}>
+                        <div className="flex justify-between items-start">
+                            <p className="font-semibold text-card-foreground leading-tight">{record.tool.name}</p>
+                            <Badge>Em uso</Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground font-mono mt-1">{record.tool.assetId}</p>
+                        <div className="text-sm text-muted-foreground mt-2 space-y-1">
+                            <p><span className="font-medium text-foreground">Retirado por:</span> {record.checkedOutBy}</p>
+                            <p><span className="font-medium text-foreground">Local:</span> {record.usageLocation}</p>
+                            <p><span className="font-medium text-foreground">Data:</span> {new Date(record.checkoutDate).toLocaleDateString('pt-BR')}</p>
+                        </div>
+                      </CardContent>
+                      <div className="bg-card-footer p-2 flex items-center justify-end border-t">
+                        <Button size="sm" className="w-full" onClick={() => handleOpenReturnDialog(record)}>Devolver</Button>
+                      </div>
+                    </Card>
+                  )) : (
+                    <div className="col-span-full text-center text-muted-foreground py-12">
+                      Nenhuma ferramenta em uso no momento.
+                    </div>
+                  )}
+                </div>
+>>>>>>> origin/main
             </div>
           </CardContent>
       </Card>
