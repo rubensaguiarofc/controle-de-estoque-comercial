@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { useForm, UseFormReturn } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
@@ -15,7 +15,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus } from "lucide-react";
+import { Plus, Trash } from "lucide-react";
 
 const formSchema = z.object({
   addedBy: z.string().min(1, 'O campo "Adicionado por" é obrigatório.').toUpperCase(),
@@ -66,6 +66,10 @@ export default function StockEntryClient({ stockItems, onUpdateHistory, uniqueAd
       setUnit('UN');
     }
   }, [currentItemId, quantity, unit, stockItems, toast]);
+  
+  const handleRemoveEntryItem = (itemId: string) => {
+    setEntryItems(prev => prev.filter(entry => entry.item.id !== itemId));
+  };
 
   const onSubmit = useCallback((values: EntryFormValues) => {
     if (entryItems.length === 0) {
@@ -128,16 +132,24 @@ export default function StockEntryClient({ stockItems, onUpdateHistory, uniqueAd
             </div>
 
             {entryItems.length > 0 && (
-                <div>
-                    <h3 className="text-lg font-medium mb-2">Itens para Entrada</h3>
-                    <ul>
-                        {entryItems.map(({ item, quantity, unit }) => (
-                            <li key={item.id} className="flex justify-between items-center p-2 border-b">
-                                <span>{item.name}</span>
-                                <span className="font-mono">{quantity} {unit}</span>
-                            </li>
-                        ))}
-                    </ul>
+                <div className="space-y-4">
+                    <h3 className="text-lg font-medium">Itens para Entrada</h3>
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                      {entryItems.map(({ item, quantity, unit }) => (
+                        <Card key={item.id} className="overflow-hidden">
+                          <CardContent className="p-4 flex items-center justify-between">
+                            <div>
+                              <p className="font-semibold text-card-foreground">{item.name}</p>
+                              <p className="text-sm text-muted-foreground">{quantity} {unit}</p>
+                            </div>
+                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => handleRemoveEntryItem(item.id)}>
+                              <Trash className="h-4 w-4" />
+                              <span className="sr-only">Remover</span>
+                            </Button>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
                 </div>
             )}
 

@@ -5,7 +5,6 @@ import { useState, useMemo } from 'react';
 import type { StockItem } from '@/lib/types';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Edit, Trash, Search, Plus, Barcode, Printer } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
@@ -106,10 +105,6 @@ export default function ItemManagement({
         });
         const barcodeDataUrl = tempCanvas.toDataURL('image/png');
 
-        // Adiciona um retângulo para visualizar a área da etiqueta
-        // doc.rect(x, y, LABEL_WIDTH, LABEL_HEIGHT);
-
-        // Centraliza o conteúdo dentro da etiqueta
         const contentX = x + LABEL_WIDTH / 2;
 
         doc.setFontSize(8);
@@ -160,58 +155,58 @@ export default function ItemManagement({
 
   return (
     <>
-    <Card className="shadow-lg h-full flex flex-col">
-        <CardHeader>
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div className="flex-1">
-                    <CardTitle>Biblioteca de Itens</CardTitle>
-                    <CardDescription>Gerencie todos os itens cadastrados.</CardDescription>
-                </div>
-                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                    <Button size="sm" className="w-full sm:w-auto" onClick={() => { onSetEditingItem(null); onSetIsAddItemDialogOpen(true); }}>
-                        <Plus className="mr-2 h-4 w-4" />
-                        Cadastrar Item
-                    </Button>
-                    <Button variant="outline" size="sm" className="w-full sm:w-auto" onClick={handlePrintAllBarcodes}>
-                        <Printer className="mr-2 h-4 w-4" />
-                        Imprimir Todas as Etiquetas
-                    </Button>
-                </div>
+      <Card className="shadow-lg h-full flex flex-col bg-transparent sm:bg-card border-none sm:border">
+          <CardHeader className="bg-card rounded-t-lg">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                  <div className="flex-1">
+                      <CardTitle>Biblioteca de Itens</CardTitle>
+                      <CardDescription>Gerencie todos os itens cadastrados.</CardDescription>
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                      <Button size="sm" className="w-full sm:w-auto" onClick={() => { onSetEditingItem(null); onSetIsAddItemDialogOpen(true); }}>
+                          <Plus className="mr-2 h-4 w-4" />
+                          Cadastrar Item
+                      </Button>
+                      <Button variant="outline" size="sm" className="w-full sm:w-auto" onClick={handlePrintAllBarcodes}>
+                          <Printer className="mr-2 h-4 w-4" />
+                          Imprimir Etiquetas
+                      </Button>
+                  </div>
+              </div>
+              <div className="relative pt-4">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                    placeholder="Pesquisar por nome, especificações, código..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                />
             </div>
-            <div className="relative pt-4">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                  placeholder="Pesquisar por nome, especificações, código..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-              />
-          </div>
-        </CardHeader>
-        <CardContent className="flex-grow p-0">
-          <ScrollArea className="h-full w-full">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nome</TableHead>
-                  <TableHead className="hidden md:table-cell">Especificações</TableHead>
-                  <TableHead className="hidden sm:table-cell">Qtd. em Estoque</TableHead>
-                  <TableHead className="text-center min-w-[120px]">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+          </CardHeader>
+          <CardContent className="flex-grow p-0 sm:p-6">
+            <ScrollArea className="h-full w-full">
+              <div className="p-4 sm:p-0 space-y-4">
                 {filteredItems.length > 0 ? (
                   filteredItems.map(item => (
-                    <TableRow key={item.id} onClick={() => setViewingItem(item)} className="cursor-pointer">
-                      <TableCell className="font-medium whitespace-nowrap p-4">{item.name}</TableCell>
-                      <TableCell className="hidden md:table-cell whitespace-nowrap p-4">{item.specifications}</TableCell>
-                      <TableCell className="hidden sm:table-cell p-4">
-                        <Badge variant={item.quantity <= 0 ? 'destructive' : (item.quantity < 10 ? 'secondary' : 'default')}>
-                          {item.quantity ?? 0}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-center p-4">
-                        <div className="flex gap-1 justify-center">
+                    <Card key={item.id} className="overflow-hidden hover:bg-muted/50 transition-colors">
+                      <CardContent className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div className="flex-grow cursor-pointer" onClick={() => setViewingItem(item)}>
+                          <p className="font-semibold text-card-foreground">{item.name}</p>
+                          <p className="text-sm text-muted-foreground">{item.specifications}</p>
+                          <div className="sm:hidden mt-2">
+                            <Badge variant={item.quantity <= 0 ? 'destructive' : (item.quantity < 10 ? 'secondary' : 'default')}>
+                              Qtd: {item.quantity ?? 0}
+                            </Badge>
+                          </div>
+                        </div>
+                
+                        <div className="hidden sm:block mx-4">
+                            <Badge variant={item.quantity <= 0 ? 'destructive' : (item.quantity < 10 ? 'secondary' : 'default')}>
+                              {item.quantity ?? 0}
+                            </Badge>
+                        </div>
+
+                        <div className="flex items-center gap-1 self-end sm:self-center">
                           {item.barcode ? (
                             <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setBarcodeItem(item);}}>
                                 <Barcode className="h-4 w-4" />
@@ -248,37 +243,34 @@ export default function ItemManagement({
                             </AlertDialogContent>
                           </AlertDialog>
                         </div>
-                      </TableCell>
-                    </TableRow>
+                      </CardContent>
+                    </Card>
                   ))
                 ) : (
-                  <TableRow>
-                    <TableCell colSpan={4} className="text-center h-24 text-muted-foreground p-4">
-                      Nenhum item encontrado.
-                    </TableCell>
-                  </TableRow>
+                  <div className="text-center text-muted-foreground py-12">
+                    Nenhum item encontrado.
+                  </div>
                 )}
-              </TableBody>
-            </Table>
-          </ScrollArea>
-        </CardContent>
+              </div>
+            </ScrollArea>
+          </CardContent>
       </Card>
     
-    {barcodeItem && (
-        <BarcodeDisplayDialog
-            isOpen={!!barcodeItem}
-            onOpenChange={() => setBarcodeItem(null)}
-            item={barcodeItem}
-        />
-    )}
+      {barcodeItem && (
+          <BarcodeDisplayDialog
+              isOpen={!!barcodeItem}
+              onOpenChange={() => setBarcodeItem(null)}
+              item={barcodeItem}
+          />
+      )}
 
-    {viewingItem && (
-        <ItemDetailsDialog
-            isOpen={!!viewingItem}
-            onOpenChange={() => setViewingItem(null)}
-            item={viewingItem}
-        />
-    )}
+      {viewingItem && (
+          <ItemDetailsDialog
+              isOpen={!!viewingItem}
+              onOpenChange={() => setViewingItem(null)}
+              item={viewingItem}
+          />
+      )}
     </>
   );
 }

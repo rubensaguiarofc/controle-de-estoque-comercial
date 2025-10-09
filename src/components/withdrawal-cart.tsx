@@ -4,8 +4,8 @@ import React from 'react';
 import type { WithdrawalItem } from "@/lib/types";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Trash } from "lucide-react";
+import { Card, CardContent } from "./ui/card";
 
 interface WithdrawalCartProps {
   items: WithdrawalItem[];
@@ -23,44 +23,35 @@ export const WithdrawalCart = React.memo(function WithdrawalCart({ items, onRemo
   }
 
   return (
-    <div>
-        <h3 className="text-lg font-medium mb-2">Itens para Retirada</h3>
-        <Table>
-            <TableHeader>
-                <TableRow>
-                <TableHead>Item</TableHead>
-                <TableHead className="w-[100px]">Qtd.</TableHead>
-                <TableHead className="w-[80px]">Un.</TableHead>
-                <TableHead className="w-[50px] text-right">Ação</TableHead>
-                </TableRow>
-            </TableHeader>
-            <TableBody>
-                {items.map(({ item, quantity, unit }) => (
-                <TableRow key={item.id}>
-                    <TableCell className="font-medium">
-                        <p>{item.name}</p>
-                        <p className="text-sm text-muted-foreground">{item.specifications}</p>
-                    </TableCell>
-                    <TableCell>
-                        <Input
-                            type="number"
-                            value={quantity}
-                            onChange={(e) => onUpdateQuantity(item.id, parseInt(e.target.value) || 1)}
-                            className="h-8"
-                            min="1"
-                        />
-                    </TableCell>
-                    <TableCell>{unit}</TableCell>
-                    <TableCell className="text-right">
+    <div className="space-y-4">
+        <h3 className="text-lg font-medium">Itens para Retirada</h3>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {items.map(({ item, quantity, unit }) => (
+              <Card key={item.id} className="overflow-hidden">
+                <CardContent className="p-4 flex flex-col justify-between h-full">
+                  <div>
+                    <p className="font-semibold text-card-foreground">{item.name}</p>
+                    <p className="text-sm text-muted-foreground">{item.specifications}</p>
+                  </div>
+                  <div className="flex items-center gap-2 mt-4">
+                    <Input
+                        type="number"
+                        value={quantity}
+                        onChange={(e) => onUpdateQuantity(item.id, parseInt(e.target.value) || 1)}
+                        className="h-9 w-24"
+                        min="1"
+                    />
+                    <span className="text-sm text-muted-foreground">{unit}</span>
+                    <div className="flex-grow" />
                     <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => onRemove(item.id)}>
                         <Trash className="h-4 w-4" />
                         <span className="sr-only">Remover</span>
                     </Button>
-                    </TableCell>
-                </TableRow>
-                ))}
-            </TableBody>
-        </Table>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+        </div>
     </div>
   );
 });
