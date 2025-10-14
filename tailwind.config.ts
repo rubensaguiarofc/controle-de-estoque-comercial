@@ -22,6 +22,15 @@ export default {
         code: ['monospace'],
       },
       colors: {
+        // Explicit palette tokens for designer-provided colors
+        white: '#FFFFFF',
+        'dark-text': '#1A1A1A',
+        'black-text': '#000000',
+        'navy': '#1C3D6E',
+        'danger': '#DC3545',
+        'light-gray': '#F8F9FA',
+        'muted-gray': '#CED4DA',
+
         background: 'hsl(var(--background))',
         foreground: 'hsl(var(--foreground))',
         card: {

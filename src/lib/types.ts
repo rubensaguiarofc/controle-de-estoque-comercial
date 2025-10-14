@@ -23,7 +23,6 @@ export type WithdrawalRecord = {
   requestedBy: string; // Quem
   requestedFor:string; // Para Quem
   // Optional return info: total returned quantity and individual return events
-  returnedQuantity?: number;
   returns?: { date: string; quantity: number; note?: string }[];
 };
 

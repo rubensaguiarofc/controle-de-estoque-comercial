@@ -5,6 +5,9 @@ import { format } from "date-fns";
 import { ptBR } from 'date-fns/locale';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
+import { Toast } from '@capacitor/toast'; // Opcional, para mostrar alertas nativos
 import { Calendar as CalendarIcon, FileDown, Trash, X, Undo2 } from "lucide-react";
 
 import type { WithdrawalRecord, ToolRecord, EntryRecord } from "@/lib/types";
@@ -62,7 +65,7 @@ export function HistoryPanel({ itemHistory, toolHistory, entryHistory, onDeleteI
 
 
   const filteredHistory = useMemo(() => {
-    let filtered = historyToDisplay;
+  let filtered = historyToDisplay as (WithdrawalRecord | EntryRecord | ToolRecord)[];
 
     if (dateFilter) {
         filtered = filtered.filter(record => {
@@ -172,8 +175,25 @@ export function HistoryPanel({ itemHistory, toolHistory, entryHistory, onDeleteI
     }
     
     doc.text(title, 14, 22);
-    doc.save(filename);
-    toast({ title: "Exportação Concluída", description: "Seu arquivo PDF foi baixado." });
+
+    // Instead of forcing a browser download, try saving + sharing on native via Capacitor
+    (async () => {
+      try {
+        const dataUri = doc.output('datauristring'); // data:application/pdf;base64,...
+        const base64 = dataUri.split(',').pop() || '';
+        await salvarECompartilharPdf(base64, filename);
+        toast({ title: "Exportação Concluída", description: "Arquivo salvo/compartilhado com sucesso." });
+      } catch (e) {
+        console.error('Falha ao salvar/compartilhar PDF via Capacitor, fazendo download fallback', e);
+        try {
+          // as a fallback, trigger browser download
+          doc.save(filename);
+          toast({ title: "Exportação Concluída", description: "Seu arquivo PDF foi baixado." });
+        } catch (err) {
+          toast({ variant: 'destructive', title: 'Falha', description: 'Não foi possível exportar o PDF.' });
+        }
+      }
+    })();
   };
 
   const clearFilters = () => {
@@ -411,4 +431,41 @@ function ToolHistoryList({ records, onShowDetails, onDeleteRecord }: { records: 
           ))}
       </div>
   );
+}
+
+/**
+ * Função para salvar e compartilhar um PDF gerado a partir de uma string base64.
+ * @param base64string A string base64 pura do PDF (sem o prefixo "data:application/pdf;base64,").
+ * @param nomeArquivo O nome que o arquivo terá, ex: "historico-geral-2024.pdf".
+ */
+async function salvarECompartilharPdf(base64string: string, nomeArquivo: string) {
+  try {
+    // 1. Salva o arquivo na pasta de Cache do aplicativo.
+    const resultado = await Filesystem.writeFile({
+      path: nomeArquivo,
+      data: base64string,
+      directory: Directory.Cache,
+    });
+
+    console.log('Arquivo salvo temporariamente em:', resultado.uri);
+
+    // 2. Usa o plugin Share para abrir o menu de compartilhamento nativo
+    await Share.share({
+      title: 'Salvar Relatório em PDF',
+      text: `Aqui está o seu arquivo: ${nomeArquivo}`,
+      url: resultado.uri,
+    });
+
+  } catch (error) {
+    console.error('Erro ao salvar ou compartilhar PDF', error);
+    try {
+      await Toast.show({
+        text: 'Não foi possível salvar ou compartilhar o PDF.',
+        duration: 'long'
+      });
+    } catch (e) {
+      // ignore toast errors
+    }
+    throw error;
+  }
 }

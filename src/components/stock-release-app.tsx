@@ -243,12 +243,12 @@ export default function StockReleaseApp() {
   ];
 
   const renderContent = () => {
-    if (isInitialLoad) return <ManagementSkeleton />;
+  if (isInitialLoad) return <ManagementSkeleton />;
 
     if (activeView === 'dashboard') {
       return (
           <div className="max-w-5xl mx-auto px-8">
-              <HoverEffect items={navItems.map(item => ({ ...item, content: <item.icon className="h-8 w-8 mx-auto text-white" />, onClick: () => setActiveView(item.view) }))} />
+              <HoverEffect items={navItems.map(item => ({ ...item, content: <item.icon className="h-8 w-8 mx-auto text-foreground dark:text-white" />, onClick: () => setActiveView(item.view) }))} />
           </div>
       );
     }
@@ -263,9 +263,9 @@ export default function StockReleaseApp() {
     }
   };
 
-  return (
-    <div className="flex flex-col h-screen bg-black text-white">
-        <header className="flex h-16 items-center gap-4 border-b border-gray-800 px-4 shrink-0">
+    return (
+  <div className="flex flex-col h-screen bg-background text-foreground">
+        <header className="flex h-16 items-center gap-4 border-b border-border px-4 shrink-0">
           {activeView !== 'dashboard' && (
               <Button variant="ghost" size="icon" onClick={() => setActiveView('dashboard')}>
                   <ArrowLeft className="h-5 w-5" />
@@ -273,8 +273,8 @@ export default function StockReleaseApp() {
               </Button>
           )}
           <div className="flex-1 flex items-center gap-2">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 text-gray-300"><path d="M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v2"/><path d="M21 14v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M3 10h18v4H3zM12 16v-4"/></svg>
-              <h1 className="text-lg font-semibold md:text-xl text-gray-200">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 text-muted-foreground dark:text-gray-300"><path d="M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v2"/><path d="M21 14v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M3 10h18v4H3zM12 16v-4"/></svg>
+              <h1 className="text-lg font-semibold md:text-xl text-foreground dark:text-gray-200">
                   Controle de Almoxarifado
               </h1>
           </div>
@@ -304,11 +304,11 @@ export default function StockReleaseApp() {
 function ClientSkeleton() {
   return (
     <div className="space-y-6 p-4 md:p-6">
-      <Skeleton className="h-56 w-full bg-gray-800" />
-      <Skeleton className="h-32 w-full bg-gray-800" />
+  <Skeleton className="h-56 w-full bg-muted-gray" />
+  <Skeleton className="h-32 w-full bg-muted-gray" />
       <div className="flex justify-end gap-2">
-        <Skeleton className="h-10 w-24 bg-gray-800" />
-        <Skeleton className="h-10 w-24 bg-gray-800" />
+    <Skeleton className="h-10 w-24 bg-muted-gray" />
+    <Skeleton className="h-10 w-24 bg-muted-gray" />
       </div>
     </div>
   );
@@ -319,13 +319,13 @@ function ManagementSkeleton() {
     <div className="space-y-4 p-4 md:p-6">
       <div className="flex justify-between">
         <div className="space-y-2">
-            <Skeleton className="h-8 w-48 bg-gray-800" />
-            <Skeleton className="h-4 w-64 bg-gray-800" />
+            <Skeleton className="h-8 w-48 bg-muted-gray" />
+            <Skeleton className="h-4 w-64 bg-muted-gray" />
         </div>
-        <Skeleton className="h-10 w-32 bg-gray-800" />
+  <Skeleton className="h-10 w-32 bg-muted-gray" />
       </div>
-      <Skeleton className="h-10 w-full bg-gray-800" />
-      <Skeleton className="h-80 w-full bg-gray-800" />
+  <Skeleton className="h-10 w-full bg-muted-gray" />
+  <Skeleton className="h-80 w-full bg-muted-gray" />
     </div>
   );
 }
@@ -335,13 +335,13 @@ function HistorySkeleton() {
         <div className="space-y-4 p-4 md:p-6">
             <div className="flex justify-between">
                 <div className="space-y-2">
-                    <Skeleton className="h-8 w-48 bg-gray-800" />
-                    <Skeleton className="h-4 w-64 bg-gray-800" />
+                    <Skeleton className="h-8 w-48 bg-muted-gray" />
+                    <Skeleton className="h-4 w-64 bg-muted-gray" />
                 </div>
-                <Skeleton className="h-10 w-32 bg-gray-800" />
+                <Skeleton className="h-10 w-32 bg-muted-gray" />
             </div>
-            <Skeleton className="h-10 w-full bg-gray-800" />
-            <Skeleton className="h-[500px] w-full bg-gray-800" />
+            <Skeleton className="h-10 w-full bg-muted-gray" />
+            <Skeleton className="h-[500px] w-full bg-muted-gray" />
         </div>
     )
 }

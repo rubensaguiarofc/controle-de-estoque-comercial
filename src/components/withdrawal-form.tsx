@@ -158,14 +158,14 @@ export const WithdrawalForm = React.forwardRef<HTMLFormElement, WithdrawalFormPr
                         <FormLabel>Unidade</FormLabel>
                         <Input placeholder="UN, KG, PC..." value={unit} onChange={(e) => setUnit(e.target.value.toUpperCase())} />
                       </FormItem>
-                      <Button type="button" size="icon" onClick={handleAddItemToCart} className="bg-teal-500 hover:bg-teal-600 sm:col-start-2 md:col-start-4">
+            <Button type="button" size="icon" onClick={handleAddItemToCart} className="bg-primary hover:bg-primary/90 sm:col-start-2 md:col-start-4 dark:bg-teal-500 dark:hover:bg-teal-600">
                           <Plus className="h-4 w-4" />
                           <span className="sr-only">Adicionar</span>
                       </Button>
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center text-center text-muted-foreground p-4 gap-2">
-                    <PackageX className="h-8 w-8" />
+                    <PackageX className="h-8 w-8 text-foreground dark:text-white" />
                     <p className="font-medium">Não há itens em estoque para retirada.</p>
                     <p className="text-sm">Vá para a aba de "Entrada" para adicionar novos itens ao estoque.</p>
                   </div>

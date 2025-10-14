@@ -4,6 +4,7 @@
 import { useEffect, useRef } from "react";
 import JsBarcode from "jsbarcode";
 import jsPDF from "jspdf";
+import { savePdf } from '@/lib/save-pdf';
 import type { StockItem } from "@/lib/types";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -93,9 +94,12 @@ export function BarcodeDisplayDialog({ isOpen, onOpenChange, item }: BarcodeDisp
         doc.addImage(barcodeDataUrl, 'PNG', x, y, imgWidth, imgHeight);
 
         const filename = `etiqueta_${item.name.replace(/\s+/g, '_')}.pdf`;
-        // fallback for web: trigger normal download
-        doc.save(filename);
-        toast({ title: "PDF Gerado", description: "O download da etiqueta deve começar em breve." });
+        const res = await savePdf(doc, filename);
+        if (res && res.success) {
+          toast({ title: "PDF Gerado", description: "O arquivo da etiqueta foi salvo." });
+        } else {
+          toast({ variant: 'destructive', title: 'Falha ao salvar PDF' });
+        }
 
     } catch (e) {
         console.error("Erro ao gerar PDF:", e);

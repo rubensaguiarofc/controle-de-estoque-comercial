@@ -14,6 +14,7 @@ import { ScrollArea } from './ui/scroll-area';
 import { ItemDetailsDialog } from './item-details-dialog';
 import { Badge } from './ui/badge';
 import jsPDF from 'jspdf';
+import { savePdf } from '@/lib/save-pdf';
 import JsBarcode from 'jsbarcode';
 
 interface ItemManagementProps {
@@ -135,12 +136,12 @@ export default function ItemManagement({
     });
 
     const filename = `etiquetas_todos_itens_${new Date().toISOString().split('T')[0]}.pdf`;
-    // Web fallback: always trigger download in browser
-    doc.save(filename);
-    toast({
-      title: "Download Iniciado",
-      description: "O PDF com todas as etiquetas está sendo gerado."
-    });
+    const res = await savePdf(doc, filename);
+    if (res && res.success) {
+      toast({ title: "PDF Gerado", description: "O arquivo com as etiquetas foi salvo." });
+    } else {
+      toast({ variant: 'destructive', title: 'Falha ao salvar PDF' });
+    }
   };
 
   const filteredItems = useMemo(() => {

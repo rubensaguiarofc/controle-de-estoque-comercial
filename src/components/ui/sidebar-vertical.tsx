@@ -83,13 +83,13 @@ const SidebarItem = forwardRef<HTMLDivElement, SidebarItemProps>(({ className, i
       ref={ref}
       className={cn(
         "flex cursor-pointer items-center justify-center gap-x-4 rounded-lg p-4 transition-colors duration-300",
-        isActive ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted",
+  isActive ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted-gray",
         isOpen ? "justify-start" : "justify-center",
         className
       )}
       {...props}
     >
-      {icon}
+  <span className="text-foreground dark:text-white">{icon}</span>
       <span className={cn("transition-opacity duration-300", isOpen ? "opacity-100" : "opacity-0")}>{props.children}</span>
     </div>
   )

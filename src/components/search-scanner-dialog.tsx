@@ -77,26 +77,32 @@ export function SearchScannerDialog({ isOpen, onOpenChange, stockItems, onSucces
           if (win && win.Capacitor && win.Capacitor.isNativePlatform && win.Capacitor.isNativePlatform()) {
             try {
               // dynamic import to avoid bundling on web
-              // dynamic import Capacitor core and try to request permission via Plugins
-              try {
-                const capModule = await import('@capacitor/core');
-                const Capacitor = (capModule as any).Capacitor || (window as any).Capacitor;
-                const Plugins = (capModule as any).Plugins || (window as any).Capacitor?.Plugins;
-                const Permissions = Plugins?.Permissions;
-                if (Permissions && Permissions.request) {
-                  // @ts-ignore
-                  const permRes = await Permissions.request({ name: 'camera' });
-                  if (permRes && permRes.state !== 'granted') {
-                    throw new Error('Native camera permission not granted');
+              const capModule = await import('@capacitor/core').catch(() => null);
+              const Capacitor = (capModule as any)?.Capacitor || (window as any).Capacitor;
+              const Plugins = (capModule as any)?.Plugins || (window as any).Capacitor?.Plugins || (window as any).Plugins;
+              const Permissions = Plugins?.Permissions;
+              if (Permissions) {
+                // Query current permission first
+                try {
+                  const query = await Permissions.query ? await Permissions.query({ name: 'camera' }) : null;
+                  if (query && query.state === 'granted') {
+                    pushDebug('camera-permission', { state: 'granted' });
+                  } else if (Permissions.request) {
+                    const permRes = await Permissions.request({ name: 'camera' });
+                    // Some Capacitor versions return { state: 'granted' } or { granted: true }
+                    const granted = (permRes && (permRes.state === 'granted' || permRes.granted === true));
+                    if (!granted) {
+                      pushDebug('camera-permission-denied', { permRes });
+                      throw new Error('Native camera permission not granted');
+                    }
                   }
+                } catch (permErr) {
+                  pushDebug('capacitor-permission-error', { error: String(permErr) });
+                  // allow fallback to getUserMedia which might still work
                 }
-              } catch (e) {
-                // ignore capacitor permission errors
-                pushDebug('capacitor-permission-error', { error: String(e) });
               }
             } catch (capErr) {
               console.warn('Capacitor permission request failed:', capErr);
-              // fallthrough to try getUserMedia which may still work if webview grants it
             }
           }
         } catch (e) {
@@ -104,7 +110,15 @@ export function SearchScannerDialog({ isOpen, onOpenChange, stockItems, onSucces
         }
 
         pushDebug('requesting-getUserMedia');
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        let stream: MediaStream | null = null;
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        } catch (gmErr) {
+          // map common errors for better UX
+          pushDebug('getUserMedia-error', { error: String(gmErr) });
+          // rethrow to be handled by outer catch
+          throw gmErr;
+        }
         if (!isMounted) {
           stream.getTracks().forEach(track => track.stop());
           return;
@@ -141,16 +155,31 @@ export function SearchScannerDialog({ isOpen, onOpenChange, stockItems, onSucces
           }
         });
       } catch (error) {
-    console.error('Error starting search camera stream:', error);
-    pushDebug('start-scanner-error', { error: String(error) });
+        console.error('Error starting search camera stream:', error);
+        pushDebug('start-scanner-error', { error: String(error) });
         if (isMounted) {
             setHasCameraPermission(false);
-            // show actionable toast but keep dialog open so user can use fallback input
-            toast({
+            // classify error and show clearer messages
+            const msg = (error && (error as any).name) ? (error as any).name : String(error);
+            if (msg === 'NotAllowedError' || msg === 'SecurityError' || msg === 'PermissionDeniedError') {
+              toast({
                 variant: 'destructive',
-                title: 'Acesso à Câmera Negado ou Não Disponível',
-                description: 'Permita acesso à câmera ou use a entrada manual abaixo.',
-            });
+                title: 'Permissão da Câmera Negada',
+                description: 'Permita o uso da câmera nas configurações do dispositivo ou aplicativo. Use a entrada manual enquanto isso.'
+              });
+            } else if (msg === 'NotFoundError') {
+              toast({
+                variant: 'destructive',
+                title: 'Câmera Não Encontrada',
+                description: 'Nenhuma câmera foi encontrada neste dispositivo.'
+              });
+            } else {
+              toast({
+                variant: 'destructive',
+                title: 'Erro ao acessar câmera',
+                description: 'Não foi possível acessar a câmera. Use a entrada manual ou verifique permissões.'
+              });
+            }
         }
       }
     };
@@ -171,22 +200,22 @@ export function SearchScannerDialog({ isOpen, onOpenChange, stockItems, onSucces
             <DialogTitle className="text-center">Buscar Item por Código de Barras</DialogTitle>
             <DialogDescription className="text-center">Aponte a câmera para o código de barras do item.</DialogDescription>
           </DialogHeader>
-          <div className="relative w-full aspect-video bg-black rounded-md overflow-hidden">
+          <div className="relative w-full aspect-video bg-card rounded-md overflow-hidden">
             <video ref={videoRef} className="w-full h-full object-cover" playsInline />
-            {hasCameraPermission === null && (
-                <div className="absolute inset-0 flex items-center justify-center">
-                    <p className="text-white">Solicitando acesso à câmera...</p>
-                </div>
-            )}
+      {hasCameraPermission === null && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <p className="text-foreground">Solicitando acesso à câmera...</p>
+        </div>
+      )}
             {!featureSupported && (
               <div className="absolute inset-0 flex items-center justify-center p-4">
-                <p className="text-white text-center">Seu navegador/WebView não suporta acesso à câmera (getUserMedia).</p>
+                <p className="text-foreground text-center">Seu navegador/WebView não suporta acesso à câmera (getUserMedia).</p>
               </div>
             )}
             <div className="absolute inset-0 flex items-center justify-center p-8">
-              <div className="w-full max-w-xs h-24 border-4 border-dashed border-primary rounded-lg opacity-75" />
+              <div className="w-full max-w-xs h-24 border-4 border-dashed border-primary rounded-lg opacity-75 dark:border-primary" />
             </div>
-            <div className="absolute top-0 left-0 right-0 h-[2px] bg-red-500 shadow-[0_0_10px_2px_#ef4444] animate-scan" />
+            <div className="absolute top-0 left-0 right-0 h-[2px] bg-destructive shadow-[0_0_10px_2px_#ef4444] animate-scan dark:bg-destructive" />
           </div>
           {hasCameraPermission === false && (
             <>
