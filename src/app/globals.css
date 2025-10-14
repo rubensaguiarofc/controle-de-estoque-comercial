@@ -86,3 +86,20 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Safe area handling for devices com notch / barras transparentes */
+.safe-area-wrapper { min-height: 100%; }
+@supports (padding: env(safe-area-inset-top)) or (padding: constant(safe-area-inset-top)) {
+  .safe-area {
+    padding-top: max(env(safe-area-inset-top), 0.75rem);
+    padding-bottom: max(env(safe-area-inset-bottom), 0.75rem);
+  }
+}
+/* Fallback para browsers que não suportam env() */
+.safe-area { padding-top: 0.75rem; padding-bottom: 0.75rem; }
+
+/* Ajuste de botões: garantir altura e borda consistente em release minificado */
+button, .btn, [role="button"] {
+  @apply rounded-md leading-snug;
+}
+

@@ -18,6 +18,8 @@ public class MainActivity extends BridgeActivity {
 
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
+		// Após a Splash (Theme.SplashScreen), aplicar o tema principal sem ActionBar
+		setTheme(R.style.AppTheme_NoActionBar);
 		super.onCreate(savedInstanceState);
 
 		// Register native plugins (explicit)

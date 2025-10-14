@@ -22,6 +22,8 @@ interface ItemManagementProps {
   onSetStockItems: (items: StockItem[]) => void | Promise<void>;
   onSetIsAddItemDialogOpen: (isOpen: boolean) => void;
   onSetEditingItem: (item: StockItem | null) => void;
+  lowStockOnly?: boolean;
+  onClearLowStockFilter?: () => void;
 }
 
 export default function ItemManagement({
@@ -29,6 +31,8 @@ export default function ItemManagement({
   onSetStockItems,
   onSetIsAddItemDialogOpen,
   onSetEditingItem,
+  lowStockOnly = false,
+  onClearLowStockFilter,
 }: ItemManagementProps) {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
@@ -145,16 +149,18 @@ export default function ItemManagement({
   };
 
   const filteredItems = useMemo(() => {
-    if (!searchQuery) {
-      return stockItems;
+    let list = stockItems;
+    if (lowStockOnly) {
+      list = list.filter(i => i.quantity <= 5);
     }
-    const lowercasedQuery = searchQuery.toLowerCase();
-    return stockItems.filter(item =>
-      item.name.toLowerCase().includes(lowercasedQuery) ||
-      item.specifications.toLowerCase().includes(lowercasedQuery) ||
-      (item.barcode && item.barcode.toLowerCase().includes(lowercasedQuery))
+    if (!searchQuery) return list;
+    const q = searchQuery.toLowerCase();
+    return list.filter(item =>
+      item.name.toLowerCase().includes(q) ||
+      item.specifications.toLowerCase().includes(q) ||
+      (item.barcode && item.barcode.toLowerCase().includes(q))
     );
-  }, [stockItems, searchQuery]);
+  }, [stockItems, searchQuery, lowStockOnly]);
 
   return (
     <>
@@ -163,7 +169,18 @@ export default function ItemManagement({
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                   <div className="flex-1">
                       <CardTitle>Biblioteca de Itens</CardTitle>
-                      <CardDescription>Gerencie todos os itens cadastrados.</CardDescription>
+                      <CardDescription>
+                        {lowStockOnly ? 'Exibindo apenas itens em baixo nível (≤5). ' : 'Gerencie todos os itens cadastrados.'}
+                        {lowStockOnly && (
+                          <button
+                            type="button"
+                            onClick={onClearLowStockFilter}
+                            className="underline text-primary ml-1 text-xs"
+                          >
+                            Limpar filtro
+                          </button>
+                        )}
+                      </CardDescription>
                   </div>
                   <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                       <Button size="sm" className="w-full sm:w-auto" onClick={() => { onSetEditingItem(null); onSetIsAddItemDialogOpen(true); }}>

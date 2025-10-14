@@ -1,12 +1,12 @@
 
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import dynamic from 'next/dynamic';
 
 import type { StockItem, WithdrawalRecord, Tool, ToolRecord, EntryRecord } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
-import { Boxes, History, Menu, RefreshCw, Wrench, PackagePlus, ArrowLeft } from "lucide-react";
+import { Boxes, History, RefreshCw, Wrench, PackagePlus, ArrowLeft, PackageSearch, ArchiveRestore, Gauge } from "lucide-react";
 
 import { AddItemDialog } from "./add-item-dialog";
 import { Skeleton } from "./ui/skeleton";
@@ -14,6 +14,7 @@ import { AddToolDialog } from "./add-tool-dialog";
 import { MOCK_STOCK_ITEMS } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
+import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { HoverEffect } from "./ui/card-hover-effect";
 
 const StockReleaseClient = dynamic(() => import('./stock-release-client'), {
@@ -56,6 +57,61 @@ export default function StockReleaseApp() {
   const [editingTool, setEditingTool] = useState<Tool | null>(null);
 
   const [activeView, setActiveView] = useState<View>("dashboard");
+  const [lowStockFilter, setLowStockFilter] = useState(false);
+  const [compactMode, setCompactMode] = useState(false);
+  const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
+  const tracking = useRef(false);
+
+  // Gesture: swipe from left edge to go back
+  useEffect(() => {
+    const threshold = 60; // mínimo px para considerar swipe
+    const edgeZone = 30; // zona ativa a partir da borda esquerda
+    const maxAngleDeg = 35; // tolerância de desvio vertical
+
+    function onTouchStart(e: TouchEvent) {
+      if (activeView === 'dashboard') return; // nada a fazer
+      if (e.touches.length !== 1) return;
+      const t = e.touches[0];
+      if (t.clientX <= edgeZone) {
+        touchStartX.current = t.clientX;
+        touchStartY.current = t.clientY;
+        tracking.current = true;
+      }
+    }
+    function onTouchMove(e: TouchEvent) {
+      if (!tracking.current || touchStartX.current == null || touchStartY.current == null) return;
+      const t = e.touches[0];
+      const dx = t.clientX - touchStartX.current;
+      const dy = t.clientY - touchStartY.current;
+      // se muito vertical, cancela
+      const angle = Math.atan2(Math.abs(dy), Math.abs(dx)) * 180 / Math.PI;
+      if (angle > maxAngleDeg) {
+        tracking.current = false;
+        return;
+      }
+      // opcional: poderíamos adicionar feedback visual (tradução do container)
+    }
+    function onTouchEnd(e: TouchEvent) {
+      if (!tracking.current || touchStartX.current == null) return;
+      const changed = e.changedTouches[0];
+      const dx = changed.clientX - touchStartX.current;
+      if (dx > threshold) {
+        setActiveView('dashboard');
+      }
+      tracking.current = false;
+      touchStartX.current = null;
+      touchStartY.current = null;
+    }
+    window.addEventListener('touchstart', onTouchStart, { passive: true });
+    window.addEventListener('touchmove', onTouchMove, { passive: true });
+    window.addEventListener('touchend', onTouchEnd, { passive: true });
+    return () => {
+      window.removeEventListener('touchstart', onTouchStart);
+      window.removeEventListener('touchmove', onTouchMove);
+      window.removeEventListener('touchend', onTouchEnd);
+    };
+  }, [activeView]);
 
   useEffect(() => {
     try {
@@ -242,14 +298,98 @@ export default function StockReleaseApp() {
     { view: "history" as View, title: "Histórico Geral", description: "Visualizar todas as movimentações.", icon: History },
   ];
 
+  const lowStockThreshold = 5;
+  const metrics = useMemo(() => {
+    const totalItemTypes = stockItems.length;
+    const totalUnits = stockItems.reduce((sum, i) => sum + i.quantity, 0);
+    const lowStockItems = stockItems.filter(i => i.quantity <= lowStockThreshold).length;
+    const totalTools = tools.length;
+    return { totalItemTypes, totalUnits, lowStockItems, totalTools };
+  }, [stockItems, tools]);
+
+  const metricCards = [
+    {
+      title: 'Tipos de Itens',
+      value: metrics.totalItemTypes,
+      icon: Boxes,
+      description: 'Itens cadastrados',
+    },
+    {
+      title: 'Unidades em Estoque',
+      value: metrics.totalUnits,
+      icon: PackageSearch,
+      description: 'Soma de quantidades',
+    },
+    {
+      title: 'Itens em Baixo Nível',
+      value: metrics.lowStockItems,
+      icon: Gauge,
+      description: `≤ ${lowStockThreshold} unidades`,
+      actionable: true,
+    },
+    {
+      title: 'Ferramentas',
+      value: metrics.totalTools,
+      icon: Wrench,
+      description: 'Ferramentas ativas',
+    },
+  ];
+
   const renderContent = () => {
   if (isInitialLoad) return <ManagementSkeleton />;
 
     if (activeView === 'dashboard') {
       return (
-          <div className="max-w-5xl mx-auto px-8">
-              <HoverEffect items={navItems.map(item => ({ ...item, content: <item.icon className="h-8 w-8 mx-auto text-foreground dark:text-white" />, onClick: () => setActiveView(item.view) }))} />
-          </div>
+        <div className="space-y-10">
+          <section aria-labelledby="resumo-titulo" className="space-y-4">
+            <h2 id="resumo-titulo" className="text-base md:text-lg font-semibold tracking-tight">Resumo</h2>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {metricCards.map(card => {
+                const isLowStockCard = card.title === 'Itens em Baixo Nível';
+                const isActionable = (card as any).actionable && card.value > 0;
+                return (
+                  <Card
+                    key={card.title}
+                    className={"relative overflow-hidden transition " + (isActionable ? 'cursor-pointer hover:shadow-sm focus-visible:ring-2 ring-primary/50' : '')}
+                    tabIndex={isActionable ? 0 : -1}
+                    onClick={() => {
+                      if (isLowStockCard && isActionable) {
+                        setLowStockFilter(true);
+                        setActiveView('items');
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && isLowStockCard && isActionable) {
+                        setLowStockFilter(true);
+                        setActiveView('items');
+                      }
+                    }}
+                    aria-pressed={isActionable && isLowStockCard ? lowStockFilter : undefined}
+                    aria-label={isActionable ? 'Ver itens em baixo nível de estoque' : undefined}
+                  >
+                    <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+                      <CardTitle className="text-sm font-medium flex items-center gap-2">
+                        {card.title}
+                        {isLowStockCard && isActionable && (
+                          <span className="inline-flex items-center rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 px-2 py-0.5 text-[10px] font-medium">filtrável</span>
+                        )}
+                      </CardTitle>
+                      <card.icon className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold tracking-tight">{card.value}</div>
+                      <p className="text-xs text-muted-foreground mt-1">{card.description}</p>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </section>
+          <section aria-labelledby="acoes-titulo" className="space-y-4">
+            <h2 id="acoes-titulo" className="text-base md:text-lg font-semibold tracking-tight">Ações Rápidas</h2>
+            <HoverEffect items={navItems.map(item => ({ ...item, content: <item.icon className="h-8 w-8 mx-auto text-foreground dark:text-white" />, onClick: () => setActiveView(item.view) }))} />
+          </section>
+        </div>
       );
     }
     
@@ -264,8 +404,8 @@ export default function StockReleaseApp() {
   };
 
     return (
-  <div className="flex flex-col h-screen bg-background text-foreground">
-        <header className="flex h-16 items-center gap-4 border-b border-border px-4 shrink-0">
+  <div className="flex flex-col min-h-dvh bg-background text-foreground pb-14 md:pb-0">
+  <header className="flex h-14 md:h-16 items-center gap-3 border-b border-border px-3 md:px-4 shrink-0 sticky top-0 z-40 backdrop-blur supports-[backdrop-filter]:bg-background/80">
           {activeView !== 'dashboard' && (
               <Button variant="ghost" size="icon" onClick={() => setActiveView('dashboard')}>
                   <ArrowLeft className="h-5 w-5" />
@@ -278,10 +418,18 @@ export default function StockReleaseApp() {
                   Controle de Almoxarifado
               </h1>
           </div>
+          <Button variant="ghost" size="sm" className="ml-auto" onClick={() => setCompactMode(v => !v)}>
+            {compactMode ? 'Normal' : 'Compacto'}
+          </Button>
         </header>
 
-        <main className="flex-1 overflow-auto bg-grid-small-white/[0.2] relative">
-          {renderContent()}
+        <main className={"flex-1 overflow-auto relative " + (compactMode ? 'text-sm' : '')}>
+          <div className={"max-w-6xl mx-auto w-full px-4 " + (compactMode ? 'py-3 md:py-4 space-y-5' : 'py-6 md:py-8 space-y-8')}>
+            {renderContent()}
+          </div>
+          <div className="sr-only" aria-live="polite" aria-atomic="true">
+            {`Métricas atualizadas: ${metrics.totalItemTypes} tipos de itens, ${metrics.totalUnits} unidades totais, ${metrics.lowStockItems} itens em baixo nível, ${metrics.totalTools} ferramentas.`}
+          </div>
         </main>
 
         <AddItemDialog
@@ -297,6 +445,37 @@ export default function StockReleaseApp() {
             onAddTool={handleToolDialogSubmit}
             editingTool={editingTool}
         />
+
+        {/* Bottom Navigation (mobile) */}
+        <nav className="md:hidden fixed bottom-0 inset-x-0 z-50 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+          <ul className="flex justify-around items-stretch h-14">
+            {navItems.map(item => {
+              const isActive = activeView === item.view;
+              const Icon = item.icon;
+              let badge: number | null = null;
+              if (item.view === 'items') badge = stockItems.length;
+              if (item.view === 'history') badge = history.length;
+              if (item.view === 'tools') badge = tools.length;
+              if (item.view === 'release' && metrics.lowStockItems > 0) badge = metrics.lowStockItems; // reutiliza como alerta
+              return (
+                <li key={item.view} className="flex-1">
+                  <button
+                    className={"relative w-full h-full flex flex-col items-center justify-center gap-0.5 text-xs font-medium transition " + (isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground')}
+                    onClick={() => setActiveView(item.view)}
+                  >
+                    <Icon className={"h-5 w-5 " + (isActive ? 'stroke-[2.2]' : 'stroke-[1.5]')} />
+                    <span className="leading-none">{item.title.split(' ')[0]}</span>
+                    {badge !== null && badge > 0 && (
+                      <span className="absolute -top-1.5 right-4 min-w-[1.1rem] h-5 px-1 rounded-full bg-primary text-primary-foreground text-[10px] flex items-center justify-center font-semibold shadow">
+                        {badge > 99 ? '99+' : badge}
+                      </span>
+                    )}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
     </div>
   );
 }

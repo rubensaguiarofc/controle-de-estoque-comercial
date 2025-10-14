@@ -242,10 +242,16 @@ export function HistoryPanel({ itemHistory, toolHistory, entryHistory, onDeleteI
         </CardHeader>
         <CardContent className="flex flex-col flex-grow p-0 sm:p-6">
           <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="withdrawals">Saídas</TabsTrigger>
-                  <TabsTrigger value="entries">Entradas</TabsTrigger>
-                  <TabsTrigger value="tools">Ferramentas</TabsTrigger>
+              <TabsList className="grid w-full grid-cols-3 relative">
+                  <TabsTrigger value="withdrawals" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-inner relative">
+                    <span className="relative">Saídas{activeTab==='withdrawals' && <span className="absolute -bottom-2 left-0 right-0 mx-auto h-0.5 w-8 rounded-full bg-primary" />}</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="entries" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-inner relative">
+                    <span className="relative">Entradas{activeTab==='entries' && <span className="absolute -bottom-2 left-0 right-0 mx-auto h-0.5 w-8 rounded-full bg-primary" />}</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="tools" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-inner relative">
+                    <span className="relative">Ferramentas{activeTab==='tools' && <span className="absolute -bottom-2 left-0 right-0 mx-auto h-0.5 w-8 rounded-full bg-primary" />}</span>
+                  </TabsTrigger>
               </TabsList>
           </Tabs>
           <div className="flex flex-col sm:flex-row gap-2 my-4 px-4 sm:px-0">

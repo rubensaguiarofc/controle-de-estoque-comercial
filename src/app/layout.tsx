@@ -16,10 +16,15 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR" suppressHydrationWarning>
-      <head />
+      <head>
+        {/* Garante suporte a áreas seguras (notch) e permite aplicar padding interno */}
+        <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+      </head>
       <body className={"bg-background text-foreground antialiased flex min-h-screen flex-col"}>
-        <div className="flex-1">
-          {children}
+        <div className="flex-1 safe-area-wrapper">
+          <div className="safe-area mx-auto w-full max-w-screen-xl px-4">
+            {children}
+          </div>
         </div>
         <footer className="border-t mt-8 text-center text-xs text-muted-foreground py-4 space-y-2">
           <p>© {new Date().getFullYear()} Controle de Almoxarifado</p>
