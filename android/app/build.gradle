@@ -26,8 +26,8 @@ android {
     applicationId "com.rubensaguiarofc.controleestoque"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 3
-        versionName "1.0.2"
+    versionCode 4
+    versionName "1.0.3"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -47,10 +47,12 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
-    // Splits de ABI (para gerar APKs menores; não afeta AAB pois Play gerencia). Universal desativado.
+    // Splits de ABI (apenas úteis para gerar APKs separados localmente). Desabilitamos automaticamente em bundleRelease para evitar erro ':app:buildReleasePreBundle'.
+    def isBundleTask = gradle.startParameter.taskNames.any { it.toLowerCase().contains('bundle') }
     splits {
         abi {
-            enable true
+            // Se a tarefa for bundle (AAB), disable; se for assemble (APK), enable para reduzir tamanho por arquitetura.
+            enable !isBundleTask
             reset()
             include 'armeabi-v7a', 'arm64-v8a'
             universalApk false
