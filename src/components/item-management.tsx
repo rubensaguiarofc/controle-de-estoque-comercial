@@ -24,6 +24,7 @@ interface ItemManagementProps {
   onSetEditingItem: (item: StockItem | null) => void;
   lowStockOnly?: boolean;
   onClearLowStockFilter?: () => void;
+  globalSearch?: string;
 }
 
 export default function ItemManagement({
@@ -33,6 +34,7 @@ export default function ItemManagement({
   onSetEditingItem,
   lowStockOnly = false,
   onClearLowStockFilter,
+  globalSearch,
 }: ItemManagementProps) {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
@@ -102,12 +104,13 @@ export default function ItemManagement({
         const barcodeValue = item.barcode!;
         const textToDisplay = barcodeValue.split('-').pop() || barcodeValue;
 
-        JsBarcode(tempCanvas, barcodeValue, {
+        const barcodeOptions: any = {
           format: "CODE128",
-          width: 1.5,
-          height: 30,
+          ['width']: 1.5,
+          ['height']: 30,
           displayValue: false, // O valor será adicionado manualmente
-        });
+        };
+        JsBarcode(tempCanvas, barcodeValue, barcodeOptions);
         const barcodeDataUrl = tempCanvas.toDataURL('image/png');
 
         const contentX = x + LABEL_WIDTH / 2;
@@ -153,14 +156,15 @@ export default function ItemManagement({
     if (lowStockOnly) {
       list = list.filter(i => i.quantity <= 5);
     }
-    if (!searchQuery) return list;
-    const q = searchQuery.toLowerCase();
+    const effectiveQuery = (globalSearch ?? searchQuery).trim();
+    if (!effectiveQuery) return list;
+    const q = effectiveQuery.toLowerCase();
     return list.filter(item =>
       item.name.toLowerCase().includes(q) ||
       item.specifications.toLowerCase().includes(q) ||
       (item.barcode && item.barcode.toLowerCase().includes(q))
     );
-  }, [stockItems, searchQuery, lowStockOnly]);
+  }, [stockItems, searchQuery, lowStockOnly, globalSearch]);
 
   return (
     <>
@@ -267,9 +271,7 @@ export default function ItemManagement({
                     </Card>
                   ))
                 ) : (
-                  <div className="text-center text-muted-foreground py-12">
-                    Nenhum item encontrado.
-                  </div>
+                  <div className="text-center text-muted-foreground py-12">Nenhum item encontrado.</div>
                 )}
               </div>
             </ScrollArea>

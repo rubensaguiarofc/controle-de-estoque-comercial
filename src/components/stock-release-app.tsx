@@ -59,6 +59,7 @@ export default function StockReleaseApp() {
   const [lowStockFilter, setLowStockFilter] = useState(false);
   // densityLevel: -1 (mais compacto), 0 (normal), 1 (amplo)
   const [densityLevel, setDensityLevel] = useState(0);
+  const [globalSearch, setGlobalSearch] = useState("");
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
   const tracking = useRef(false);
@@ -112,6 +113,22 @@ export default function StockReleaseApp() {
       window.removeEventListener('touchend', onTouchEnd);
     };
   }, [activeView]);
+
+  // Persist preferences: density and lowStock filter
+  useEffect(() => {
+    try {
+      const d = localStorage.getItem("densityLevel");
+      if (d != null && !Number.isNaN(parseInt(d))) setDensityLevel(parseInt(d));
+      const ls = localStorage.getItem("lowStockFilter");
+      if (ls != null) setLowStockFilter(ls === "true");
+    } catch {}
+  }, []);
+  useEffect(() => {
+    try { localStorage.setItem("densityLevel", String(densityLevel)); } catch {}
+  }, [densityLevel]);
+  useEffect(() => {
+    try { localStorage.setItem("lowStockFilter", String(lowStockFilter)); } catch {}
+  }, [lowStockFilter]);
 
   useEffect(() => {
     try {
@@ -346,26 +363,27 @@ export default function StockReleaseApp() {
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {metricCards.map(card => {
                 const isLowStockCard = card.title === 'Itens em Baixo Nível';
-                const isActionable = (card as any).actionable && card.value > 0;
+                const isTiposItens = card.title === 'Tipos de Itens';
+                const isFerramentas = card.title === 'Ferramentas';
+                const isActionable = (card as any).actionable || isTiposItens || isFerramentas;
                 return (
                   <Card
                     key={card.title}
                     className={"relative overflow-hidden transition " + (isActionable ? 'cursor-pointer hover:shadow-sm focus-visible:ring-2 ring-primary/50' : '')}
                     tabIndex={isActionable ? 0 : -1}
                     onClick={() => {
-                      if (isLowStockCard && isActionable) {
-                        setLowStockFilter(true);
-                        setActiveView('items');
-                      }
+                      if (isLowStockCard) { setLowStockFilter(true); setActiveView('items'); return; }
+                      if (isTiposItens) { setLowStockFilter(false); setActiveView('items'); return; }
+                      if (isFerramentas) { setActiveView('tools'); return; }
                     }}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter' && isLowStockCard && isActionable) {
-                        setLowStockFilter(true);
-                        setActiveView('items');
-                      }
+                      if (e.key !== 'Enter') return;
+                      if (isLowStockCard) { setLowStockFilter(true); setActiveView('items'); }
+                      else if (isTiposItens) { setLowStockFilter(false); setActiveView('items'); }
+                      else if (isFerramentas) { setActiveView('tools'); }
                     }}
                     aria-pressed={isActionable && isLowStockCard ? lowStockFilter : undefined}
-                    aria-label={isActionable ? 'Ver itens em baixo nível de estoque' : undefined}
+                    aria-label={isActionable ? 'Abrir seção relacionada' : undefined}
                   >
                     <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
                       <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -393,7 +411,7 @@ export default function StockReleaseApp() {
     switch (activeView) {
       case "release": return <StockReleaseClient stockItems={stockItems} onUpdateHistory={handleNewWithdrawal} uniqueRequesters={uniqueRequesters} uniqueDestinations={uniqueDestinations} />;
       case "entry": return <StockEntryClient stockItems={stockItems} onUpdateHistory={handleNewEntry} uniqueAdders={uniqueAdders} />;
-      case "items": return <ItemManagement stockItems={stockItems} onSetStockItems={setStockItems} onSetIsAddItemDialogOpen={setAddItemDialogOpen} onSetEditingItem={setEditingItem} />;
+  case "items": return <ItemManagement stockItems={stockItems} onSetStockItems={setStockItems} onSetIsAddItemDialogOpen={setAddItemDialogOpen} onSetEditingItem={setEditingItem} globalSearch={globalSearch} />;
       case "history": return <HistoryPanel itemHistory={history} entryHistory={entryHistory} toolHistory={toolHistory} onDeleteItemRecord={(id) => handleDeleteRecord(id, 'withdrawals')} onDeleteEntryRecord={(id) => handleDeleteRecord(id, 'entries')} onDeleteToolRecord={(id) => handleDeleteRecord(id, 'tools')} onReturnItem={handleReturnItem} />;
       case "tools": return <ToolManagement tools={tools} setTools={setTools} toolHistory={toolHistory} setToolHistory={setToolHistory} onSetEditingTool={setEditingTool} onSetIsAddToolDialogOpen={setAddToolDialogOpen} />;
       default: return null;
@@ -414,6 +432,20 @@ export default function StockReleaseApp() {
             <h1 className="text-lg font-semibold md:text-xl text-foreground dark:text-gray-200 tracking-tight">
               {activeView === 'dashboard' ? 'Controle de Almoxarifado' : ' '}
             </h1>
+            {activeView === 'dashboard' && (
+              <div className="ml-2 flex items-center gap-2 flex-1 max-w-sm">
+                <input
+                  type="search"
+                  value={globalSearch}
+                  onChange={(e) => setGlobalSearch(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { setActiveView('items'); } }}
+                  placeholder="Pesquisar itens..."
+                  aria-label="Pesquisar itens"
+                  className="flex-1 h-9 px-3 rounded-md border bg-background"
+                />
+                <Button type="button" variant="outline" size="sm" onClick={() => setActiveView('items')}>Ver Itens</Button>
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-1 ml-auto">
             <Button variant="ghost" size="icon" onClick={() => setDensityLevel(d => Math.max(-1, d - 1))} aria-label="Diminuir densidade">
@@ -462,8 +494,10 @@ export default function StockReleaseApp() {
               return (
                 <li key={item.view} className="flex-1">
                   <button
-                    className={"relative w-full h-full flex flex-col items-center justify-center gap-0.5 text-xs font-medium transition " + (isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground')}
+                    className={"relative w-full h-full flex flex-col items-center justify-center gap-0.5 text-xs font-medium transition px-2 " + (isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground')}
                     onClick={() => setActiveView(item.view)}
+                    aria-current={isActive ? 'page' : undefined}
+                    aria-label={item.title}
                   >
                     <Icon className={"h-5 w-5 " + (isActive ? 'stroke-[2.2]' : 'stroke-[1.5]')} />
                     <span className="leading-none">

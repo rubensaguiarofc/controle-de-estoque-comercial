@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Haptics, ImpactStyle, NotificationType } from "@capacitor/haptics";
 import type { StockItem, WithdrawalItem } from "@/lib/types";
 import type { WithdrawalFormValues } from "./stock-release-client";
 import dynamic from "next/dynamic";
@@ -50,6 +51,8 @@ export const WithdrawalForm = React.forwardRef<HTMLFormElement, WithdrawalFormPr
   const [currentItemId, setCurrentItemId] = useState<string>('');
   const [quantity, setQuantity] = useState<number | string>('');
   const [unit, setUnit] = useState('UN');
+  const unitOptions = ['UN','PC','CX','KG','M','L','OUTRA'];
+  const [customUnit, setCustomUnit] = useState('');
 
   const hasStockAvailable = useMemo(() => stockItems.some(item => item.quantity > 0), [stockItems]);
 
@@ -87,7 +90,8 @@ export const WithdrawalForm = React.forwardRef<HTMLFormElement, WithdrawalFormPr
         return;
       }
 
-      onAppendItem({ item, quantity: finalQuantity, unit });
+  onAppendItem({ item, quantity: finalQuantity, unit: unit === 'OUTRA' ? (customUnit || 'UN') : unit });
+  Haptics.impact({ style: ImpactStyle.Light }).catch(()=>{});
       
       setCurrentItemId('');
       setQuantity('');
@@ -156,9 +160,17 @@ export const WithdrawalForm = React.forwardRef<HTMLFormElement, WithdrawalFormPr
                         <FormLabel>Qtd.</FormLabel>
                         <Input type="number" placeholder="1" value={quantity} onChange={(e) => setQuantity(e.target.value)} min="1" max={MAX_QUANTITY} />
                       </FormItem>
-                       <FormItem className="hidden md:block">
+                      <FormItem className="hidden md:block">
                         <FormLabel>Unidade</FormLabel>
-                        <Input placeholder="UN, KG, PC..." value={unit} onChange={(e) => setUnit(e.target.value.toUpperCase())} />
+                        <Select value={unit} onValueChange={setUnit}>
+                          <SelectTrigger><SelectValue placeholder="UN" /></SelectTrigger>
+                          <SelectContent>
+                            {unitOptions.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                        {unit === 'OUTRA' && (
+                          <Input className="mt-2" placeholder="Digite a unidade" value={customUnit} onChange={(e)=>setCustomUnit(e.target.value.toUpperCase())} maxLength={8} />
+                        )}
                       </FormItem>
             <Button type="button" size="icon" onClick={handleAddItemToCart} className="bg-primary hover:bg-primary/90 sm:col-start-2 md:col-start-4 dark:bg-teal-500 dark:hover:bg-teal-600">
                           <Plus className="h-4 w-4" />
@@ -210,8 +222,8 @@ export const WithdrawalForm = React.forwardRef<HTMLFormElement, WithdrawalFormPr
               </div>
             </CardContent>
             <CardFooter className="px-6 pt-6 flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={onClearCart}>Limpar Tudo</Button>
-              <Button type="submit" disabled={isSubmitDisabled}>Salvar Retirada</Button>
+              <Button type="button" variant="outline" onClick={()=>{ onClearCart(); Haptics.impact({style: ImpactStyle.Medium}).catch(()=>{}); }}>Limpar Tudo</Button>
+              <Button type="submit" disabled={isSubmitDisabled} onClick={()=> Haptics.notification({ type: NotificationType.Success }).catch(()=>{})}>Salvar Retirada</Button>
             </CardFooter>
           </Card>
         </form>

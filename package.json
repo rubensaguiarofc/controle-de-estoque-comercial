@@ -7,13 +7,14 @@
     "genkit:dev": "genkit start -- tsx src/ai/dev.ts",
     "genkit:watch": "genkit start -- tsx --watch src/ai/dev.ts",
     "build": "NODE_ENV=production next build",
-  "export": "next build && next export",
-  "export:capacitor": "node ./scripts/next-export-ignore-api.js",
+    "export": "next build && next export",
+    "export:capacitor": "node ./scripts/next-export-ignore-api.js",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "postinstall": "patch-package",
-    "bump:android": "node scripts/bump-android-version.js"
+    "bump:android": "node scripts/bump-android-version.js",
+    "android:bundle": "cd android && ./gradlew bundleRelease"
   },
   "dependencies": {
     "@capacitor/android": "^6.0.0",

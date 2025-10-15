@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Trash } from "lucide-react";
 import { MAX_QUANTITY } from "@/lib/constants";
+import { Haptics, ImpactStyle } from "@capacitor/haptics";
 
 const formSchema = z.object({
   addedBy: z.string().min(1, 'O campo "Adicionado por" é obrigatório.').toUpperCase(),
@@ -38,6 +39,8 @@ export default function StockEntryClient({ stockItems, onUpdateHistory, uniqueAd
   const [currentItemId, setCurrentItemId] = useState<string>('');
   const [quantity, setQuantity] = useState<number | string>('');
   const [unit, setUnit] = useState('UN');
+  const unitOptions = ['UN','PC','CX','KG','M','L','OUTRA'];
+  const [customUnit, setCustomUnit] = useState('');
 
   const form = useForm<EntryFormValues>({
     resolver: zodResolver(formSchema),
@@ -61,9 +64,11 @@ export default function StockEntryClient({ stockItems, onUpdateHistory, uniqueAd
           updated[existingIndex].quantity += numQuantity;
           return updated;
         }
-        return [...prev, { item, quantity: numQuantity, unit }];
+  const finalUnit = unit === 'OUTRA' ? (customUnit || 'UN') : unit;
+  return [...prev, { item, quantity: numQuantity, unit: finalUnit }];
       });
       toast({ title: 'Item adicionado à entrada', description: `${numQuantity}x "${item.name}" pronto para ser adicionado.` });
+    Haptics.impact({ style: ImpactStyle.Light }).catch(()=>{});
       setCurrentItemId('');
       setQuantity('');
       setUnit('UN');
@@ -72,6 +77,7 @@ export default function StockEntryClient({ stockItems, onUpdateHistory, uniqueAd
   
   const handleRemoveEntryItem = (itemId: string) => {
     setEntryItems(prev => prev.filter(entry => entry.item.id !== itemId));
+    Haptics.impact({ style: ImpactStyle.Light }).catch(()=>{});
   };
 
   const onSubmit = useCallback((values: EntryFormValues) => {
@@ -125,7 +131,15 @@ export default function StockEntryClient({ stockItems, onUpdateHistory, uniqueAd
                   </FormItem>
                    <FormItem className="hidden md:block">
                     <FormLabel>Unidade</FormLabel>
-                    <Input placeholder="UN, KG, PC..." value={unit} onChange={(e) => setUnit(e.target.value.toUpperCase())} />
+                    <Select value={unit} onValueChange={setUnit}>
+                      <SelectTrigger><SelectValue placeholder="UN" /></SelectTrigger>
+                      <SelectContent>
+                        {unitOptions.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    {unit === 'OUTRA' && (
+                      <Input className="mt-2" placeholder="Digite a unidade" value={customUnit} onChange={(e)=>setCustomUnit(e.target.value.toUpperCase())} maxLength={8} />
+                    )}
                   </FormItem>
                   <Button type="button" size="icon" onClick={handleAddItemToEntry} className="bg-blue-500 hover:bg-blue-600 sm:col-start-2 md:col-start-4">
                       <Plus className="h-4 w-4" />
