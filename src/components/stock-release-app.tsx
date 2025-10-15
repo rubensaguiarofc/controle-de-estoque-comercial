@@ -362,21 +362,18 @@ export default function StockReleaseApp() {
     if (activeView === 'dashboard') {
       return (
         <div className="space-y-10">
-          <section aria-labelledby="resumo-titulo" className="space-y-4">
-            <div className="flex items-center justify-between gap-2">
-              <h2 id="resumo-titulo" className="text-base md:text-lg font-semibold tracking-tight">Resumo</h2>
-              <div className="flex items-center gap-2">
-                <input
-                  type="search"
-                  value={globalSearch}
-                  onChange={(e) => setGlobalSearch(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') { setActiveView('items'); } }}
-                  placeholder="Pesquisar itens..."
-                  aria-label="Pesquisar itens"
-                  className="h-9 px-3 rounded-md border bg-background w-28 sm:w-44 md:w-64"
-                />
-                <Button type="button" variant="outline" size="sm" onClick={() => setActiveView('items')}>Ver Itens</Button>
-              </div>
+          <section className="space-y-4">
+            <div className="relative">
+              <SearchIcon className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <input
+                type="search"
+                value={globalSearch}
+                onChange={(e) => setGlobalSearch(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { setActiveView('items'); } }}
+                placeholder="Pesquisar itens..."
+                aria-label="Pesquisar itens"
+                className="w-full h-12 pl-10 pr-3 rounded-xl border bg-background shadow-sm"
+              />
             </div>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {metricCards.map(card => {
@@ -468,7 +465,6 @@ export default function StockReleaseApp() {
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mt-[3px] h-6 w-6 text-muted-foreground"><path d="M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v2"/><path d="M21 14v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M3 10h18v4H3zM12 16v-4"/></svg>
             <div className="leading-tight">
               <h1 className="text-xl font-extrabold tracking-tight">Controle de Almoxarifado</h1>
-              <div className="text-sm text-muted-foreground">Resumo</div>
             </div>
           </div>
           <div className="ml-auto flex items-center gap-1">
