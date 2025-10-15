@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { MAX_QUANTITY } from "@/lib/constants";
 import dynamic from 'next/dynamic';
 
 import type { StockItem } from "@/lib/types";
@@ -23,7 +24,9 @@ const formSchema = z.object({
   specifications: z.string().min(1, "As especificações são obrigatórias.").toUpperCase(),
   quantity: z.preprocess(
     (val) => (val === "" || val === undefined || val === null ? 0 : Number(val)),
-    z.number({ invalid_type_error: "Deve ser um número." }).min(0, "A quantidade não pode ser negativa.")
+    z.number({ invalid_type_error: "Deve ser um número." })
+      .min(0, "A quantidade não pode ser negativa.")
+      .max(MAX_QUANTITY, `A quantidade não pode exceder ${MAX_QUANTITY}.`)
   ),
   barcode: z.string().optional(),
 });

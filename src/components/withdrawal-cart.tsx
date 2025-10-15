@@ -6,6 +6,7 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Trash } from "lucide-react";
 import { Card, CardContent } from "./ui/card";
+import { MAX_QUANTITY } from "@/lib/constants";
 
 interface WithdrawalCartProps {
   items: WithdrawalItem[];
@@ -37,9 +38,15 @@ export const WithdrawalCart = React.memo(function WithdrawalCart({ items, onRemo
                     <Input
                         type="number"
                         value={quantity}
-                        onChange={(e) => onUpdateQuantity(item.id, parseInt(e.target.value) || 1)}
+                        onChange={(e) => {
+                          const v = parseInt(e.target.value);
+                          let next = Number.isNaN(v) ? 1 : v;
+                          if (next > MAX_QUANTITY) next = MAX_QUANTITY;
+                          onUpdateQuantity(item.id, next);
+                        }}
                         className="h-9 w-24"
                         min="1"
+                        max={MAX_QUANTITY}
                     />
                     <span className="text-sm text-muted-foreground">{unit}</span>
                     <div className="flex-grow" />

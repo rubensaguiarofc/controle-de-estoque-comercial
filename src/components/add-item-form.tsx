@@ -9,6 +9,7 @@ import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/co
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import type { AddItemFormValues } from "./add-item-dialog";
+import { MAX_QUANTITY } from "@/lib/constants";
 
 interface AddItemFormProps {
   editingItem?: StockItem | null;
@@ -62,7 +63,7 @@ export function AddItemForm({ editingItem, onOpenChange, onSwitchToScanner }: Ad
             <FormItem>
               <FormLabel>Quantidade {editingItem ? 'Atual' : 'Inicial'}</FormLabel>
               <FormControl>
-                <Input type="number" placeholder="0" {...field} readOnly={!!editingItem} />
+                <Input type="number" placeholder="0" {...field} readOnly={!!editingItem} min="0" max={MAX_QUANTITY} />
               </FormControl>
               <FormMessage />
             </FormItem>

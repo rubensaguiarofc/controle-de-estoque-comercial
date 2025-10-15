@@ -11,6 +11,7 @@ import { ptBR } from 'date-fns/locale';
 import type { StockItem, WithdrawalRecord, WithdrawalItem } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { WithdrawalForm } from "./withdrawal-form";
+import { MAX_QUANTITY } from "@/lib/constants";
 
 const formSchema = z.object({
   requestedBy: z.string().min(1, 'O campo "Quem" é obrigatório.').toUpperCase(),
@@ -88,6 +89,9 @@ const StockReleaseClient = forwardRef<HTMLFormElement, StockReleaseClientProps>(
     }, []);
 
     const handleUpdateItemQuantity = useCallback((itemId: string, quantity: number) => {
+      if (quantity > MAX_QUANTITY) {
+        quantity = MAX_QUANTITY;
+      }
       const stockItem = stockItems.find(i => i.id === itemId);
       if (stockItem && quantity > stockItem.quantity) {
           toast({

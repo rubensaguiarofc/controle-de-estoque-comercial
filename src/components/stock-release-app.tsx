@@ -15,7 +15,6 @@ import { MOCK_STOCK_ITEMS } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
-import { HoverEffect } from "./ui/card-hover-effect";
 
 const StockReleaseClient = dynamic(() => import('./stock-release-client'), {
   loading: () => <ClientSkeleton />,
@@ -58,7 +57,8 @@ export default function StockReleaseApp() {
 
   const [activeView, setActiveView] = useState<View>("dashboard");
   const [lowStockFilter, setLowStockFilter] = useState(false);
-  const [compactMode, setCompactMode] = useState(false);
+  // densityLevel: -1 (mais compacto), 0 (normal), 1 (amplo)
+  const [densityLevel, setDensityLevel] = useState(0);
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
   const tracking = useRef(false);
@@ -385,10 +385,7 @@ export default function StockReleaseApp() {
               })}
             </div>
           </section>
-          <section aria-labelledby="acoes-titulo" className="space-y-4">
-            <h2 id="acoes-titulo" className="text-base md:text-lg font-semibold tracking-tight">Ações Rápidas</h2>
-            <HoverEffect items={navItems.map(item => ({ ...item, content: <item.icon className="h-8 w-8 mx-auto text-foreground dark:text-white" />, onClick: () => setActiveView(item.view) }))} />
-          </section>
+          {/* Seção de Ações Rápidas removida por solicitação: dashboard mantém apenas o Resumo */}
         </div>
       );
     }
@@ -404,8 +401,8 @@ export default function StockReleaseApp() {
   };
 
     return (
-  <div className="flex flex-col min-h-dvh bg-background text-foreground pb-14 md:pb-0">
-  <header className="flex h-14 md:h-16 items-center gap-3 border-b border-border px-3 md:px-4 shrink-0 sticky top-0 z-40 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+  <div className="flex flex-col min-h-dvh bg-background text-foreground pb-[calc(env(safe-area-inset-bottom)+3.5rem)] md:pb-0 pt-[env(safe-area-inset-top)]">
+  <header className="flex h-14 md:h-16 items-center gap-3 border-b border-border px-3 md:px-4 shrink-0 sticky top-0 z-40 backdrop-blur supports-[backdrop-filter]:bg-background/80 pt-[max(env(safe-area-inset-top),0px)]">
           {activeView !== 'dashboard' && (
               <Button variant="ghost" size="icon" onClick={() => setActiveView('dashboard')}>
                   <ArrowLeft className="h-5 w-5" />
@@ -413,18 +410,23 @@ export default function StockReleaseApp() {
               </Button>
           )}
           <div className="flex-1 flex items-center gap-2">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 text-muted-foreground dark:text-gray-300"><path d="M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v2"/><path d="M21 14v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M3 10h18v4H3zM12 16v-4"/></svg>
-              <h1 className="text-lg font-semibold md:text-xl text-foreground dark:text-gray-200">
-                  Controle de Almoxarifado
-              </h1>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 text-muted-foreground dark:text-gray-300"><path d="M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v2"/><path d="M21 14v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M3 10h18v4H3zM12 16v-4"/></svg>
+            <h1 className="text-lg font-semibold md:text-xl text-foreground dark:text-gray-200 tracking-tight">
+              {activeView === 'dashboard' ? 'Controle de Almoxarifado' : ' '}
+            </h1>
           </div>
-          <Button variant="ghost" size="sm" className="ml-auto" onClick={() => setCompactMode(v => !v)}>
-            {compactMode ? 'Normal' : 'Compacto'}
-          </Button>
+          <div className="flex items-center gap-1 ml-auto">
+            <Button variant="ghost" size="icon" onClick={() => setDensityLevel(d => Math.max(-1, d - 1))} aria-label="Diminuir densidade">
+              -
+            </Button>
+            <Button variant="ghost" size="icon" onClick={() => setDensityLevel(d => Math.min(1, d + 1))} aria-label="Aumentar densidade">
+              +
+            </Button>
+          </div>
         </header>
 
-        <main className={"flex-1 overflow-auto relative " + (compactMode ? 'text-sm' : '')}>
-          <div className={"max-w-6xl mx-auto w-full px-4 " + (compactMode ? 'py-3 md:py-4 space-y-5' : 'py-6 md:py-8 space-y-8')}>
+        <main className={"flex-1 overflow-auto relative " + (densityLevel === -1 ? 'text-sm' : densityLevel === 1 ? 'text-base' : '')}>
+          <div className={"max-w-6xl mx-auto w-full px-4 " + (densityLevel === -1 ? 'py-3 md:py-4 space-y-5' : densityLevel === 1 ? 'py-8 md:py-10 space-y-10' : 'py-6 md:py-8 space-y-8')}>
             {renderContent()}
           </div>
           <div className="sr-only" aria-live="polite" aria-atomic="true">
@@ -447,7 +449,7 @@ export default function StockReleaseApp() {
         />
 
         {/* Bottom Navigation (mobile) */}
-        <nav className="md:hidden fixed bottom-0 inset-x-0 z-50 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+  <nav className="md:hidden fixed bottom-0 inset-x-0 z-50 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 pb-[env(safe-area-inset-bottom)]">
           <ul className="flex justify-around items-stretch h-14">
             {navItems.map(item => {
               const isActive = activeView === item.view;
@@ -464,7 +466,9 @@ export default function StockReleaseApp() {
                     onClick={() => setActiveView(item.view)}
                   >
                     <Icon className={"h-5 w-5 " + (isActive ? 'stroke-[2.2]' : 'stroke-[1.5]')} />
-                    <span className="leading-none">{item.title.split(' ')[0]}</span>
+                    <span className="leading-none">
+                      {item.view === 'items' ? 'Itens' : item.view === 'tools' ? 'Ferram.' : item.title.split(' ')[0]}
+                    </span>
                     {badge !== null && badge > 0 && (
                       <span className="absolute -top-1.5 right-4 min-w-[1.1rem] h-5 px-1 rounded-full bg-primary text-primary-foreground text-[10px] flex items-center justify-center font-semibold shadow">
                         {badge > 99 ? '99+' : badge}

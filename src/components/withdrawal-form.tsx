@@ -14,6 +14,7 @@ import type { StockItem, WithdrawalItem } from "@/lib/types";
 import type { WithdrawalFormValues } from "./stock-release-client";
 import dynamic from "next/dynamic";
 import { WithdrawalCart } from "./withdrawal-cart";
+import { MAX_QUANTITY } from "@/lib/constants";
 
 const SearchScannerDialog = dynamic(() => import('./search-scanner-dialog').then(mod => mod.SearchScannerDialog), { ssr: false });
 
@@ -74,7 +75,8 @@ export const WithdrawalForm = React.forwardRef<HTMLFormElement, WithdrawalFormPr
     }
     const item = stockItems.find(i => i.id === currentItemId);
     if (item) {
-      const finalQuantity = Number(quantity) || 1;
+  let finalQuantity = Number(quantity) || 1;
+  if (finalQuantity > MAX_QUANTITY) finalQuantity = MAX_QUANTITY;
       if (finalQuantity <= 0) {
         toast({ variant: 'destructive', title: 'Quantidade Inválida', description: 'A quantidade deve ser maior que zero.' });
         return;
@@ -152,7 +154,7 @@ export const WithdrawalForm = React.forwardRef<HTMLFormElement, WithdrawalFormPr
                       </FormItem>
                       <FormItem>
                         <FormLabel>Qtd.</FormLabel>
-                        <Input type="number" placeholder="1" value={quantity} onChange={(e) => setQuantity(e.target.value)} min="1" />
+                        <Input type="number" placeholder="1" value={quantity} onChange={(e) => setQuantity(e.target.value)} min="1" max={MAX_QUANTITY} />
                       </FormItem>
                        <FormItem className="hidden md:block">
                         <FormLabel>Unidade</FormLabel>

@@ -16,6 +16,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Trash } from "lucide-react";
+import { MAX_QUANTITY } from "@/lib/constants";
 
 const formSchema = z.object({
   addedBy: z.string().min(1, 'O campo "Adicionado por" é obrigatório.').toUpperCase(),
@@ -49,7 +50,9 @@ export default function StockEntryClient({ stockItems, onUpdateHistory, uniqueAd
       return;
     }
     const item = stockItems.find(i => i.id === currentItemId);
-    const numQuantity = Number(quantity);
+  let numQuantity = Number(quantity);
+  if (Number.isNaN(numQuantity)) numQuantity = 0;
+  if (numQuantity > MAX_QUANTITY) numQuantity = MAX_QUANTITY;
     if (item && numQuantity > 0) {
       setEntryItems(prev => {
         const existingIndex = prev.findIndex(e => e.item.id === item.id);
@@ -118,7 +121,7 @@ export default function StockEntryClient({ stockItems, onUpdateHistory, uniqueAd
                   </FormItem>
                   <FormItem>
                     <FormLabel>Qtd.</FormLabel>
-                    <Input type="number" placeholder="0" value={quantity} onChange={(e) => setQuantity(e.target.value)} />
+                    <Input type="number" placeholder="0" value={quantity} onChange={(e) => setQuantity(e.target.value)} min="0" max={MAX_QUANTITY} />
                   </FormItem>
                    <FormItem className="hidden md:block">
                     <FormLabel>Unidade</FormLabel>
