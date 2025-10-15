@@ -15,6 +15,7 @@ import { MOCK_STOCK_ITEMS } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const StockReleaseClient = dynamic(() => import('./stock-release-client'), {
   loading: () => <ClientSkeleton />,
@@ -428,28 +429,37 @@ export default function StockReleaseApp() {
       case "entry": return <StockEntryClient stockItems={stockItems} onUpdateHistory={handleNewEntry} uniqueAdders={uniqueAdders} />;
   case "items": return (
         <div className="space-y-4">
-          <div className="hidden" aria-hidden="true" />
-          <div>
-            <div className="w-full">
-              <div className="mb-3">
-                <div role="tablist" className="grid w-full grid-cols-2 rounded-md border bg-background p-1 text-sm">
-                  {([['entry','Entrada'], ['library','Biblioteca']] as const).map(([key,label]) => (
-                    <button
-                      key={key}
-                      role="tab"
-                      aria-selected={key === 'library'}
-                      className={"rounded px-3 py-2 text-center data-[active=true]:bg-primary data-[active=true]:text-primary-foreground " + (key==='library' ? 'data-[active=true]:bg-primary' : '')}
-                      data-active={key==='library'}
-                      onClick={() => { if (key==='entry') setActiveView('entry'); }}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <ItemManagement stockItems={stockItems} onSetStockItems={setStockItems} onSetIsAddItemDialogOpen={setAddItemDialogOpen} onSetEditingItem={setEditingItem} globalSearch={globalSearch} />
-            </div>
-          </div>
+          <Tabs defaultValue="library" className="w-full">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="release">Saída</TabsTrigger>
+              <TabsTrigger value="entry">Entrada</TabsTrigger>
+              <TabsTrigger value="library">Biblioteca</TabsTrigger>
+            </TabsList>
+            <TabsContent value="release" className="mt-4">
+              <StockReleaseClient
+                stockItems={stockItems}
+                onUpdateHistory={handleNewWithdrawal}
+                uniqueRequesters={uniqueRequesters}
+                uniqueDestinations={uniqueDestinations}
+              />
+            </TabsContent>
+            <TabsContent value="entry" className="mt-4">
+              <StockEntryClient
+                stockItems={stockItems}
+                onUpdateHistory={handleNewEntry}
+                uniqueAdders={uniqueAdders}
+              />
+            </TabsContent>
+            <TabsContent value="library" className="mt-4">
+              <ItemManagement
+                stockItems={stockItems}
+                onSetStockItems={setStockItems}
+                onSetIsAddItemDialogOpen={setAddItemDialogOpen}
+                onSetEditingItem={setEditingItem}
+                globalSearch={globalSearch}
+              />
+            </TabsContent>
+          </Tabs>
         </div>
       );
       case "history": return <HistoryPanel itemHistory={history} entryHistory={entryHistory} toolHistory={toolHistory} onDeleteItemRecord={(id) => handleDeleteRecord(id, 'withdrawals')} onDeleteEntryRecord={(id) => handleDeleteRecord(id, 'entries')} onDeleteToolRecord={(id) => handleDeleteRecord(id, 'tools')} onReturnItem={handleReturnItem} />;
@@ -501,8 +511,8 @@ export default function StockReleaseApp() {
         {/* Bottom tab bar */}
         <nav className="fixed bottom-0 inset-x-0 z-40 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 pb-[env(safe-area-inset-bottom)]">
           <div className="mx-auto max-w-6xl px-4">
-            <div className="grid grid-cols-5 h-14">
-              {[{key:'dashboard', label:'Menu', icon: MenuIcon}, {key:'entry', label:'Entrada', icon: PackagePlus}, {key:'items', label:'Itens', icon: Boxes}, {key:'tools', label:'Ferramentas', icon: Wrench}, {key:'history', label:'Histórico', icon: History}].map(tab => {
+            <div className="grid grid-cols-4 h-14">
+              {[{key:'dashboard', label:'Menu', icon: MenuIcon}, {key:'items', label:'Itens', icon: Boxes}, {key:'tools', label:'Ferramentas', icon: Wrench}, {key:'history', label:'Histórico', icon: History}].map(tab => {
                 const isActive = (activeView === tab.key) || (tab.key==='dashboard' && activeView==='dashboard');
                 const Icon = tab.icon as any;
                 return (
