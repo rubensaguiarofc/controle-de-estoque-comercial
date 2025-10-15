@@ -363,7 +363,21 @@ export default function StockReleaseApp() {
       return (
         <div className="space-y-10">
           <section aria-labelledby="resumo-titulo" className="space-y-4">
-            <h2 id="resumo-titulo" className="text-base md:text-lg font-semibold tracking-tight">Resumo</h2>
+            <div className="flex items-center justify-between gap-2">
+              <h2 id="resumo-titulo" className="text-base md:text-lg font-semibold tracking-tight">Resumo</h2>
+              <div className="flex items-center gap-2">
+                <input
+                  type="search"
+                  value={globalSearch}
+                  onChange={(e) => setGlobalSearch(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { setActiveView('items'); } }}
+                  placeholder="Pesquisar itens..."
+                  aria-label="Pesquisar itens"
+                  className="h-9 px-3 rounded-md border bg-background w-28 sm:w-44 md:w-64"
+                />
+                <Button type="button" variant="outline" size="sm" onClick={() => setActiveView('items')}>Ver Itens</Button>
+              </div>
+            </div>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {metricCards.map(card => {
                 const isLowStockCard = card.title === 'Itens em Baixo Nível';
@@ -452,19 +466,8 @@ export default function StockReleaseApp() {
             {activeView === 'dashboard' ? 'Controle de Almoxarifado' : ' '}
           </h1>
 
-          {/* End: busca + densidade (somente dashboard para busca) */}
+          {/* End: controles de densidade */}
           <div className="ml-auto flex items-center gap-1">
-            {activeView === 'dashboard' && (
-              <input
-                type="search"
-                value={globalSearch}
-                onChange={(e) => setGlobalSearch(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') { setActiveView('items'); } }}
-                placeholder="Pesquisar itens..."
-                aria-label="Pesquisar itens"
-                className="h-9 px-3 rounded-md border bg-background w-28 sm:w-44 md:w-64"
-              />
-            )}
             <Button variant="ghost" size="icon" onClick={() => setDensityLevel(d => Math.max(-1, d - 1))} aria-label="Diminuir densidade">
               -
             </Button>
