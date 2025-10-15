@@ -423,35 +423,48 @@ export default function StockReleaseApp() {
   };
 
     return (
-  <div className="flex flex-col min-h-dvh bg-background text-foreground pb-[calc(env(safe-area-inset-bottom)+3.5rem)] md:pb-0 pt-[env(safe-area-inset-top)]">
-  <header className="flex h-14 md:h-16 items-center gap-3 border-b border-border px-3 md:px-4 shrink-0 sticky top-0 z-40 backdrop-blur supports-[backdrop-filter]:bg-background/80 pt-[max(env(safe-area-inset-top),0px)]">
-          {activeView !== 'dashboard' && (
-              <Button variant="ghost" size="icon" onClick={() => setActiveView('dashboard')}>
-                  <ArrowLeft className="h-5 w-5" />
-                  <span className="sr-only">Voltar para o ínicio</span>
-              </Button>
+  <div className="flex flex-col min-h-dvh bg-background text-foreground md:pb-0 pt-[env(safe-area-inset-top)] overflow-x-hidden">
+  <header className="sticky top-0 z-40 flex h-14 md:h-16 items-center gap-2 border-b border-border px-3 md:px-4 shrink-0 backdrop-blur supports-[backdrop-filter]:bg-background/80 pt-[max(env(safe-area-inset-top),0px)]">
+    {/* Start: menu (dashboard) ou voltar (demais) */}
+          {activeView === 'dashboard' ? (
+            <button
+              type="button"
+              aria-label="Abrir menu"
+              className="flex h-9 w-9 items-center justify-center rounded-md hover:bg-muted"
+              onClick={() => setMenuOpen(o => !o)}
+              aria-expanded={isMenuOpen}
+              aria-controls="top-left-menu"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+            </button>
+          ) : (
+            <Button variant="ghost" size="icon" onClick={() => setActiveView('dashboard')}> 
+              <ArrowLeft className="h-5 w-5" />
+              <span className="sr-only">Voltar para o início</span>
+            </Button>
           )}
-          <div className="flex-1 flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 text-muted-foreground dark:text-gray-300"><path d="M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v2"/><path d="M21 14v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M3 10h18v4H3zM12 16v-4"/></svg>
-            <h1 className="text-lg font-semibold md:text-xl text-foreground dark:text-gray-200 tracking-tight">
-              {activeView === 'dashboard' ? 'Controle de Almoxarifado' : ' '}
-            </h1>
+
+          {/* Título centralizado */}
+          <h1 className="pointer-events-none absolute left-1/2 -translate-x-1/2 text-center text-[15px] md:text-xl font-semibold tracking-tight whitespace-nowrap max-w-[70vw] truncate flex items-center gap-2">
             {activeView === 'dashboard' && (
-              <div className="ml-2 flex items-center gap-2 flex-1 max-w-sm">
-                <input
-                  type="search"
-                  value={globalSearch}
-                  onChange={(e) => setGlobalSearch(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') { setActiveView('items'); } }}
-                  placeholder="Pesquisar itens..."
-                  aria-label="Pesquisar itens"
-                  className="flex-1 h-9 px-3 rounded-md border bg-background"
-                />
-                <Button type="button" variant="outline" size="sm" onClick={() => setActiveView('items')}>Ver Itens</Button>
-              </div>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 text-muted-foreground dark:text-gray-300"><path d="M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v2"/><path d="M21 14v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M3 10h18v4H3zM12 16v-4"/></svg>
             )}
-          </div>
-          <div className="flex items-center gap-1 ml-auto">
+            {activeView === 'dashboard' ? 'Controle de Almoxarifado' : ' '}
+          </h1>
+
+          {/* End: busca + densidade (somente dashboard para busca) */}
+          <div className="ml-auto flex items-center gap-1">
+            {activeView === 'dashboard' && (
+              <input
+                type="search"
+                value={globalSearch}
+                onChange={(e) => setGlobalSearch(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { setActiveView('items'); } }}
+                placeholder="Pesquisar itens..."
+                aria-label="Pesquisar itens"
+                className="h-9 px-3 rounded-md border bg-background w-28 sm:w-44 md:w-64"
+              />
+            )}
             <Button variant="ghost" size="icon" onClick={() => setDensityLevel(d => Math.max(-1, d - 1))} aria-label="Diminuir densidade">
               -
             </Button>
@@ -484,22 +497,19 @@ export default function StockReleaseApp() {
             editingTool={editingTool}
         />
 
-        {/* Bottom Menu (mobile): botão que abre lista vertical */}
-        {/* Overlay para fechar o menu ao tocar fora */}
+        {/* Menu superior esquerdo (drop-down) */}
         {isMenuOpen && (
-          <button
-            aria-label="Fechar menu"
-            className="md:hidden fixed inset-0 z-40 bg-black/20"
-            onClick={() => setMenuOpen(false)}
-          />
-        )}
-        <nav className="md:hidden fixed bottom-0 inset-x-0 z-50 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 pb-[env(safe-area-inset-bottom)]">
-          {/* Painel vertical de opções */}
-          {isMenuOpen && (
-            <div
+          <>
+            <button
+              aria-label="Fechar menu"
+              className="fixed inset-0 z-40 bg-black/20"
+              onClick={() => setMenuOpen(false)}
+            />
+            <nav
+              id="top-left-menu"
               role="menu"
               aria-label="Menu de navegação"
-              className="absolute bottom-14 inset-x-2 mb-2 rounded-lg border bg-background shadow-lg p-1 flex flex-col gap-1 max-h-[60vh] overflow-auto"
+              className="fixed z-50 top-14 md:top-16 left-2 w-[min(90vw,20rem)] rounded-lg border bg-background shadow-lg p-1 flex flex-col gap-1 max-h-[65vh] overflow-auto"
             >
               {navItems.map(item => {
                 const isActive = activeView === item.view;
@@ -531,21 +541,9 @@ export default function StockReleaseApp() {
                   </button>
                 );
               })}
-            </div>
-          )}
-          {/* Barra com botão Menu */}
-          <div className="flex justify-center items-stretch h-14">
-            <button
-              className="relative w-full h-full flex items-center justify-center gap-2 text-sm font-medium transition px-3 text-foreground hover:text-primary"
-              onClick={() => setMenuOpen(o => !o)}
-              aria-expanded={isMenuOpen}
-              aria-controls="bottom-menu-panel"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-              Menu
-            </button>
-          </div>
-        </nav>
+            </nav>
+          </>
+        )}
     </div>
   );
 }
