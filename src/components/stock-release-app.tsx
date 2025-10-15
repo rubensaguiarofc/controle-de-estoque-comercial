@@ -429,7 +429,32 @@ export default function StockReleaseApp() {
     switch (activeView) {
       case "release": return <StockReleaseClient stockItems={stockItems} onUpdateHistory={handleNewWithdrawal} uniqueRequesters={uniqueRequesters} uniqueDestinations={uniqueDestinations} />;
       case "entry": return <StockEntryClient stockItems={stockItems} onUpdateHistory={handleNewEntry} uniqueAdders={uniqueAdders} />;
-  case "items": return <ItemManagement stockItems={stockItems} onSetStockItems={setStockItems} onSetIsAddItemDialogOpen={setAddItemDialogOpen} onSetEditingItem={setEditingItem} globalSearch={globalSearch} />;
+  case "items": return (
+        <div className="space-y-4">
+          <div className="hidden" aria-hidden="true" />
+          <div>
+            <div className="w-full">
+              <div className="mb-3">
+                <div role="tablist" className="grid w-full grid-cols-2 rounded-md border bg-background p-1 text-sm">
+                  {([['entry','Entrada'], ['library','Biblioteca']] as const).map(([key,label]) => (
+                    <button
+                      key={key}
+                      role="tab"
+                      aria-selected={key === 'library'}
+                      className={"rounded px-3 py-2 text-center data-[active=true]:bg-primary data-[active=true]:text-primary-foreground " + (key==='library' ? 'data-[active=true]:bg-primary' : '')}
+                      data-active={key==='library'}
+                      onClick={() => { if (key==='entry') setActiveView('entry'); }}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <ItemManagement stockItems={stockItems} onSetStockItems={setStockItems} onSetIsAddItemDialogOpen={setAddItemDialogOpen} onSetEditingItem={setEditingItem} globalSearch={globalSearch} />
+            </div>
+          </div>
+        </div>
+      );
       case "history": return <HistoryPanel itemHistory={history} entryHistory={entryHistory} toolHistory={toolHistory} onDeleteItemRecord={(id) => handleDeleteRecord(id, 'withdrawals')} onDeleteEntryRecord={(id) => handleDeleteRecord(id, 'entries')} onDeleteToolRecord={(id) => handleDeleteRecord(id, 'tools')} onReturnItem={handleReturnItem} />;
       case "tools": return <ToolManagement tools={tools} setTools={setTools} toolHistory={toolHistory} setToolHistory={setToolHistory} onSetEditingTool={setEditingTool} onSetIsAddToolDialogOpen={setAddToolDialogOpen} />;
       default: return null;
@@ -455,22 +480,7 @@ export default function StockReleaseApp() {
 
         <main className={"flex-1 overflow-auto relative " + (densityLevel === -1 ? 'text-sm' : densityLevel === 1 ? 'text-base' : '')}>
           <div className={"max-w-6xl mx-auto w-full px-4 " + (densityLevel === -1 ? 'py-3 md:py-4 space-y-5' : densityLevel === 1 ? 'py-8 md:py-10 space-y-10' : 'py-6 md:py-8 space-y-8')}>
-            {activeView === 'dashboard' && (
-              <div className="mb-2">
-                <div className="relative">
-                  <SearchIcon className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <input
-                    type="search"
-                    value={globalSearch}
-                    onChange={(e) => setGlobalSearch(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') { setActiveView('items'); } }}
-                    placeholder="Pesquisar itens..."
-                    aria-label="Pesquisar itens"
-                    className="w-full h-12 pl-10 pr-3 rounded-xl border bg-background shadow-sm"
-                  />
-                </div>
-              </div>
-            )}
+            {/* Busca abaixo do cabeçalho removida no novo layout */}
             {renderContent()}
           </div>
           <div className="sr-only" aria-live="polite" aria-atomic="true">
@@ -495,8 +505,8 @@ export default function StockReleaseApp() {
         {/* Bottom tab bar */}
         <nav className="fixed bottom-0 inset-x-0 z-40 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 pb-[env(safe-area-inset-bottom)]">
           <div className="mx-auto max-w-6xl px-4">
-            <div className="grid grid-cols-4 h-14">
-              {[{key:'dashboard', label:'Menu', icon: MenuIcon}, {key:'items', label:'Itens', icon: Boxes}, {key:'tools', label:'Ferramentas', icon: Wrench}, {key:'history', label:'Histórico', icon: History}].map(tab => {
+            <div className="grid grid-cols-5 h-14">
+              {[{key:'dashboard', label:'Menu', icon: MenuIcon}, {key:'entry', label:'Entrada', icon: PackagePlus}, {key:'items', label:'Itens', icon: Boxes}, {key:'tools', label:'Ferramentas', icon: Wrench}, {key:'history', label:'Histórico', icon: History}].map(tab => {
                 const isActive = (activeView === tab.key) || (tab.key==='dashboard' && activeView==='dashboard');
                 const Icon = tab.icon as any;
                 return (
