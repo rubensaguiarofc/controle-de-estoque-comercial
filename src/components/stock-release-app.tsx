@@ -6,7 +6,7 @@ import dynamic from 'next/dynamic';
 
 import type { StockItem, WithdrawalRecord, Tool, ToolRecord, EntryRecord } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
-import { Boxes, History, RefreshCw, Wrench, PackagePlus, ArrowLeft, PackageSearch, ArchiveRestore, Gauge } from "lucide-react";
+import { Boxes, History, RefreshCw, Wrench, PackagePlus, ArrowLeft, PackageSearch, ArchiveRestore, Gauge, Bell, Search as SearchIcon, Menu as MenuIcon } from "lucide-react";
 
 import { AddItemDialog } from "./add-item-dialog";
 import { Skeleton } from "./ui/skeleton";
@@ -437,48 +437,40 @@ export default function StockReleaseApp() {
   };
 
     return (
-  <div className="flex flex-col min-h-dvh bg-background text-foreground md:pb-0 pt-[env(safe-area-inset-top)] overflow-x-hidden">
-  <header className="sticky top-0 z-40 flex h-14 md:h-16 items-center gap-2 border-b border-border px-3 md:px-4 shrink-0 backdrop-blur supports-[backdrop-filter]:bg-background/80 pt-[max(env(safe-area-inset-top),0px)]">
-    {/* Start: menu (dashboard) ou voltar (demais) */}
-          {activeView === 'dashboard' ? (
-            <button
-              type="button"
-              aria-label="Abrir menu"
-              className="flex h-9 w-9 items-center justify-center rounded-md hover:bg-muted"
-              onClick={() => setMenuOpen(o => !o)}
-              aria-expanded={isMenuOpen}
-              aria-controls="top-left-menu"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-            </button>
-          ) : (
-            <Button variant="ghost" size="icon" onClick={() => setActiveView('dashboard')}> 
-              <ArrowLeft className="h-5 w-5" />
-              <span className="sr-only">Voltar para o início</span>
-            </Button>
-          )}
-
-          {/* Título centralizado */}
-          <h1 className="pointer-events-none absolute left-1/2 -translate-x-1/2 text-center text-[15px] md:text-xl font-semibold tracking-tight whitespace-nowrap max-w-[70vw] truncate flex items-center gap-2">
-            {activeView === 'dashboard' && (
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 text-muted-foreground dark:text-gray-300"><path d="M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v2"/><path d="M21 14v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M3 10h18v4H3zM12 16v-4"/></svg>
-            )}
-            {activeView === 'dashboard' ? 'Controle de Almoxarifado' : ' '}
-          </h1>
-
-          {/* End: controles de densidade */}
+  <div className="flex flex-col min-h-dvh bg-background text-foreground pb-[calc(env(safe-area-inset-bottom)+4.2rem)] pt-[env(safe-area-inset-top)] overflow-x-hidden">
+  <header className="sticky top-0 z-40 flex items-start gap-3 border-b border-border px-4 py-3 shrink-0 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+          <div className="flex items-start gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mt-[3px] h-6 w-6 text-muted-foreground"><path d="M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v2"/><path d="M21 14v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M3 10h18v4H3zM12 16v-4"/></svg>
+            <div className="leading-tight">
+              <h1 className="text-xl font-extrabold tracking-tight">Controle de Almoxarifado</h1>
+              <div className="text-sm text-muted-foreground">Resumo</div>
+            </div>
+          </div>
           <div className="ml-auto flex items-center gap-1">
-            <Button variant="ghost" size="icon" onClick={() => setDensityLevel(d => Math.max(-1, d - 1))} aria-label="Diminuir densidade">
-              -
-            </Button>
-            <Button variant="ghost" size="icon" onClick={() => setDensityLevel(d => Math.min(1, d + 1))} aria-label="Aumentar densidade">
-              +
+            <Button variant="ghost" size="icon" aria-label="Notificações">
+              <Bell className="h-5 w-5" />
             </Button>
           </div>
         </header>
 
         <main className={"flex-1 overflow-auto relative " + (densityLevel === -1 ? 'text-sm' : densityLevel === 1 ? 'text-base' : '')}>
           <div className={"max-w-6xl mx-auto w-full px-4 " + (densityLevel === -1 ? 'py-3 md:py-4 space-y-5' : densityLevel === 1 ? 'py-8 md:py-10 space-y-10' : 'py-6 md:py-8 space-y-8')}>
+            {activeView === 'dashboard' && (
+              <div className="mb-2">
+                <div className="relative">
+                  <SearchIcon className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <input
+                    type="search"
+                    value={globalSearch}
+                    onChange={(e) => setGlobalSearch(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { setActiveView('items'); } }}
+                    placeholder="Pesquisar itens..."
+                    aria-label="Pesquisar itens"
+                    className="w-full h-12 pl-10 pr-3 rounded-xl border bg-background shadow-sm"
+                  />
+                </div>
+              </div>
+            )}
             {renderContent()}
           </div>
           <div className="sr-only" aria-live="polite" aria-atomic="true">
@@ -500,53 +492,23 @@ export default function StockReleaseApp() {
             editingTool={editingTool}
         />
 
-        {/* Menu superior esquerdo (drop-down) */}
-        {isMenuOpen && (
-          <>
-            <button
-              aria-label="Fechar menu"
-              className="fixed inset-0 z-40 bg-black/20"
-              onClick={() => setMenuOpen(false)}
-            />
-            <nav
-              id="top-left-menu"
-              role="menu"
-              aria-label="Menu de navegação"
-              className="fixed z-50 top-14 md:top-16 left-2 w-[min(90vw,20rem)] rounded-lg border bg-background shadow-lg p-1 flex flex-col gap-1 max-h-[65vh] overflow-auto"
-            >
-              {navItems.map(item => {
-                const isActive = activeView === item.view;
-                const Icon = item.icon;
-                let badge: number | null = null;
-                if (item.view === 'items') badge = stockItems.length;
-                if (item.view === 'history') badge = history.length;
-                if (item.view === 'tools') badge = tools.length;
-                if (item.view === 'release' && metrics.lowStockItems > 0) badge = metrics.lowStockItems;
+        {/* Bottom tab bar */}
+        <nav className="fixed bottom-0 inset-x-0 z-40 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 pb-[env(safe-area-inset-bottom)]">
+          <div className="mx-auto max-w-6xl px-4">
+            <div className="grid grid-cols-4 h-14">
+              {[{key:'dashboard', label:'Menu', icon: MenuIcon}, {key:'items', label:'Itens', icon: Boxes}, {key:'tools', label:'Ferramentas', icon: Wrench}, {key:'history', label:'Histórico', icon: History}].map(tab => {
+                const isActive = (activeView === tab.key) || (tab.key==='dashboard' && activeView==='dashboard');
+                const Icon = tab.icon as any;
                 return (
-                  <button
-                    key={item.view}
-                    role="menuitem"
-                    className={"relative w-full flex items-center justify-between rounded-md px-3 py-3 text-sm " + (isActive ? 'bg-primary/10 text-primary' : 'text-foreground hover:bg-muted')}
-                    onClick={() => setActiveView(item.view)}
-                    aria-current={isActive ? 'page' : undefined}
-                  >
-                    <span className="flex items-center gap-3">
-                      <Icon className={"h-5 w-5 " + (isActive ? 'stroke-[2.2]' : 'stroke-[1.5]')} />
-                      <span>
-                        {item.view === 'items' ? 'Itens' : item.view === 'tools' ? 'Ferramentas' : item.title.split(' ')[0]}
-                      </span>
-                    </span>
-                    {badge !== null && badge > 0 && (
-                      <span className="ml-2 min-w-[1.4rem] h-6 px-2 rounded-full bg-primary text-primary-foreground text-[11px] flex items-center justify-center font-semibold shadow">
-                        {badge > 99 ? '99+' : badge}
-                      </span>
-                    )}
+                  <button key={tab.key} className={"flex flex-col items-center justify-center gap-1 text-xs " + (isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground')} onClick={() => setActiveView(tab.key as any)}>
+                    <Icon className="h-5 w-5" />
+                    <span>{tab.label}</span>
                   </button>
                 );
               })}
-            </nav>
-          </>
-        )}
+            </div>
+          </div>
+        </nav>
     </div>
   );
 }
