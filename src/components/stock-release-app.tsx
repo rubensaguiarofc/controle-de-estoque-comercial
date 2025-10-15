@@ -60,6 +60,7 @@ export default function StockReleaseApp() {
   // densityLevel: -1 (mais compacto), 0 (normal), 1 (amplo)
   const [densityLevel, setDensityLevel] = useState(0);
   const [globalSearch, setGlobalSearch] = useState("");
+  const [isMenuOpen, setMenuOpen] = useState(false);
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
   const tracking = useRef(false);
@@ -129,6 +130,9 @@ export default function StockReleaseApp() {
   useEffect(() => {
     try { localStorage.setItem("lowStockFilter", String(lowStockFilter)); } catch {}
   }, [lowStockFilter]);
+
+  // Fechar menu quando mudar de view
+  useEffect(() => { setMenuOpen(false); }, [activeView]);
 
   useEffect(() => {
     try {
@@ -480,39 +484,67 @@ export default function StockReleaseApp() {
             editingTool={editingTool}
         />
 
-        {/* Bottom Navigation (mobile) */}
-  <nav className="md:hidden fixed bottom-0 inset-x-0 z-50 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 pb-[env(safe-area-inset-bottom)]">
-          <ul className="flex justify-around items-stretch h-14">
-            {navItems.map(item => {
-              const isActive = activeView === item.view;
-              const Icon = item.icon;
-              let badge: number | null = null;
-              if (item.view === 'items') badge = stockItems.length;
-              if (item.view === 'history') badge = history.length;
-              if (item.view === 'tools') badge = tools.length;
-              if (item.view === 'release' && metrics.lowStockItems > 0) badge = metrics.lowStockItems; // reutiliza como alerta
-              return (
-                <li key={item.view} className="flex-1">
+        {/* Bottom Menu (mobile): botão que abre lista vertical */}
+        {/* Overlay para fechar o menu ao tocar fora */}
+        {isMenuOpen && (
+          <button
+            aria-label="Fechar menu"
+            className="md:hidden fixed inset-0 z-40 bg-black/20"
+            onClick={() => setMenuOpen(false)}
+          />
+        )}
+        <nav className="md:hidden fixed bottom-0 inset-x-0 z-50 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 pb-[env(safe-area-inset-bottom)]">
+          {/* Painel vertical de opções */}
+          {isMenuOpen && (
+            <div
+              role="menu"
+              aria-label="Menu de navegação"
+              className="absolute bottom-14 inset-x-2 mb-2 rounded-lg border bg-background shadow-lg p-1 flex flex-col gap-1 max-h-[60vh] overflow-auto"
+            >
+              {navItems.map(item => {
+                const isActive = activeView === item.view;
+                const Icon = item.icon;
+                let badge: number | null = null;
+                if (item.view === 'items') badge = stockItems.length;
+                if (item.view === 'history') badge = history.length;
+                if (item.view === 'tools') badge = tools.length;
+                if (item.view === 'release' && metrics.lowStockItems > 0) badge = metrics.lowStockItems;
+                return (
                   <button
-                    className={"relative w-full h-full flex flex-col items-center justify-center gap-0.5 text-xs font-medium transition px-2 " + (isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground')}
+                    key={item.view}
+                    role="menuitem"
+                    className={"relative w-full flex items-center justify-between rounded-md px-3 py-3 text-sm " + (isActive ? 'bg-primary/10 text-primary' : 'text-foreground hover:bg-muted')}
                     onClick={() => setActiveView(item.view)}
                     aria-current={isActive ? 'page' : undefined}
-                    aria-label={item.title}
                   >
-                    <Icon className={"h-5 w-5 " + (isActive ? 'stroke-[2.2]' : 'stroke-[1.5]')} />
-                    <span className="leading-none">
-                      {item.view === 'items' ? 'Itens' : item.view === 'tools' ? 'Ferram.' : item.title.split(' ')[0]}
+                    <span className="flex items-center gap-3">
+                      <Icon className={"h-5 w-5 " + (isActive ? 'stroke-[2.2]' : 'stroke-[1.5]')} />
+                      <span>
+                        {item.view === 'items' ? 'Itens' : item.view === 'tools' ? 'Ferramentas' : item.title.split(' ')[0]}
+                      </span>
                     </span>
                     {badge !== null && badge > 0 && (
-                      <span className="absolute -top-1.5 right-4 min-w-[1.1rem] h-5 px-1 rounded-full bg-primary text-primary-foreground text-[10px] flex items-center justify-center font-semibold shadow">
+                      <span className="ml-2 min-w-[1.4rem] h-6 px-2 rounded-full bg-primary text-primary-foreground text-[11px] flex items-center justify-center font-semibold shadow">
                         {badge > 99 ? '99+' : badge}
                       </span>
                     )}
                   </button>
-                </li>
-              );
-            })}
-          </ul>
+                );
+              })}
+            </div>
+          )}
+          {/* Barra com botão Menu */}
+          <div className="flex justify-center items-stretch h-14">
+            <button
+              className="relative w-full h-full flex items-center justify-center gap-2 text-sm font-medium transition px-3 text-foreground hover:text-primary"
+              onClick={() => setMenuOpen(o => !o)}
+              aria-expanded={isMenuOpen}
+              aria-controls="bottom-menu-panel"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+              Menu
+            </button>
+          </div>
         </nav>
     </div>
   );
