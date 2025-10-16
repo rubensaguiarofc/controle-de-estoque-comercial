@@ -49,7 +49,10 @@ const StockReleaseClient = forwardRef<HTMLFormElement, StockReleaseClientProps>(
       const stockItem = stockItems.find(i => i.id === item.item.id);
       if (!stockItem) return;
 
-      const existingItemIndex = withdrawalItems.findIndex(cartItem => cartItem.item.id === item.item.id);
+      // Combine apenas quando o item e a unidade coincidirem
+      const existingItemIndex = withdrawalItems.findIndex(
+        cartItem => cartItem.item.id === item.item.id && cartItem.unit.toUpperCase() === item.unit.toUpperCase()
+      );
       let newQuantity = item.quantity;
 
       if (existingItemIndex > -1) {

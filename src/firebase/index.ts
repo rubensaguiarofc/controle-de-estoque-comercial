@@ -5,17 +5,18 @@ import { getFirebaseConfig } from "./config";
 import { getApp, getApps, initializeApp, type FirebaseApp } from "firebase/app";
 import { getAuth, type Auth } from "firebase/auth";
 import { getFirestore, type Firestore } from "firebase/firestore";
+import { setupOffline } from "./offline";
 
 // This module now performs initialization lazily and only on the client.
 let firebaseApp: FirebaseApp | null = null;
 let auth: Auth | null = null;
 let firestore: Firestore | null = null;
 
-export function initializeFirebase() {
+export async function initializeFirebase() {
   // Only initialize in a browser environment and when config is present.
   if (typeof window === "undefined") {
     // Server-side: do not initialize Firebase.
-    return { firebaseApp: null, auth: null, firestore: null };
+  return { firebaseApp: null, auth: null, firestore: null };
   }
 
   const firebaseConfig = getFirebaseConfig();
@@ -37,7 +38,12 @@ export function initializeFirebase() {
   }
 
   auth = getAuth(firebaseApp);
-  firestore = getFirestore(firebaseApp);
+  try {
+    firestore = await setupOffline(firebaseApp);
+  } catch (e) {
+    console.warn('Falling back to default Firestore without persistence', e);
+    firestore = getFirestore(firebaseApp);
+  }
 
   return { firebaseApp, auth, firestore };
 }

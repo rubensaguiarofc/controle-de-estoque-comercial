@@ -1,5 +1,6 @@
 import { join } from "path";
-import { Low, JSONFile } from "lowdb";
+import { Low } from "lowdb";
+import { JSONFile } from "lowdb/node";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import fs from "fs";

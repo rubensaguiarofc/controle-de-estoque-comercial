@@ -25,6 +25,8 @@ interface ItemManagementProps {
   lowStockOnly?: boolean;
   onClearLowStockFilter?: () => void;
   globalSearch?: string;
+  onDeleteItem?: (id: string) => void;
+  onUpdateItem?: (item: StockItem) => void;
 }
 
 export default function ItemManagement({
@@ -35,6 +37,8 @@ export default function ItemManagement({
   lowStockOnly = false,
   onClearLowStockFilter,
   globalSearch,
+  onDeleteItem,
+  onUpdateItem,
 }: ItemManagementProps) {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
@@ -47,6 +51,7 @@ export default function ItemManagement({
   };
 
   const handleDelete = (itemId: string) => {
+    if (onDeleteItem) { onDeleteItem(itemId); return; }
     const updatedItems = stockItems.filter(item => item.id !== itemId);
     onSetStockItems(updatedItems);
     toast({
@@ -60,7 +65,12 @@ export default function ItemManagement({
     const updatedItems = stockItems.map(item =>
       item.id === itemToUpdate.id ? { ...item, barcode: newBarcode } : item
     );
-    onSetStockItems(updatedItems);
+    if (onUpdateItem) {
+      const updated = updatedItems.find(i => i.id === itemToUpdate.id)!;
+      onUpdateItem(updated);
+    } else {
+      onSetStockItems(updatedItems);
+    }
     toast({
       title: "Código de Barras Gerado",
       description: `Novo código para ${itemToUpdate.name}: ${newBarcode}`,

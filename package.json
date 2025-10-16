@@ -6,7 +6,7 @@
     "dev": "next dev --turbopack",
     "genkit:dev": "genkit start -- tsx src/ai/dev.ts",
     "genkit:watch": "genkit start -- tsx --watch src/ai/dev.ts",
-    "build": "NODE_ENV=production next build",
+    "build": "next build",
     "export": "next build && next export",
     "export:capacitor": "node ./scripts/next-export-ignore-api.js",
     "start": "next start",
@@ -14,9 +14,10 @@
     "typecheck": "tsc --noEmit",
     "postinstall": "patch-package",
     "bump:android": "node scripts/bump-android-version.js",
-    "android:bundle": "cd android && ./gradlew bundleRelease"
+    "android:bundle": "cd android && gradlew.bat bundleRelease"
   },
   "dependencies": {
+    "@capacitor-community/admob": "^7.0.3",
     "@capacitor/android": "^6.0.0",
     "@capacitor/core": "^6.0.0",
     "@capacitor/filesystem": "^6.0.3",
@@ -65,6 +66,7 @@
     "jspdf-autotable": "^3.8.2",
     "lowdb": "^7.0.1",
     "lucide-react": "^0.475.0",
+    "material-design-icons-iconfont": "^6.7.0",
     "next": "15.3.3",
     "patch-package": "^8.0.0",
     "react": "^18.3.1",

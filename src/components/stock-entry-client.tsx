@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Trash } from "lucide-react";
 import { MAX_QUANTITY } from "@/lib/constants";
-import { Haptics, ImpactStyle } from "@capacitor/haptics";
+import { hapticImpact } from "@/lib/native/haptics";
 
 const formSchema = z.object({
   addedBy: z.string().min(1, 'O campo "Adicionado por" é obrigatório.').toUpperCase(),
@@ -68,7 +68,7 @@ export default function StockEntryClient({ stockItems, onUpdateHistory, uniqueAd
   return [...prev, { item, quantity: numQuantity, unit: finalUnit }];
       });
       toast({ title: 'Item adicionado à entrada', description: `${numQuantity}x "${item.name}" pronto para ser adicionado.` });
-    Haptics.impact({ style: ImpactStyle.Light }).catch(()=>{});
+  hapticImpact('light').catch(()=>{});
       setCurrentItemId('');
       setQuantity('');
       setUnit('UN');
@@ -77,7 +77,7 @@ export default function StockEntryClient({ stockItems, onUpdateHistory, uniqueAd
   
   const handleRemoveEntryItem = (itemId: string) => {
     setEntryItems(prev => prev.filter(entry => entry.item.id !== itemId));
-    Haptics.impact({ style: ImpactStyle.Light }).catch(()=>{});
+  hapticImpact('light').catch(()=>{});
   };
 
   const onSubmit = useCallback((values: EntryFormValues) => {

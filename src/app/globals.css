@@ -3,6 +3,34 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Local Material Icons (iconfont) — served from /public/fonts */
+@font-face {
+  font-family: 'Material Icons';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/MaterialIcons-Regular.woff2') format('woff2'),
+       url('/fonts/MaterialIcons-Regular.woff') format('woff');
+}
+
+.material-icons {
+  font-family: 'Material Icons';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  display: inline-block;
+  line-height: 1;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  white-space: nowrap;
+  direction: inherit;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: 'liga';
+}
+
 @layer base {
   :root {
     /* Light theme palette (project-wide) */

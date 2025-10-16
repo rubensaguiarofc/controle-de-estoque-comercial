@@ -26,8 +26,12 @@ android {
     applicationId "com.rubensaguiarofc.controleestoque"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-    versionCode 5
-    versionName "1.0.4"
+    versionCode 8
+    versionName "1.0.7"
+        // AdMob App ID placeholder (replace in keystore.properties or local gradle.properties if needed)
+        manifestPlaceholders = [
+            ADMOB_APP_ID: (project.hasProperty('ADMOB_APP_ID') ? project.property('ADMOB_APP_ID') : "ca-app-pub-3940256099942544~3347511713")
+        ]
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -36,6 +40,11 @@ android {
         }
         // Limita idiomas (reduz resources). Adicione outros se necessário.
         resConfigs "pt", "en"
+    }
+    // Ensure Java 21 compatibility for dependencies requiring it (e.g., AdMob plugin)
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_21
+        targetCompatibility JavaVersion.VERSION_21
     }
     buildTypes {
         release {
@@ -90,6 +99,8 @@ dependencies {
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
     implementation project(':capacitor-cordova-android-plugins')
+    // Google Mobile Ads SDK (AdMob)
+    implementation 'com.google.android.gms:play-services-ads:22.6.0'
 }
 
 apply from: 'capacitor.build.gradle'

@@ -1,10 +1,10 @@
 
 "use client";
 import React, { createContext, useContext, ReactNode } from "react";
-import { initializeFirebase } from ".";
 import { FirebaseApp } from "firebase/app";
 import { Auth } from "firebase/auth";
 import { Firestore } from "firebase/firestore";
+import { getInitializedApp, getInitializedAuth, getInitializedFirestore } from ".";
 
 interface FirebaseContextType {
   firebaseApp: FirebaseApp | null;
@@ -15,7 +15,14 @@ interface FirebaseContextType {
 const FirebaseContext = createContext<FirebaseContextType | undefined>(undefined);
 
 export function FirebaseProvider({ children }: { children: ReactNode }) {
-  const { firebaseApp, auth, firestore } = initializeFirebase();
+  // FirebaseClientProvider ensures initializeFirebase() ran before rendering this.
+  // Here we just read the initialized singletons; if something goes wrong, expose nulls.
+  let firebaseApp: FirebaseApp | null = null;
+  let auth: Auth | null = null;
+  let firestore: Firestore | null = null;
+  try { firebaseApp = getInitializedApp(); } catch { firebaseApp = null; }
+  try { auth = getInitializedAuth(); } catch { auth = null; }
+  try { firestore = getInitializedFirestore(); } catch { firestore = null; }
 
   return (
     <FirebaseContext.Provider value={{ firebaseApp, auth, firestore }}>

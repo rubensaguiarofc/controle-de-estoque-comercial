@@ -24,10 +24,11 @@ try {
     console.log('No API directory to hide');
   }
 
-  console.log('Running next build && next export');
-  // Use cross-env via npx for cross-platform NODE_ENV setting on Windows
-  const res = spawnSync('npx', ['cross-env', 'NODE_ENV=production', 'next', 'build'], { stdio: 'inherit', shell: true });
-  if (res.status !== 0) throw new Error('next build failed');
+  console.log('Running next build (static export via output: export)');
+  const buildRes = spawnSync('npx', ['cross-env', 'NODE_ENV=production', 'next', 'build'], { stdio: 'inherit', shell: true });
+  if (buildRes.status !== 0) throw new Error('next build failed');
+
+  // next export deprecated on Next 15 when using output: 'export'
 
 } catch (err) {
   console.error(err && err.message ? err.message : err);

@@ -6,7 +6,7 @@ import dynamic from 'next/dynamic';
 
 import type { StockItem, WithdrawalRecord, Tool, ToolRecord, EntryRecord } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
-import { Boxes, History, RefreshCw, Wrench, PackagePlus, ArrowLeft, PackageSearch, ArchiveRestore, Gauge, Bell, Search as SearchIcon, Menu as MenuIcon } from "lucide-react";
+import { Boxes, History, RefreshCw, Wrench, PackagePlus, ArrowLeft, PackageSearch, ArchiveRestore, Gauge } from "lucide-react";
 
 import { AddItemDialog } from "./add-item-dialog";
 import { Skeleton } from "./ui/skeleton";
@@ -16,6 +16,9 @@ import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { AdmobBanner } from './admob-banner';
+import { useFirestore } from "@/firebase/provider";
+import { StockRepo } from "@/lib/data/firestore-repo";
 
 const StockReleaseClient = dynamic(() => import('./stock-release-client'), {
   loading: () => <ClientSkeleton />,
@@ -43,6 +46,8 @@ type View = "dashboard" | "release" | "entry" | "items" | "history" | "tools";
 
 export default function StockReleaseApp() {
   const { toast } = useToast();
+  const firestore = useFirestore();
+  const [repo, setRepo] = useState<StockRepo | null>(null);
   const [stockItems, setStockItems] = useState<StockItem[]>([]);
   const [history, setHistory] = useState<WithdrawalRecord[]>([]);
   const [entryHistory, setEntryHistory] = useState<EntryRecord[]>([]);
@@ -136,12 +141,29 @@ export default function StockReleaseApp() {
   useEffect(() => { setMenuOpen(false); }, [activeView]);
 
   useEffect(() => {
+    // Initialize repository if Firestore is available
+    if (firestore) {
+      setRepo(new StockRepo(firestore));
+    } else {
+      setRepo(null);
+    }
+  }, [firestore]);
+
+  useEffect(() => {
     try {
-      const savedItems = localStorage.getItem("stockItems");
-      if (savedItems) {
-        setStockItems(JSON.parse(savedItems));
+      // If using Firestore, subscribe to items; otherwise fallback to localStorage/mock
+      let unsubscribe: (() => void) | undefined;
+      if (repo) {
+        unsubscribe = repo.onItems((items) => {
+          setStockItems(items);
+        });
       } else {
-        setStockItems(MOCK_STOCK_ITEMS);
+        const savedItems = localStorage.getItem("stockItems");
+        if (savedItems) {
+          setStockItems(JSON.parse(savedItems));
+        } else {
+          setStockItems(MOCK_STOCK_ITEMS);
+        }
       }
 
       const savedHistory = localStorage.getItem("withdrawalHistory");
@@ -155,13 +177,14 @@ export default function StockReleaseApp() {
 
       const savedToolHistory = localStorage.getItem("toolHistory");
       if (savedToolHistory) setToolHistory(JSON.parse(savedToolHistory));
+      return () => { if (unsubscribe) unsubscribe(); };
     } catch (error) {
       console.error("Failed to load data from localStorage", error);
       toast({ variant: 'destructive', title: "Erro ao Carregar Dados", description: "Não foi possível carregar os dados salvos." });
     } finally {
       setIsInitialLoad(false);
     }
-  }, [toast]);
+  }, [toast, repo]);
 
   const saveDataToLocalStorage = useCallback(<T,>(key: string, data: T) => {
     try {
@@ -204,17 +227,25 @@ export default function StockReleaseApp() {
     let itemToSave: StockItem;
     if (editingItem) {
       itemToSave = { ...editingItem, name: itemData.name, specifications: itemData.specifications, barcode: itemData.barcode };
-      setStockItems(prev => prev.map(item => item.id === editingItem.id ? itemToSave : item));
+      if (repo) {
+        repo.upsertItem(itemToSave).catch(err => console.error('Failed to update item', err));
+      } else {
+        setStockItems(prev => prev.map(item => item.id === editingItem.id ? itemToSave : item));
+      }
     } else {
       const newIdNumber = (stockItems.length > 0 ? Math.max(...stockItems.map(item => parseInt(item.id.split('-')[1]) || 0)) + 1 : 1).toString().padStart(3, '0');
       const newId = `ITM-${newIdNumber}`;
       itemToSave = { ...itemData, id: newId, quantity: itemData.quantity || 0 };
-      setStockItems(prev => [itemToSave, ...prev]);
+      if (repo) {
+        repo.upsertItem(itemToSave).catch(err => console.error('Failed to add item', err));
+      } else {
+        setStockItems(prev => [itemToSave, ...prev]);
+      }
     }
     toast({ title: editingItem ? "Item Atualizado" : "Item Adicionado", description: `${itemToSave.name} foi salvo.` });
     setAddItemDialogOpen(false);
     setEditingItem(null);
-  }, [editingItem, toast, stockItems]);
+  }, [editingItem, toast, stockItems, repo]);
 
   const handleItemDialogClose = useCallback((isOpen: boolean) => {
     if (!isOpen) setEditingItem(null);
@@ -243,34 +274,41 @@ export default function StockReleaseApp() {
 
   const handleNewWithdrawal = useCallback((newRecords: WithdrawalRecord[]) => {
     setHistory(prev => [...newRecords, ...prev]);
-    
-    setStockItems(currentStock => {
-      const updatedStock = [...currentStock];
-      newRecords.forEach(record => {
-        const itemIndex = updatedStock.findIndex(i => i.id === record.item.id);
-        if (itemIndex > -1) {
-          updatedStock[itemIndex].quantity -= record.quantity;
-        }
+    if (repo) {
+      // Fire-and-forget writes; UI updates come from onItems subscription
+      newRecords.forEach(rec => repo.addWithdrawal(rec).catch(err => console.error('Failed to add withdrawal', err)));
+    } else {
+      setStockItems(currentStock => {
+        const updatedStock = [...currentStock];
+        newRecords.forEach(record => {
+          const itemIndex = updatedStock.findIndex(i => i.id === record.item.id);
+          if (itemIndex > -1) {
+            updatedStock[itemIndex].quantity -= record.quantity;
+          }
+        });
+        return updatedStock;
       });
-      return updatedStock;
-    });
+    }
 
-  }, []);
+  }, [repo]);
   
   const handleNewEntry = useCallback((newRecords: EntryRecord[]) => {
     setEntryHistory(prev => [...newRecords, ...prev]);
-    
-    setStockItems(currentStock => {
-      const updatedStock = [...currentStock];
-      newRecords.forEach(record => {
-        const itemIndex = updatedStock.findIndex(i => i.id === record.item.id);
-        if (itemIndex > -1) {
-          updatedStock[itemIndex].quantity += record.quantity;
-        }
+    if (repo) {
+      newRecords.forEach(rec => repo.addEntry(rec).catch(err => console.error('Failed to add entry', err)));
+    } else {
+      setStockItems(currentStock => {
+        const updatedStock = [...currentStock];
+        newRecords.forEach(record => {
+          const itemIndex = updatedStock.findIndex(i => i.id === record.item.id);
+          if (itemIndex > -1) {
+            updatedStock[itemIndex].quantity += record.quantity;
+          }
+        });
+        return updatedStock;
       });
-      return updatedStock;
-    });
-  }, []);
+    }
+  }, [repo]);
 
   const handleReturnItem = useCallback((recordId: string, quantity: number) => {
     setHistory(prev => prev.map(rec => {
@@ -365,7 +403,7 @@ export default function StockReleaseApp() {
         <div className="space-y-10">
           <section className="space-y-4">
             <div className="relative">
-              <SearchIcon className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <span className="material-icons absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">search</span>
               <input
                 type="search"
                 value={globalSearch}
@@ -373,19 +411,19 @@ export default function StockReleaseApp() {
                 onKeyDown={(e) => { if (e.key === 'Enter') { setActiveView('items'); } }}
                 placeholder="Pesquisar itens..."
                 aria-label="Pesquisar itens"
-                className="w-full h-12 pl-10 pr-3 rounded-xl border bg-background shadow-sm"
+                className="w-full pl-10 pr-4 py-3 bg-card border border-border rounded-lg focus:ring-primary focus:border-primary"
               />
             </div>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {metricCards.map(card => {
                 const isLowStockCard = card.title === 'Itens em Baixo Nível';
                 const isTiposItens = card.title === 'Tipos de Itens';
                 const isFerramentas = card.title === 'Ferramentas';
                 const isActionable = (card as any).actionable || isTiposItens || isFerramentas;
                 return (
-                  <Card
+                  <div
                     key={card.title}
-                    className={"relative overflow-hidden transition " + (isActionable ? 'cursor-pointer hover:shadow-sm focus-visible:ring-2 ring-primary/50' : '')}
+                    className={"bg-card p-5 rounded-lg shadow-sm flex justify-between items-start " + (isActionable ? 'cursor-pointer hover:shadow-sm focus-visible:ring-2 ring-primary/50' : '')}
                     tabIndex={isActionable ? 0 : -1}
                     onClick={() => {
                       if (isLowStockCard) { setLowStockFilter(true); setActiveView('items'); return; }
@@ -401,20 +439,18 @@ export default function StockReleaseApp() {
                     aria-pressed={isActionable && isLowStockCard ? lowStockFilter : undefined}
                     aria-label={isActionable ? 'Abrir seção relacionada' : undefined}
                   >
-                    <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
-                      <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    <div>
+                      <h2 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                         {card.title}
                         {isLowStockCard && isActionable && (
-                          <span className="inline-flex items-center rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 px-2 py-0.5 text-[10px] font-medium">filtrável</span>
+                          <span className="text-[10px] bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 px-2 py-0.5 rounded-full">filtrável</span>
                         )}
-                      </CardTitle>
-                      <card.icon className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold tracking-tight">{card.value}</div>
+                      </h2>
+                      <p className={`text-3xl font-bold mt-1 ${isLowStockCard ? 'text-red-500' : 'text-foreground'}`}>{card.value}</p>
                       <p className="text-xs text-muted-foreground mt-1">{card.description}</p>
-                    </CardContent>
-                  </Card>
+                    </div>
+                    <span className={`material-icons ${isLowStockCard ? 'text-red-500' : 'text-primary'}`}>{isLowStockCard ? 'warning' : card.title === 'Ferramentas' ? 'build' : card.title === 'Unidades em Estoque' ? 'inventory' : 'category'}</span>
+                  </div>
                 );
               })}
             </div>
@@ -457,6 +493,19 @@ export default function StockReleaseApp() {
                 onSetIsAddItemDialogOpen={setAddItemDialogOpen}
                 onSetEditingItem={setEditingItem}
                 globalSearch={globalSearch}
+                onDeleteItem={(id) => {
+                  if (repo) {
+                    // Soft delete by setting quantity 0 or implement a delete function if needed
+                    const target = stockItems.find(i => i.id === id);
+                    if (target) repo.upsertItem({ ...target, quantity: 0 }).catch(console.error);
+                  } else {
+                    setStockItems(prev => prev.filter(i => i.id !== id));
+                  }
+                }}
+                onUpdateItem={(item) => {
+                  if (repo) repo.upsertItem(item).catch(console.error);
+                  else setStockItems(prev => prev.map(i => i.id === item.id ? item : i));
+                }}
               />
             </TabsContent>
           </Tabs>
@@ -469,23 +518,22 @@ export default function StockReleaseApp() {
   };
 
     return (
-  <div className="flex flex-col min-h-dvh bg-background text-foreground pb-[calc(env(safe-area-inset-bottom)+4.2rem)] pt-[env(safe-area-inset-top)] overflow-x-hidden">
-  <header className="sticky top-0 z-40 flex items-start gap-3 border-b border-border px-4 py-3 shrink-0 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-          <div className="flex items-start gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mt-[3px] h-6 w-6 text-muted-foreground"><path d="M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v2"/><path d="M21 14v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M3 10h18v4H3zM12 16v-4"/></svg>
-            <div className="leading-tight">
-              <h1 className="text-xl font-extrabold tracking-tight">Controle de Almoxarifado</h1>
+  <div className="flex flex-col min-h-dvh bg-background text-foreground pb-[calc(env(safe-area-inset-bottom)+5.2rem)] pt-[env(safe-area-inset-top)] overflow-x-hidden">
+  <header className="sticky top-0 z-40 bg-card shadow-sm px-4 py-3 border-b border-border">
+          <div className="mx-auto max-w-md flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <span className="material-icons text-foreground">inventory</span>
+              <h1 className="text-xl font-semibold">Controle de Almoxarifado</h1>
             </div>
-          </div>
-          <div className="ml-auto flex items-center gap-1">
-            <Button variant="ghost" size="icon" aria-label="Notificações">
-              <Bell className="h-5 w-5" />
-            </Button>
+            <button className="relative" aria-label="Notificações">
+              <span className="material-icons text-foreground">notifications</span>
+              <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-red-500" />
+            </button>
           </div>
         </header>
 
         <main className={"flex-1 overflow-auto relative " + (densityLevel === -1 ? 'text-sm' : densityLevel === 1 ? 'text-base' : '')}>
-          <div className={"max-w-6xl mx-auto w-full px-4 " + (densityLevel === -1 ? 'py-3 md:py-4 space-y-5' : densityLevel === 1 ? 'py-8 md:py-10 space-y-10' : 'py-6 md:py-8 space-y-8')}>
+          <div className={"max-w-md mx-auto w-full px-4 " + (densityLevel === -1 ? 'py-3 md:py-4 space-y-5' : densityLevel === 1 ? 'py-8 md:py-10 space-y-10' : 'py-6 md:py-8 space-y-8')}>
             {/* Busca abaixo do cabeçalho removida no novo layout */}
             {renderContent()}
           </div>
@@ -508,17 +556,18 @@ export default function StockReleaseApp() {
             editingTool={editingTool}
         />
 
-        {/* Bottom tab bar */}
-        <nav className="fixed bottom-0 inset-x-0 z-40 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 pb-[env(safe-area-inset-bottom)]">
-          <div className="mx-auto max-w-6xl px-4">
-            <div className="grid grid-cols-4 h-14">
-              {[{key:'dashboard', label:'Menu', icon: MenuIcon}, {key:'items', label:'Itens', icon: Boxes}, {key:'tools', label:'Ferramentas', icon: Wrench}, {key:'history', label:'Histórico', icon: History}].map(tab => {
+  {/* AdMob banner (native builds only). It's a system overlay at bottom-center. */}
+  <AdmobBanner />
+  {/* Bottom tab bar (Material Icons) */}
+        <nav className="fixed bottom-0 inset-x-0 z-40 border-t border-border bg-card shadow-sm pb-[calc(env(safe-area-inset-bottom)+0.25rem)]">
+          <div className="mx-auto max-w-md px-2">
+            <div className="flex justify-around h-16">
+              {[{key:'dashboard', label:'Menu', icon:'menu'}, {key:'items', label:'Itens', icon:'inventory'}, {key:'tools', label:'Ferramentas', icon:'build'}, {key:'history', label:'Histórico', icon:'history'}].map(tab => {
                 const isActive = (activeView === tab.key) || (tab.key==='dashboard' && activeView==='dashboard');
-                const Icon = tab.icon as any;
                 return (
-                  <button key={tab.key} className={"flex flex-col items-center justify-center gap-1 text-xs " + (isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground')} onClick={() => setActiveView(tab.key as any)}>
-                    <Icon className="h-5 w-5" />
-                    <span>{tab.label}</span>
+                  <button key={tab.key} className={"flex flex-col items-center justify-center w-1/4 p-2 rounded-lg text-xs " + (isActive ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:bg-primary/10 hover:text-primary')} onClick={() => setActiveView(tab.key as any)}>
+                    <span className="material-icons">{tab.icon}</span>
+                    <span className="font-medium">{tab.label}</span>
                   </button>
                 );
               })}

@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Haptics, ImpactStyle, NotificationType } from "@capacitor/haptics";
+import { hapticImpact, hapticNotification } from "@/lib/native/haptics";
 import type { StockItem, WithdrawalItem } from "@/lib/types";
 import type { WithdrawalFormValues } from "./stock-release-client";
 import dynamic from "next/dynamic";
@@ -51,13 +51,15 @@ export const WithdrawalForm = React.forwardRef<HTMLFormElement, WithdrawalFormPr
   const [currentItemId, setCurrentItemId] = useState<string>('');
   const [quantity, setQuantity] = useState<number | string>('');
   const [unit, setUnit] = useState('UN');
-  const unitOptions = ['UN','PC','CX','KG','M','L','OUTRA'];
+  // Medidas disponíveis para a saída: inclui sugestões do cliente (KG, RL, BL, PCT)
+  const unitOptions = ['UN','PC','CX','KG','RL','BL','PCT','M','L','OUTRA'];
   const [customUnit, setCustomUnit] = useState('');
 
   const hasStockAvailable = useMemo(() => stockItems.some(item => item.quantity > 0), [stockItems]);
 
   const handleScanSuccess = (foundItem: StockItem) => {
-    onAppendItem({ item: foundItem, quantity: 1, unit: 'UN' });
+    // Usa a unidade selecionada atualmente (ou UN por padrão)
+    onAppendItem({ item: foundItem, quantity: 1, unit: unit === 'OUTRA' ? (customUnit || 'UN') : unit });
     setSearchScannerOpen(false);
     toast({ title: "Item Adicionado", description: `Item "${foundItem.name}" adicionado à cesta.` });
   };
@@ -91,7 +93,7 @@ export const WithdrawalForm = React.forwardRef<HTMLFormElement, WithdrawalFormPr
       }
 
   onAppendItem({ item, quantity: finalQuantity, unit: unit === 'OUTRA' ? (customUnit || 'UN') : unit });
-  Haptics.impact({ style: ImpactStyle.Light }).catch(()=>{});
+  hapticImpact('light').catch(()=>{});
       
       setCurrentItemId('');
       setQuantity('');
@@ -160,7 +162,7 @@ export const WithdrawalForm = React.forwardRef<HTMLFormElement, WithdrawalFormPr
                         <FormLabel>Qtd.</FormLabel>
                         <Input type="number" placeholder="1" value={quantity} onChange={(e) => setQuantity(e.target.value)} min="1" max={MAX_QUANTITY} />
                       </FormItem>
-                      <FormItem className="hidden md:block">
+                      <FormItem>
                         <FormLabel>Unidade</FormLabel>
                         <Select value={unit} onValueChange={setUnit}>
                           <SelectTrigger><SelectValue placeholder="UN" /></SelectTrigger>
@@ -222,8 +224,8 @@ export const WithdrawalForm = React.forwardRef<HTMLFormElement, WithdrawalFormPr
               </div>
             </CardContent>
             <CardFooter className="px-6 pt-6 flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={()=>{ onClearCart(); Haptics.impact({style: ImpactStyle.Medium}).catch(()=>{}); }}>Limpar Tudo</Button>
-              <Button type="submit" disabled={isSubmitDisabled} onClick={()=> Haptics.notification({ type: NotificationType.Success }).catch(()=>{})}>Salvar Retirada</Button>
+              <Button type="button" variant="outline" onClick={()=>{ onClearCart(); hapticImpact('medium').catch(()=>{}); }}>Limpar Tudo</Button>
+              <Button type="submit" disabled={isSubmitDisabled} onClick={()=> hapticNotification('success').catch(()=>{})}>Salvar Retirada</Button>
             </CardFooter>
           </Card>
         </form>

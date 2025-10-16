@@ -44,3 +44,8 @@
 
 # Mantém nomes de assets (não ofuscar caminhos usados em ponte Web → nativo)
 -keepattributes SourceFile,LineNumberTable
+
+# === Google Mobile Ads / AdMob ===
+-keep class com.google.android.gms.ads.** { *; }
+-keep interface com.google.android.gms.ads.** { *; }
+-keep class com.google.ads.** { *; }

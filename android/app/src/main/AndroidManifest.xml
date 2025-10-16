@@ -20,6 +20,11 @@
             </intent-filter>
         </activity>
 
+        <!-- Google Mobile Ads App ID -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="${ADMOB_APP_ID}" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
@@ -41,4 +46,6 @@
     <!-- maxSdkVersion="32" é usado porque o Android 13 mudou a forma de acesso a mídias -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
+    <!-- Permissão de ID de anúncios (necessária para Ads em Android 13+) -->
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID" />
 </manifest>
