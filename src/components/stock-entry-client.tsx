@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -37,10 +37,21 @@ export default function StockEntryClient({ stockItems, onUpdateHistory, uniqueAd
   const [entryItems, setEntryItems] = useState<{ item: StockItem, quantity: number, unit: string }[]>([]);
 
   const [currentItemId, setCurrentItemId] = useState<string>('');
+  const [itemQuery, setItemQuery] = useState('');
   const [quantity, setQuantity] = useState<number | string>('');
   const [unit, setUnit] = useState('UN');
   const unitOptions = ['UN','PC','CX','KG','M','L','OUTRA'];
   const [customUnit, setCustomUnit] = useState('');
+
+  const filteredItems = useMemo(() => {
+    const q = itemQuery.trim().toLowerCase();
+    if (!q) return stockItems;
+    return stockItems.filter(i =>
+      i.name.toLowerCase().includes(q) ||
+      i.specifications.toLowerCase().includes(q) ||
+      (i.barcode ? i.barcode.toLowerCase().includes(q) : false)
+    );
+  }, [itemQuery, stockItems]);
 
   const form = useForm<EntryFormValues>({
     resolver: zodResolver(formSchema),
@@ -115,11 +126,15 @@ export default function StockEntryClient({ stockItems, onUpdateHistory, uniqueAd
               <h3 className="text-lg font-medium">Adicionar Item ao Estoque</h3>
               <div className="grid grid-cols-1 sm:grid-cols-[1fr_80px] md:grid-cols-[1fr_80px_100px_auto] gap-2 items-end">
                   <FormItem className="sm:col-span-2 md:col-span-1">
+                    <FormLabel>Filtrar</FormLabel>
+                    <Input placeholder="Nome, especificação ou código" value={itemQuery} onChange={(e)=>setItemQuery(e.target.value)} />
+                  </FormItem>
+                  <FormItem className="sm:col-span-2 md:col-span-1">
                     <FormLabel>Item</FormLabel>
                     <Select onValueChange={setCurrentItemId} value={currentItemId}>
                       <SelectTrigger><SelectValue placeholder="Selecione um item" /></SelectTrigger>
                       <SelectContent>
-                        {stockItems.map((item) => (
+                        {filteredItems.map((item) => (
                           <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>
                         ))}
                       </SelectContent>

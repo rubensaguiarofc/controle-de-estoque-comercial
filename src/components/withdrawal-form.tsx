@@ -129,12 +129,6 @@ export const WithdrawalForm = React.forwardRef<HTMLFormElement, WithdrawalFormPr
                     <ScanLine className="h-4 w-4" />
                     <span className="sr-only">Buscar por código de barras</span>
                   </Button>
-                  {process.env.NODE_ENV !== 'production' && (
-                    <Button type="button" variant="ghost" size="sm" onClick={() => setSearchScannerOpen(true)}>
-                      <ScanLine className="h-4 w-4 mr-2" />
-                      Abrir Scanner (debug)
-                    </Button>
-                  )}
                 </div>
               </div>
             </CardHeader>

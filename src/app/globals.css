@@ -2,6 +2,13 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+/* When AdMob banner is visible, hide bottom bar and reduce bottom padding baseline */
+:root { --bottom-bar-height: 5.2rem; }
+.admob-banner-visible { --bottom-bar-height: 0rem; }
+
+/* Utility to hide elements when banner visible */
+.admob-banner\:hidden { display: block; }
+.admob-banner-visible .admob-banner\:hidden { display: none; }
 
 /* Local Material Icons (iconfont) — served from /public/fonts */
 @font-face {
@@ -29,6 +36,22 @@
   text-rendering: optimizeLegibility;
   -moz-osx-font-smoothing: grayscale;
   font-feature-settings: 'liga';
+}
+
+/* Local Inter and Noto Sans (optional variable fonts) — place .woff2 files in /public/fonts */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/Inter-Variable.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Noto Sans';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/NotoSans-Variable.woff2') format('woff2');
 }
 
 @layer base {
@@ -112,6 +135,7 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: 'Inter', 'Noto Sans', system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Apple Color Emoji', 'Segoe UI Emoji';
   }
 }
 

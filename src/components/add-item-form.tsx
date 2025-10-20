@@ -63,7 +63,7 @@ export function AddItemForm({ editingItem, onOpenChange, onSwitchToScanner }: Ad
             <FormItem>
               <FormLabel>Quantidade {editingItem ? 'Atual' : 'Inicial'}</FormLabel>
               <FormControl>
-                <Input type="number" placeholder="0" {...field} readOnly={!!editingItem} min="0" max={MAX_QUANTITY} />
+                <Input type="number" placeholder="0" {...field} min="0" max={MAX_QUANTITY} />
               </FormControl>
               <FormMessage />
             </FormItem>

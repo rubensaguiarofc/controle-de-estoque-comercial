@@ -13,9 +13,7 @@ import { BarcodeDisplayDialog } from './barcode-display-dialog';
 import { ScrollArea } from './ui/scroll-area';
 import { ItemDetailsDialog } from './item-details-dialog';
 import { Badge } from './ui/badge';
-import jsPDF from 'jspdf';
-import { savePdf } from '@/lib/save-pdf';
-import JsBarcode from 'jsbarcode';
+// Heavy libs loaded on demand during printing to improve initial load time
 
 interface ItemManagementProps {
   stockItems: StockItem[];
@@ -87,6 +85,12 @@ export default function ItemManagement({
       });
       return;
     }
+    // Dynamic imports to keep the main bundle lean
+    const [{ default: jsPDF }, { default: JsBarcode }, { savePdf }] = await Promise.all([
+      import('jspdf'),
+      import('jsbarcode'),
+      import('@/lib/save-pdf'),
+    ]);
 
     const doc = new jsPDF('p', 'mm', 'a4');
     const tempCanvas = document.createElement('canvas');
@@ -182,9 +186,9 @@ export default function ItemManagement({
           <CardHeader className="bg-card rounded-t-lg">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                   <div className="flex-1">
-                      <CardTitle>Biblioteca de Itens</CardTitle>
+                      <CardTitle>Cadastro de Itens</CardTitle>
                       <CardDescription>
-                        {lowStockOnly ? 'Exibindo apenas itens em baixo nível (≤5). ' : 'Gerencie todos os itens cadastrados.'}
+                        {lowStockOnly ? 'Exibindo apenas itens em baixo nível (≤5). ' : 'Gerencie e cadastre itens.'}
                         {lowStockOnly && (
                           <button
                             type="button"
@@ -196,12 +200,12 @@ export default function ItemManagement({
                         )}
                       </CardDescription>
                   </div>
-                  <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+          <div className="flex flex-col gap-2 w-full sm:w-auto">
                       <Button size="sm" className="w-full sm:w-auto" onClick={() => { onSetEditingItem(null); onSetIsAddItemDialogOpen(true); }}>
                           <Plus className="mr-2 h-4 w-4" />
                           Cadastrar Item
                       </Button>
-                      <Button variant="outline" size="sm" className="w-full sm:w-auto" onClick={handlePrintAllBarcodes}>
+            <Button variant="outline" size="sm" className="w-full sm:w-auto" onClick={handlePrintAllBarcodes}>
                           <Printer className="mr-2 h-4 w-4" />
                           Imprimir Etiquetas
                       </Button>

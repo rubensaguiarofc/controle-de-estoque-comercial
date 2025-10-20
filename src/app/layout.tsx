@@ -1,10 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
-import { Poppins } from 'next/font/google';
 import { Providers } from '@/providers';
-
-const poppins = Poppins({ subsets: ['latin'], weight: ['400','600'], display: 'swap' });
 
 export const metadata: Metadata = {
   title: 'Controle de Almoxarifado',
@@ -24,7 +21,7 @@ export default function RootLayout({
         {/* Ajuste de altura mínima semelhante ao protótipo fornecido */}
         <style>{`body{min-block-size:max(884px,100dvh);}`}</style>
       </head>
-      <body className={`${poppins.className} bg-background text-foreground antialiased flex min-h-screen flex-col`}>
+      <body className={`bg-background text-foreground antialiased flex min-h-screen flex-col`}>
         <Providers>
           <div className="flex-1 safe-area-wrapper">
             {/* Container centralizado em largura móvel, como no layout (max-w-md) */}

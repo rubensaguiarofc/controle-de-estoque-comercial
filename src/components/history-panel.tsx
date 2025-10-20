@@ -5,10 +5,12 @@ import { format } from "date-fns";
 import { ptBR } from 'date-fns/locale';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import { Toast } from '@capacitor/toast'; // Opcional, para mostrar alertas nativos
-import { Calendar as CalendarIcon, FileDown, Trash, X, Undo2 } from "lucide-react";
+import { Capacitor } from '@capacitor/core';
+// Using Material Icons font for offline-friendly icons
 
 import type { WithdrawalRecord, ToolRecord, EntryRecord } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -47,9 +49,12 @@ declare global {
 export function HistoryPanel({ itemHistory, toolHistory, entryHistory, onDeleteItemRecord, onDeleteToolRecord, onDeleteEntryRecord, onReturnItem }: HistoryPanelProps) {
   const { toast } = useToast();
   const [currentPage, setCurrentPage] = useState(1);
-  const [dateFilter, setDateFilter] = useState<Date | undefined>();
+  const [startDate, setStartDate] = useState<Date | undefined>();
+  const [endDate, setEndDate] = useState<Date | undefined>();
+  const [isRangeOpen, setIsRangeOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState("withdrawals");
+  const [pdfLandscape, setPdfLandscape] = useState(false);
   const [viewingToolRecord, setViewingToolRecord] = useState<ToolRecord | null>(null);
   const [viewingItemRecord, setViewingItemRecord] = useState<WithdrawalRecord | null>(null);
   const [returningRecord, setReturningRecord] = useState<WithdrawalRecord | null>(null);
@@ -67,26 +72,28 @@ export function HistoryPanel({ itemHistory, toolHistory, entryHistory, onDeleteI
   const filteredHistory = useMemo(() => {
   let filtered = historyToDisplay as (WithdrawalRecord | EntryRecord | ToolRecord)[];
 
-    if (dateFilter) {
+    if (startDate || endDate) {
         filtered = filtered.filter(record => {
-            const recordDate = new Date((record as any).date || (record as ToolRecord).checkoutDate);
-            return recordDate.getFullYear() === dateFilter.getFullYear() &&
-                   recordDate.getMonth() === dateFilter.getMonth() &&
-                   recordDate.getDate() === dateFilter.getDate();
+            const d = new Date((record as any).date || (record as ToolRecord).checkoutDate).getTime();
+            const s = startDate ? new Date(startDate).setHours(0,0,0,0) : -Infinity;
+            const e = endDate ? new Date(endDate).setHours(23,59,59,999) : Infinity;
+            return d >= s && d <= e;
         });
     }
 
     if (searchTerm) {
         const lowercasedSearch = searchTerm.toLowerCase();
-        if (activeTab === 'withdrawals') {
+    if (activeTab === 'withdrawals') {
             filtered = (filtered as WithdrawalRecord[]).filter(record =>
-                record.item.name.toLowerCase().includes(lowercasedSearch) ||
+        record.item.name.toLowerCase().includes(lowercasedSearch) ||
+        record.item.specifications.toLowerCase().includes(lowercasedSearch) ||
                 record.requestedBy.toLowerCase().includes(lowercasedSearch) ||
                 record.requestedFor.toLowerCase().includes(lowercasedSearch)
             );
         } else if (activeTab === 'entries') {
              filtered = (filtered as EntryRecord[]).filter(record =>
-                record.item.name.toLowerCase().includes(lowercasedSearch) ||
+        record.item.name.toLowerCase().includes(lowercasedSearch) ||
+        record.item.specifications.toLowerCase().includes(lowercasedSearch) ||
                 record.addedBy.toLowerCase().includes(lowercasedSearch)
             );
         } else { // tools
@@ -104,7 +111,7 @@ export function HistoryPanel({ itemHistory, toolHistory, entryHistory, onDeleteI
       const dateB = new Date((b as any).date || (b as ToolRecord).checkoutDate).getTime();
       return dateB - dateA;
     });
-  }, [historyToDisplay, dateFilter, searchTerm, activeTab]);
+  }, [historyToDisplay, startDate, endDate, searchTerm, activeTab]);
 
   const totalPages = Math.ceil(filteredHistory.length / ITEMS_PER_PAGE);
 
@@ -119,8 +126,8 @@ export function HistoryPanel({ itemHistory, toolHistory, entryHistory, onDeleteI
       toast({ variant: "destructive", title: "Nenhum dado para exportar" });
       return;
     }
-  
-    const doc = new jsPDF();
+
+    const doc = new jsPDF({ orientation: pdfLandscape ? 'landscape' : 'portrait', unit: 'mm', format: 'a4' });
     let title = "";
     let filename = "";
     
@@ -196,8 +203,67 @@ export function HistoryPanel({ itemHistory, toolHistory, entryHistory, onDeleteI
     })();
   };
 
+  const handleExportToXLSX = () => {
+    if (filteredHistory.length === 0) {
+      toast({ variant: "destructive", title: "Nenhum dado para exportar" });
+      return;
+    }
+    let wsData: any[] = [];
+    let filename = '';
+    if (activeTab === 'withdrawals') {
+      wsData = [ ['Data', 'Item', 'Especificações', 'Qtd.', 'Devolvido', 'Quem Retirou', 'Destino'] ];
+      (filteredHistory as WithdrawalRecord[]).forEach(r => {
+        wsData.push([ format(new Date(r.date), 'dd/MM/yy'), r.item.name, r.item.specifications, `${r.quantity} ${r.unit}`, `${r.returnedQuantity || 0} ${r.unit}`, r.requestedBy, r.requestedFor ]);
+      });
+      filename = `historico_retiradas_${format(new Date(), 'yyyy-MM-dd')}.xlsx`;
+    } else if (activeTab === 'entries') {
+      wsData = [ ['Data', 'Item', 'Especificações', 'Qtd.', 'Adicionado Por'] ];
+      (filteredHistory as EntryRecord[]).forEach(r => {
+        wsData.push([ format(new Date(r.date), 'dd/MM/yy'), r.item.name, r.item.specifications, `${r.quantity} ${r.unit}`, r.addedBy ]);
+      });
+      filename = `historico_entradas_${format(new Date(), 'yyyy-MM-dd')}.xlsx`;
+    } else {
+      wsData = [ ['Ferramenta', 'Patrimônio', 'Retirado por', 'Local', 'Data Retirada', 'Data Devolução', 'Status'] ];
+      (filteredHistory as ToolRecord[]).forEach(r => {
+        wsData.push([ r.tool.name, r.tool.assetId, r.checkedOutBy, r.usageLocation, format(new Date(r.checkoutDate), 'dd/MM/yy HH:mm'), r.returnDate ? format(new Date(r.returnDate), 'dd/MM/yy HH:mm') : '-', r.returnDate ? (r.isDamaged ? 'Devolvido com Avaria' : 'Devolvido') : 'Em uso' ]);
+      });
+      filename = `historico_ferramentas_${format(new Date(), 'yyyy-MM-dd')}.xlsx`;
+    }
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Relatório');
+
+    // Se estiver rodando nativamente (Capacitor), salvar e compartilhar via Filesystem + Share
+    if (Capacitor.isNativePlatform()) {
+      (async () => {
+        try {
+          const base64Xlsx = XLSX.write(wb, { bookType: 'xlsx', type: 'base64' });
+          await Filesystem.writeFile({ path: filename, data: base64Xlsx, directory: Directory.Documents });
+          const { uri } = await Filesystem.getUri({ path: filename, directory: Directory.Documents });
+          try {
+            await Share.share({ title: 'Exportar XLSX', text: 'Seu relatório em Excel.', url: uri, dialogTitle: 'Compartilhar Planilha' });
+          } catch {}
+          toast({ title: 'Exportação Concluída', description: `Arquivo salvo: ${filename}` });
+        } catch (err) {
+          console.error('Falha ao salvar/compartilhar XLSX via Capacitor, tentando fallback web', err);
+          try {
+            XLSX.writeFile(wb, filename);
+            toast({ title: 'Exportação Concluída', description: 'Arquivo XLSX baixado.' });
+          } catch (e2) {
+            toast({ variant: 'destructive', title: 'Falha', description: 'Não foi possível exportar o XLSX.' });
+          }
+        }
+      })();
+      return;
+    }
+
+    // Ambiente web: baixar o arquivo normalmente
+    XLSX.writeFile(wb, filename);
+  };
+
   const clearFilters = () => {
-    setDateFilter(undefined);
+    setStartDate(undefined);
+    setEndDate(undefined);
     setSearchTerm('');
     setCurrentPage(1);
   };
@@ -227,75 +293,104 @@ export function HistoryPanel({ itemHistory, toolHistory, entryHistory, onDeleteI
 
   return (
     <>
-      <Card className="shadow-lg h-full flex flex-col bg-transparent sm:bg-card">
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <div className="flex-1">
-                  <CardTitle>Histórico Geral</CardTitle>
-                  <CardDescription>Visualize, filtre e exporte todas as movimentações.</CardDescription>
-              </div>
-              <Button variant="outline" size="sm" onClick={handleExportToPDF} className="w-full sm:w-auto">
-                  <FileDown className="mr-2 h-4 w-4" />
-                  Exportar PDF
-              </Button>
+      <div className="flex flex-col">
+        {/* Título e descrição */}
+        <div className="px-4 pt-5 pb-3">
+          <h2 className="text-[22px] font-bold tracking-[-0.015em]">Histórico Geral</h2>
+          <p className="text-base pt-1">Visualize, filtre e exporte todas as movimentações.</p>
+        </div>
+        {/* Ações: Exportar PDF e XLSX */}
+        <div className="flex justify-stretch">
+          <div className="flex flex-1 gap-3 flex-wrap px-4 py-3 justify-between">
+            <Button onClick={handleExportToPDF} className="h-10 px-4 bg-[#1172d4] hover:bg-[#0f63b8] text-white text-sm font-bold tracking-[0.015em]">Exportar PDF</Button>
+            <Button variant="outline" onClick={handleExportToXLSX} className="h-10 px-4 bg-[#e7edf3] text-[#0d141b] hover:bg-[#dfe7f0] border-transparent text-sm font-bold tracking-[0.015em]">Exportar XLSX</Button>
           </div>
-        </CardHeader>
-        <CardContent className="flex flex-col flex-grow p-0 sm:p-6">
+        </div>
+        {/* Abas */}
+        <div className="pb-3 border-b border-[#cfdbe7]">
           <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-              <TabsList className="grid w-full grid-cols-3 relative">
-                  <TabsTrigger value="withdrawals" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-inner relative">
-                    <span className="relative">Saídas{activeTab==='withdrawals' && <span className="absolute -bottom-2 left-0 right-0 mx-auto h-0.5 w-8 rounded-full bg-primary" />}</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="entries" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-inner relative">
-                    <span className="relative">Entradas{activeTab==='entries' && <span className="absolute -bottom-2 left-0 right-0 mx-auto h-0.5 w-8 rounded-full bg-primary" />}</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="tools" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-inner relative">
-                    <span className="relative">Ferramentas{activeTab==='tools' && <span className="absolute -bottom-2 left-0 right-0 mx-auto h-0.5 w-8 rounded-full bg-primary" />}</span>
-                  </TabsTrigger>
-              </TabsList>
+            <TabsList className="grid w-full grid-cols-3 bg-transparent">
+              <TabsTrigger value="withdrawals" className="border-b-[3px] data-[state=active]:border-b-[#1172d4] border-b-transparent rounded-none pb-[13px] pt-4 text-sm font-bold data-[state=active]:text-foreground">Saídas</TabsTrigger>
+              <TabsTrigger value="entries" className="border-b-[3px] data-[state=active]:border-b-[#1172d4] border-b-transparent rounded-none pb-[13px] pt-4 text-sm font-bold data-[state=active]:text-foreground">Entradas</TabsTrigger>
+              <TabsTrigger value="tools" className="border-b-[3px] data-[state=active]:border-b-[#1172d4] border-b-transparent rounded-none pb-[13px] pt-4 text-sm font-bold data-[state=active]:text-foreground">Ferramentas</TabsTrigger>
+            </TabsList>
           </Tabs>
-          <div className="flex flex-col sm:flex-row gap-2 my-4 px-4 sm:px-0">
-              <div className="relative flex-grow">
-                  <Input placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+        </div>
+        {/* Busca */}
+        <div className="flex max-w-[480px] flex-wrap items-end gap-4 px-4 py-3">
+          <label className="flex flex-col min-w-40 flex-1">
+            <div className="relative">
+              <span className="material-icons absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">search</span>
+              <Input placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="h-14 pl-10" />
+            </div>
+          </label>
+          { ((startDate||endDate) || searchTerm) && (
+            <Button variant="ghost" size="icon" onClick={clearFilters} className="h-10 w-10">
+              <span className="material-icons">close</span>
+              <span className="sr-only">Limpar Filtros</span>
+            </Button>
+          )}
+        </div>
+        {/* Período */}
+        <div className="flex px-4 py-3 justify-start">
+          <Popover open={isRangeOpen} onOpenChange={setIsRangeOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className={cn("h-10 px-4 bg-[#e7edf3] text-[#0d141b] border-transparent text-sm font-bold tracking-[0.015em]", !(startDate||endDate) && "text-muted-foreground")}>
+                <span className="material-icons mr-2">calendar_month</span>
+                {(startDate||endDate) ? `${startDate?format(startDate,"dd/MM/yy"):'..'} - ${endDate?format(endDate,"dd/MM/yy"):'..'}` : <span>Período</span>}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[680px] max-w-[95vw] p-3">
+              <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-4">
+                {/* Presets */}
+                <div className="space-y-2">
+                  <div className="text-xs font-semibold">Atalhos</div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button variant="outline" className="h-8" onClick={() => { const now=new Date(); const s=new Date(now); s.setHours(0,0,0,0); setStartDate(s); setEndDate(now); setIsRangeOpen(false); }}>Hoje</Button>
+                    <Button variant="outline" className="h-8" onClick={() => { const now=new Date(); const s=new Date(now); s.setDate(now.getDate()-1); s.setHours(0,0,0,0); const e=new Date(now); e.setDate(now.getDate()-1); e.setHours(23,59,59,999); setStartDate(s); setEndDate(e); setIsRangeOpen(false); }}>Ontem</Button>
+                    <Button variant="outline" className="h-8" onClick={() => { const now=new Date(); const day=now.getDay(); const diff=(day===0?6:day-1); const s=new Date(now); s.setDate(now.getDate()-diff); s.setHours(0,0,0,0); const e=new Date(now); e.setHours(23,59,59,999); setStartDate(s); setEndDate(e); setIsRangeOpen(false); }}>Esta semana</Button>
+                    <Button variant="outline" className="h-8" onClick={() => { const now=new Date(); const day=now.getDay(); const diff=(day===0?6:day-1)+7; const e=new Date(now); e.setDate(now.getDate()-diff+6); e.setHours(23,59,59,999); const s=new Date(e); s.setDate(e.getDate()-6); s.setHours(0,0,0,0); setStartDate(s); setEndDate(e); setIsRangeOpen(false); }}>Semana passada</Button>
+                    <Button variant="outline" className="h-8" onClick={() => { const now=new Date(); const s=new Date(now.getFullYear(), now.getMonth(), 1); const e=new Date(now.getFullYear(), now.getMonth()+1, 0, 23,59,59,999); setStartDate(s); setEndDate(e); setIsRangeOpen(false); }}>Este mês</Button>
+                    <Button variant="outline" className="h-8" onClick={() => { const now=new Date(); const s=new Date(now.getFullYear(), now.getMonth()-1, 1); const e=new Date(now.getFullYear(), now.getMonth(), 0, 23,59,59,999); setStartDate(s); setEndDate(e); setIsRangeOpen(false); }}>Mês passado</Button>
+                    <Button variant="outline" className="h-8" onClick={() => { setStartDate(undefined); setEndDate(undefined); setIsRangeOpen(false); }}>Limpar</Button>
+                  </div>
+                </div>
+                {/* Range picker (two months) */}
+                <div className="flex flex-col gap-2">
+                  <div className="text-xs text-muted-foreground">Selecione o intervalo</div>
+                  <div className="flex flex-col md:flex-row gap-2">
+                    <Calendar mode="single" selected={startDate} onSelect={setStartDate} locale={ptBR} className="border rounded-md" />
+                    <Calendar mode="single" selected={endDate} onSelect={setEndDate} locale={ptBR} className="border rounded-md" />
+                  </div>
+                  <div className="flex justify-end pt-2">
+                    <Button onClick={() => setIsRangeOpen(false)} className="h-9">Aplicar</Button>
+                  </div>
+                </div>
               </div>
-              <div className="flex gap-2">
-                <Popover>
-                    <PopoverTrigger asChild>
-                        <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !dateFilter && "text-muted-foreground")}>
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {dateFilter ? format(dateFilter, "PPP", { locale: ptBR }) : <span>Filtrar por data</span>}
-                        </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={dateFilter} onSelect={setDateFilter} initialFocus locale={ptBR} /></PopoverContent>
-                </Popover>
-                { (dateFilter || searchTerm) &&
-                  <Button variant="ghost" size="icon" onClick={clearFilters}>
-                      <X className="h-4 w-4" />
-                      <span className="sr-only">Limpar Filtros</span>
-                  </Button>
-                }
-              </div>
-          </div>
-          <ScrollArea className="flex-grow">
-            <div className="px-4 sm:px-0 space-y-4">
+            </PopoverContent>
+          </Popover>
+        </div>
+        {/* Lista / estado vazio */}
+        <div className="flex flex-col p-4">
+          {paginatedHistory.length === 0 ? (
+            <div className="flex flex-col items-center gap-6 rounded-lg border-2 border-dashed border-[#cfdbe7] px-6 py-14">
+              <p className="text-lg font-bold tracking-[-0.015em] text-center">Nenhum registro encontrado.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
               {renderHistoryList()}
             </div>
-          </ScrollArea>
-        </CardContent>
-        <CardFooter className="pt-6 bg-card">
-          <div className="flex items-center justify-end w-full">
-              <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))} disabled={currentPage === 1}>
-                      Anterior
-                  </Button>
-                  <span className="text-sm text-muted-foreground self-center">Página {currentPage} de {totalPages}</span>
-                  <Button variant="outline" size="sm" onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))} disabled={currentPage === totalPages}>
-                      Próxima
-                  </Button>
-              </div>
+          )}
+        </div>
+        {/* Paginação */}
+        <div className="flex justify-stretch">
+          <div className="flex flex-1 gap-3 flex-wrap px-4 py-3 justify-between">
+            <Button variant="outline" className="h-10 px-4 bg-[#e7edf3] text-[#0d141b] border-transparent text-sm font-bold" onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))} disabled={currentPage === 1}>Anterior</Button>
+            <span className="text-sm text-muted-foreground self-center">Página {currentPage} de {totalPages || 1}</span>
+            <Button variant="outline" className="h-10 px-4 bg-[#e7edf3] text-[#0d141b] border-transparent text-sm font-bold" onClick={() => setCurrentPage(prev => Math.min(totalPages || 1, prev + 1))} disabled={currentPage === totalPages || totalPages === 0}>Próxima</Button>
           </div>
-        </CardFooter>
-      </Card>
+        </div>
+      </div>
       <SignatureDisplayDialog 
           record={viewingToolRecord}
           isOpen={!!viewingToolRecord}
@@ -338,13 +433,13 @@ function ItemWithdrawalHistoryList({ records, onViewDetails, onOpenReturnDialog,
                     </CardContent>
                     <CardFooter className="p-2 bg-card-footer flex justify-end gap-1">
                       <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onOpenReturnDialog(record); }} disabled={record.quantity === (record.returnedQuantity || 0)}>
-                        <Undo2 className="h-4 w-4 text-blue-500" />
+                        <span className="material-icons text-blue-500">undo</span>
                         <span className="sr-only">Devolver</span>
                       </Button>
                       <AlertDialog>
                           <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={(e) => e.stopPropagation()}>
-                                  <Trash className="h-4 w-4" />
+                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={(e) => e.stopPropagation()}>
+                  <span className="material-icons">delete</span>
                               </Button>
                           </AlertDialogTrigger>
                           <AlertDialogContent>
@@ -379,7 +474,7 @@ function ItemEntryHistoryList({ records, onDeleteRecord }: { records: EntryRecor
                       <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive h-7 w-7" onClick={(e) => e.stopPropagation()}>
-                              <Trash className="h-4 w-4" />
+                              <span className="material-icons">delete</span>
                             </Button>
                           </AlertDialogTrigger>
                           <AlertDialogContent>
@@ -423,7 +518,7 @@ function ToolHistoryList({ records, onShowDetails, onDeleteRecord }: { records: 
                   </CardContent>
                   <CardFooter className="p-2 bg-card-footer flex justify-end">
                       <AlertDialog>
-                        <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={(e) => e.stopPropagation()}><Trash className="h-4 w-4" /></Button></AlertDialogTrigger>
+                        <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={(e) => e.stopPropagation()}><span className="material-icons">delete</span></Button></AlertDialogTrigger>
                         <AlertDialogContent>
                           <AlertDialogHeader><AlertDialogTitle>Excluir Permanentemente?</AlertDialogTitle><AlertDialogDescription>Essa ação não pode ser desfeita e removerá este registro para sempre. Continue com cuidado.</AlertDialogDescription></AlertDialogHeader>
                           <AlertDialogFooter>
@@ -447,19 +542,20 @@ function ToolHistoryList({ records, onShowDetails, onDeleteRecord }: { records: 
 async function salvarECompartilharPdf(base64string: string, nomeArquivo: string) {
   try {
     // 1. Salva o arquivo na pasta de Cache do aplicativo.
-    const resultado = await Filesystem.writeFile({
+    await Filesystem.writeFile({
       path: nomeArquivo,
       data: base64string,
       directory: Directory.Cache,
     });
 
-    console.log('Arquivo salvo temporariamente em:', resultado.uri);
+    // Resolve a URI compatível com compartilhamento (content://)
+    const { uri } = await Filesystem.getUri({ path: nomeArquivo, directory: Directory.Cache });
 
     // 2. Usa o plugin Share para abrir o menu de compartilhamento nativo
     await Share.share({
       title: 'Salvar Relatório em PDF',
       text: `Aqui está o seu arquivo: ${nomeArquivo}`,
-      url: resultado.uri,
+      url: uri,
     });
 
   } catch (error) {
