@@ -2,9 +2,13 @@
 import { CommandItem } from 'cmdk';
 import type { NextConfig } from 'next';
 
+// Allow switching between static export (for mobile/Capacitor) and server mode (for web)
+// Set NEXT_OUTPUT_EXPORT=false to run in server mode (API routes enabled for web hosting)
+const useExport = process.env.NEXT_OUTPUT_EXPORT !== 'false';
+
 const nextConfig: NextConfig = {
   /* config options here */
-  output: 'export',
+  ...(useExport ? { output: 'export' as const } : {}),
   typescript: {
     ignoreBuildErrors: true,
   },
