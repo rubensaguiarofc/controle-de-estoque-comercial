@@ -31,7 +31,7 @@ const StockReleaseClient = forwardRef<HTMLFormElement, StockReleaseClientProps>(
   ({ stockItems, onUpdateHistory, uniqueRequesters, uniqueDestinations }, ref) => {
     const { toast } = useToast();
     const [currentDate, setCurrentDate] = useState("");
-    const [withdrawalItems, setWithdrawalItems] = useState<WithdrawalItem[]>([]);
+  const [withdrawalItems, setWithdrawalItems] = useState<WithdrawalItem[]>([]);
 
     const form = useForm<WithdrawalFormValues>({
       resolver: zodResolver(formSchema),
@@ -43,7 +43,22 @@ const StockReleaseClient = forwardRef<HTMLFormElement, StockReleaseClientProps>(
     
     useEffect(() => {
       setCurrentDate(format(new Date(), "eeee, dd 'de' MMMM 'de' yyyy", { locale: ptBR }));
+      // Restore persisted cart
+      try {
+        const raw = localStorage.getItem('withdrawalCart');
+        if (raw) {
+          const parsed = JSON.parse(raw) as WithdrawalItem[];
+          if (Array.isArray(parsed)) setWithdrawalItems(parsed);
+        }
+      } catch {}
     }, []);
+
+    // Persist cart on changes
+    useEffect(() => {
+      try {
+        localStorage.setItem('withdrawalCart', JSON.stringify(withdrawalItems));
+      } catch {}
+    }, [withdrawalItems]);
     
     const handleAppendItem = useCallback((item: WithdrawalItem) => {
       const stockItem = stockItems.find(i => i.id === item.item.id);
@@ -86,6 +101,26 @@ const StockReleaseClient = forwardRef<HTMLFormElement, StockReleaseClientProps>(
         });
       }
     }, [toast, stockItems, withdrawalItems]);
+
+    // Listen to global quick-add event fired from other screens (e.g., ItemManagement)
+    useEffect(() => {
+      function onQuickAdd(ev: Event) {
+        const ce = ev as CustomEvent;
+        const detail = ce.detail as Partial<WithdrawalItem> & { item: StockItem };
+        if (!detail || !detail.item) return;
+        const unit = (detail.unit || 'UN').toUpperCase();
+        const quantity = Math.max(1, Number(detail.quantity || 1));
+        handleAppendItem({ item: detail.item, quantity, unit });
+      }
+      if (typeof window !== 'undefined') {
+        window.addEventListener('almox:add-to-release', onQuickAdd as EventListener);
+      }
+      return () => {
+        if (typeof window !== 'undefined') {
+          window.removeEventListener('almox:add-to-release', onQuickAdd as EventListener);
+        }
+      };
+    }, [handleAppendItem]);
     
     const handleRemoveItem = useCallback((itemId: string) => {
       setWithdrawalItems(prev => prev.filter(item => item.item.id !== itemId));
@@ -116,6 +151,7 @@ const StockReleaseClient = forwardRef<HTMLFormElement, StockReleaseClientProps>(
     const handleClearCart = useCallback(() => {
       form.reset({ requestedBy: "", requestedFor: "" });
       setWithdrawalItems([]);
+      try { localStorage.removeItem('withdrawalCart'); } catch {}
       toast({ title: "Campos Limpos", description: "Todos os campos de entrada foram redefinidos." });
     }, [form, toast]);
 
@@ -153,7 +189,7 @@ const StockReleaseClient = forwardRef<HTMLFormElement, StockReleaseClientProps>(
         requestedFor: values.requestedFor.toUpperCase(),
       }));
       
-      onUpdateHistory(newRecords);
+  onUpdateHistory(newRecords);
 
       toast({ title: "Sucesso!", description: `${newRecords.length} retirada(s) foram registradas.` });
       form.reset({
@@ -161,6 +197,7 @@ const StockReleaseClient = forwardRef<HTMLFormElement, StockReleaseClientProps>(
         requestedFor: "",
       });
       setWithdrawalItems([]);
+      try { localStorage.removeItem('withdrawalCart'); } catch {}
     }, [withdrawalItems, onUpdateHistory, toast, form, stockItems]);
 
     return (

@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunk_N_E=self.webpackChunk_N_E||[]).push([[0],{46e3:(e,n,s)=>{s.r(n),s.d(n,{DialogWeb:()=>l});var a=s(6267);class l extends a.WebPlugin{async alert(e){window.alert(e.message)}async prompt(e){let n=window.prompt(e.message,e.inputText||"");return{value:null!==n?n:"",cancelled:null===n}}async confirm(e){return{value:window.confirm(e.message)}}}}}]);

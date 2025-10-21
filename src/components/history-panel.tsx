@@ -19,6 +19,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsList, TabsTrigger } from "./ui/tabs";
@@ -38,6 +39,7 @@ interface HistoryPanelProps {
   onDeleteToolRecord: (recordId: string) => void;
   onDeleteEntryRecord: (recordId: string) => void;
   onReturnItem: (recordId: string, quantity: number) => void;
+  onClearAll?: () => void;
 }
 
 declare global {
@@ -46,7 +48,7 @@ declare global {
   }
 }
 
-export function HistoryPanel({ itemHistory, toolHistory, entryHistory, onDeleteItemRecord, onDeleteToolRecord, onDeleteEntryRecord, onReturnItem }: HistoryPanelProps) {
+export function HistoryPanel({ itemHistory, toolHistory, entryHistory, onDeleteItemRecord, onDeleteToolRecord, onDeleteEntryRecord, onReturnItem, onClearAll }: HistoryPanelProps) {
   const { toast } = useToast();
   const [currentPage, setCurrentPage] = useState(1);
   const [startDate, setStartDate] = useState<Date | undefined>();
@@ -58,6 +60,7 @@ export function HistoryPanel({ itemHistory, toolHistory, entryHistory, onDeleteI
   const [viewingToolRecord, setViewingToolRecord] = useState<ToolRecord | null>(null);
   const [viewingItemRecord, setViewingItemRecord] = useState<WithdrawalRecord | null>(null);
   const [returningRecord, setReturningRecord] = useState<WithdrawalRecord | null>(null);
+  const [isConfirmClearAllOpen, setConfirmClearAllOpen] = useState(false);
 
   const historyToDisplay = useMemo(() => {
     switch (activeTab) {
@@ -96,13 +99,14 @@ export function HistoryPanel({ itemHistory, toolHistory, entryHistory, onDeleteI
         record.item.specifications.toLowerCase().includes(lowercasedSearch) ||
                 record.addedBy.toLowerCase().includes(lowercasedSearch)
             );
-        } else { // tools
-            filtered = (filtered as ToolRecord[]).filter(record =>
-                record.tool.name.toLowerCase().includes(lowercasedSearch) ||
-                record.tool.assetId.toLowerCase().includes(lowercasedSearch) ||
-                record.checkedOutBy.toLowerCase().includes(lowercasedSearch) ||
-                record.usageLocation.toLowerCase().includes(lowercasedSearch)
-            );
+    } else { // tools
+      filtered = (filtered as ToolRecord[]).filter(record =>
+        record.tool.name.toLowerCase().includes(lowercasedSearch) ||
+        record.tool.assetId.toLowerCase().includes(lowercasedSearch) ||
+        record.checkedOutBy.toLowerCase().includes(lowercasedSearch) ||
+        (record.company?.toLowerCase() || '').includes(lowercasedSearch) ||
+        record.usageLocation.toLowerCase().includes(lowercasedSearch)
+      );
         }
     }
     
@@ -119,6 +123,7 @@ export function HistoryPanel({ itemHistory, toolHistory, entryHistory, onDeleteI
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
     return filteredHistory.slice(startIndex, startIndex + ITEMS_PER_PAGE);
   }, [filteredHistory, currentPage]);
+  const canExport = filteredHistory.length > 0;
   
 
   const handleExportToPDF = () => {
@@ -168,9 +173,9 @@ export function HistoryPanel({ itemHistory, toolHistory, entryHistory, onDeleteI
         filename = `historico_ferramentas_${format(new Date(), 'yyyy-MM-dd')}.pdf`;
         (doc as any).autoTable({
             startY: 35,
-            head: [['Ferramenta', 'Patrimônio', 'Retirado por', 'Local', 'Data Retirada', 'Data Devolução', 'Status']],
+            head: [['Ferramenta', 'Patrimônio', 'Retirado por', 'Empresa', 'Local', 'Data Retirada', 'Data Devolução', 'Status']],
             body: (filteredHistory as ToolRecord[]).map(record => [
-              record.tool.name, record.tool.assetId, record.checkedOutBy, record.usageLocation,
+              record.tool.name, record.tool.assetId, record.checkedOutBy, (record.company || '-'), record.usageLocation,
               format(new Date(record.checkoutDate), 'dd/MM/yy HH:mm'),
               record.returnDate ? format(new Date(record.returnDate), 'dd/MM/yy HH:mm') : '-',
               record.returnDate ? (record.isDamaged ? 'Devolvido com Avaria' : 'Devolvido') : 'Em uso',
@@ -223,9 +228,9 @@ export function HistoryPanel({ itemHistory, toolHistory, entryHistory, onDeleteI
       });
       filename = `historico_entradas_${format(new Date(), 'yyyy-MM-dd')}.xlsx`;
     } else {
-      wsData = [ ['Ferramenta', 'Patrimônio', 'Retirado por', 'Local', 'Data Retirada', 'Data Devolução', 'Status'] ];
+      wsData = [ ['Ferramenta', 'Patrimônio', 'Retirado por', 'Empresa', 'Local', 'Data Retirada', 'Data Devolução', 'Status'] ];
       (filteredHistory as ToolRecord[]).forEach(r => {
-        wsData.push([ r.tool.name, r.tool.assetId, r.checkedOutBy, r.usageLocation, format(new Date(r.checkoutDate), 'dd/MM/yy HH:mm'), r.returnDate ? format(new Date(r.returnDate), 'dd/MM/yy HH:mm') : '-', r.returnDate ? (r.isDamaged ? 'Devolvido com Avaria' : 'Devolvido') : 'Em uso' ]);
+        wsData.push([ r.tool.name, r.tool.assetId, r.checkedOutBy, (r.company || '-'), r.usageLocation, format(new Date(r.checkoutDate), 'dd/MM/yy HH:mm'), r.returnDate ? format(new Date(r.returnDate), 'dd/MM/yy HH:mm') : '-', r.returnDate ? (r.isDamaged ? 'Devolvido com Avaria' : 'Devolvido') : 'Em uso' ]);
       });
       filename = `historico_ferramentas_${format(new Date(), 'yyyy-MM-dd')}.xlsx`;
     }
@@ -294,16 +299,50 @@ export function HistoryPanel({ itemHistory, toolHistory, entryHistory, onDeleteI
   return (
     <>
       <div className="flex flex-col">
-        {/* Título e descrição */}
-        <div className="px-4 pt-5 pb-3">
-          <h2 className="text-[22px] font-bold tracking-[-0.015em]">Histórico Geral</h2>
-          <p className="text-base pt-1">Visualize, filtre e exporte todas as movimentações.</p>
+        {/* Título e menu (kebab) */}
+        <div className="px-4 pt-5 pb-3 flex items-center justify-between">
+          <div>
+            <h2 className="text-[22px] font-bold tracking-[-0.015em]">Histórico Geral</h2>
+            <p className="text-base pt-1">Visualize, filtre e exporte todas as movimentações.</p>
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" aria-label="Mais ações"><span className="material-icons">more_vert</span></Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuLabel>Ações</DropdownMenuLabel>
+              <DropdownMenuItem onClick={handleExportToPDF} disabled={!canExport} className={!canExport ? 'opacity-60' : ''}>
+                <span className="material-icons text-muted-foreground">picture_as_pdf</span>
+                Exportar PDF
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportToXLSX} disabled={!canExport} className={!canExport ? 'opacity-60' : ''}>
+                <span className="material-icons text-muted-foreground">grid_on</span>
+                Exportar XLSX
+              </DropdownMenuItem>
+              {onClearAll && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setConfirmClearAllOpen(true)}>
+                    <span className="material-icons">delete_forever</span>
+                    Apagar Histórico
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
         {/* Ações: Exportar PDF e XLSX */}
         <div className="flex justify-stretch">
-          <div className="flex flex-1 gap-3 flex-wrap px-4 py-3 justify-between">
-            <Button onClick={handleExportToPDF} className="h-10 px-4 bg-[#1172d4] hover:bg-[#0f63b8] text-white text-sm font-bold tracking-[0.015em]">Exportar PDF</Button>
-            <Button variant="outline" onClick={handleExportToXLSX} className="h-10 px-4 bg-[#e7edf3] text-[#0d141b] hover:bg-[#dfe7f0] border-transparent text-sm font-bold tracking-[0.015em]">Exportar XLSX</Button>
+          <div className="flex flex-1 gap-3 flex-wrap px-4 py-3 justify-between items-center">
+            <div className="flex gap-2">
+              <Button onClick={handleExportToPDF} className="h-10 px-4 bg-[#1172d4] hover:bg-[#0f63b8] text-white text-sm font-bold tracking-[0.015em]">Exportar PDF</Button>
+              <Button variant="outline" onClick={handleExportToXLSX} className="h-10 px-4 bg-[#e7edf3] text-[#0d141b] hover:bg-[#dfe7f0] border-transparent text-sm font-bold tracking-[0.015em]">Exportar XLSX</Button>
+            </div>
+            {onClearAll && (
+              <Button variant="destructive" className="h-10" onClick={() => setConfirmClearAllOpen(true)}>
+                Apagar Histórico
+              </Button>
+            )}
           </div>
         </div>
         {/* Abas */}
@@ -316,28 +355,16 @@ export function HistoryPanel({ itemHistory, toolHistory, entryHistory, onDeleteI
             </TabsList>
           </Tabs>
         </div>
-        {/* Busca */}
-        <div className="flex max-w-[480px] flex-wrap items-end gap-4 px-4 py-3">
-          <label className="flex flex-col min-w-40 flex-1">
-            <div className="relative">
-              <span className="material-icons absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">search</span>
-              <Input placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="h-14 pl-10" />
-            </div>
-          </label>
-          { ((startDate||endDate) || searchTerm) && (
-            <Button variant="ghost" size="icon" onClick={clearFilters} className="h-10 w-10">
-              <span className="material-icons">close</span>
-              <span className="sr-only">Limpar Filtros</span>
-            </Button>
-          )}
-        </div>
-        {/* Período */}
-        <div className="flex px-4 py-3 justify-start">
+        {/* Busca + Período (ícone) */}
+        <div className="flex items-center gap-2 px-4 py-3 max-w-[640px]">
+          <div className="relative flex-1">
+            <span className="material-icons absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">search</span>
+            <Input placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="h-12 pl-10" />
+          </div>
           <Popover open={isRangeOpen} onOpenChange={setIsRangeOpen}>
             <PopoverTrigger asChild>
-              <Button variant="outline" className={cn("h-10 px-4 bg-[#e7edf3] text-[#0d141b] border-transparent text-sm font-bold tracking-[0.015em]", !(startDate||endDate) && "text-muted-foreground")}>
-                <span className="material-icons mr-2">calendar_month</span>
-                {(startDate||endDate) ? `${startDate?format(startDate,"dd/MM/yy"):'..'} - ${endDate?format(endDate,"dd/MM/yy"):'..'}` : <span>Período</span>}
+              <Button variant="outline" size="icon" className="h-12 w-12 bg-[#e7edf3] text-[#0d141b] border-transparent">
+                <span className="material-icons">calendar_month</span>
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-[680px] max-w-[95vw] p-3">
@@ -369,6 +396,12 @@ export function HistoryPanel({ itemHistory, toolHistory, entryHistory, onDeleteI
               </div>
             </PopoverContent>
           </Popover>
+          { ((startDate||endDate) || searchTerm) && (
+            <Button variant="ghost" size="icon" onClick={clearFilters} className="h-12 w-12">
+              <span className="material-icons">close</span>
+              <span className="sr-only">Limpar Filtros</span>
+            </Button>
+          )}
         </div>
         {/* Lista / estado vazio */}
         <div className="flex flex-col p-4">
@@ -407,6 +440,22 @@ export function HistoryPanel({ itemHistory, toolHistory, entryHistory, onDeleteI
         record={returningRecord}
         onReturn={onReturnItem}
       />
+
+      {/* Confirmar apagar todo o histórico */}
+      <AlertDialog open={isConfirmClearAllOpen} onOpenChange={setConfirmClearAllOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Apagar todo o histórico?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação remove permanentemente todos os registros de Saídas, Entradas e Ferramentas neste dispositivo. Não é possível desfazer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setConfirmClearAllOpen(false); onClearAll && onClearAll(); }}>Apagar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
@@ -510,7 +559,7 @@ function ToolHistoryList({ records, onShowDetails, onDeleteRecord }: { records: 
                           : <Badge>Em uso</Badge>}
                     </div>
                     <div className="text-sm text-muted-foreground">
-                      <p>Retirado por: {record.checkedOutBy} para {record.usageLocation}</p>
+                      <p>Retirado por: {record.checkedOutBy}{record.company ? ` - ${record.company}` : ''} para {record.usageLocation}</p>
                       <p>Data: {format(new Date(record.checkoutDate), 'dd/MM/yy HH:mm')}
                         {record.returnDate && ` - ${format(new Date(record.returnDate), 'dd/MM/yy HH:mm')}`}
                       </p>

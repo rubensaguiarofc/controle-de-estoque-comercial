@@ -1,0 +1,24 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Android: bundle release",
+			"type": "shell",
+			"command": "cd android && gradlew.bat bundleRelease",
+			"isBackground": false,
+			"problemMatcher": [
+				"$gradle"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Export web assets (safe)",
+			"type": "shell",
+			"command": "node scripts/next-export-ignore-api.js",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		}
+	]
+}

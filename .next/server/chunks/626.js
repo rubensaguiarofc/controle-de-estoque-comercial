@@ -1,0 +1,1 @@
+"use strict";exports.id=626,exports.ids=[626],exports.modules={52626:(e,s,n)=>{n.r(s),n.d(s,{DialogWeb:()=>l});var r=n(98401);class l extends r.WebPlugin{async alert(e){window.alert(e.message)}async prompt(e){let s=window.prompt(e.message,e.inputText||"");return{value:null!==s?s:"",cancelled:null===s}}async confirm(e){return{value:window.confirm(e.message)}}}}};

@@ -46,6 +46,7 @@ export type ToolRecord = {
   tool: Tool;
   checkoutDate: string;
   checkedOutBy: string;
+  company?: string; // Empresa de quem está retirando
   usageLocation: string;
   checkoutSignature: string; // Data URI da assinatura de retirada
   returnDate?: string;

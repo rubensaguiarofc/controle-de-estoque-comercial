@@ -5,7 +5,9 @@ import { useState, useMemo } from 'react';
 import type { StockItem } from '@/lib/types';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
-import { Edit, Trash, Search, Plus, Barcode, Printer } from 'lucide-react';
+import { Edit, Trash, Search, Plus, Barcode, Printer, ShoppingCart } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from './ui/input';
@@ -13,6 +15,7 @@ import { BarcodeDisplayDialog } from './barcode-display-dialog';
 import { ScrollArea } from './ui/scroll-area';
 import { ItemDetailsDialog } from './item-details-dialog';
 import { Badge } from './ui/badge';
+import { MAX_QUANTITY } from '@/lib/constants';
 // Heavy libs loaded on demand during printing to improve initial load time
 
 interface ItemManagementProps {
@@ -25,6 +28,8 @@ interface ItemManagementProps {
   globalSearch?: string;
   onDeleteItem?: (id: string) => void;
   onUpdateItem?: (item: StockItem) => void;
+  // optional: allow parent to navigate to release view when quick-adding
+  onGoToRelease?: () => void;
 }
 
 export default function ItemManagement({
@@ -37,6 +42,7 @@ export default function ItemManagement({
   globalSearch,
   onDeleteItem,
   onUpdateItem,
+  onGoToRelease,
 }: ItemManagementProps) {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
@@ -245,6 +251,7 @@ export default function ItemManagement({
                         </div>
 
                         <div className="flex items-center gap-1 self-end sm:self-center">
+                          <QuickAddButton item={item} onGoToRelease={onGoToRelease} />
                           {item.barcode ? (
                             <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setBarcodeItem(item);}}>
                                 <Barcode className="h-4 w-4" />
@@ -308,5 +315,86 @@ export default function ItemManagement({
           />
       )}
     </>
+  );
+}
+
+function QuickAddButton({ item, onGoToRelease }: { item: StockItem; onGoToRelease?: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [qty, setQty] = useState<number | string>('');
+  const [unit, setUnit] = useState<string>('UN');
+  const unitOptions = ['UN','PC','CX','KG','RL','BL','PCT','M','L','OUTRA'];
+  const [customUnit, setCustomUnit] = useState('');
+
+  const addToRelease = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    let quantity = Number(qty);
+    if (!quantity || quantity <= 0) quantity = 1;
+    if (quantity > MAX_QUANTITY) quantity = MAX_QUANTITY;
+    const finalUnit = unit === 'OUTRA' ? (customUnit || 'UN') : unit;
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('almox:add-to-release', { detail: { item, quantity, unit: finalUnit } }));
+    }
+    setOpen(false);
+    if (onGoToRelease) onGoToRelease();
+  };
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          title="Adicionar na Saída"
+          onClick={(e) => { e.stopPropagation(); }}
+        >
+          <ShoppingCart className="h-4 w-4 text-primary" />
+          <span className="sr-only">Adicionar na Saída</span>
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-72 p-3" onClick={(e) => e.stopPropagation()}>
+        <div className="space-y-3">
+          <div className="font-medium text-sm">Adicionar na Saída</div>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <div className="text-xs text-muted-foreground">Quantidade</div>
+              <input
+                type="number"
+                min="1"
+                max={MAX_QUANTITY}
+                placeholder="1"
+                value={qty}
+                onChange={(e) => setQty(e.target.value)}
+                className="w-24 h-8 rounded border border-input bg-background px-2 text-sm"
+              />
+            </div>
+            <div className="space-y-1">
+              <div className="text-xs text-muted-foreground">Unidade</div>
+              <Select value={unit} onValueChange={setUnit}>
+                <SelectTrigger className="h-8">
+                  <SelectValue placeholder="UN" />
+                </SelectTrigger>
+                <SelectContent>
+                  {unitOptions.map(u => (
+                    <SelectItem key={u} value={u}>{u}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {unit === 'OUTRA' && (
+                <input
+                  className="mt-2 w-full h-8 rounded border border-input bg-background px-2 text-sm"
+                  placeholder="Digite a unidade"
+                  value={customUnit}
+                  onChange={(e) => setCustomUnit(e.target.value.toUpperCase())}
+                  maxLength={8}
+                />
+              )}
+            </div>
+          </div>
+          <div className="flex justify-end">
+            <Button size="sm" onClick={addToRelease}>Adicionar</Button>
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }

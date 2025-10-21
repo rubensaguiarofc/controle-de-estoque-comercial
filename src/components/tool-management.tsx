@@ -23,12 +23,13 @@ export default function ToolManagement({
   onSetIsAddToolDialogOpen
 }: ToolManagementProps) {
 
-  const handleCheckout = (tool: Tool, checkedOutBy: string, usageLocation: string, checkoutSignature: string) => {
+  const handleCheckout = (tool: Tool, checkedOutBy: string, company: string, usageLocation: string, checkoutSignature: string) => {
     const newRecord: ToolRecord = {
       id: `TR-${Date.now()}`,
       tool,
       checkoutDate: new Date().toISOString(),
       checkedOutBy: checkedOutBy.toUpperCase(),
+      company: company ? company.toUpperCase() : undefined,
       usageLocation: usageLocation.toUpperCase(),
       checkoutSignature,
     };

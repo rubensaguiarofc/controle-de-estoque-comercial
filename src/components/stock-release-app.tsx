@@ -586,6 +586,13 @@ export default function StockReleaseApp() {
     }
   }, [toast]);
 
+  const handleClearAllHistory = useCallback(() => {
+    setHistory([]);
+    setEntryHistory([]);
+    setToolHistory([]);
+    toast({ title: 'Histórico apagado', description: 'Todos os registros de saídas, entradas e ferramentas foram removidos deste dispositivo.' });
+  }, [toast]);
+
   const navItems: Array<{ view: View; title: string; description: string; icon: string }> = [
     { view: "release", title: "Saída de Estoque", description: "Registrar retirada de itens do estoque.", icon: 'call_made' },
     { view: "entry", title: "Entrada de Estoque", description: "Adicionar novos itens ao estoque.", icon: 'call_received' },
@@ -706,6 +713,7 @@ export default function StockReleaseApp() {
                   if (repo) repo.upsertItem(item).catch(console.error);
                   else setStockItems(prev => prev.map(i => i.id === item.id ? item : i));
                 }}
+                onGoToRelease={() => setActiveView('release')}
               />
             </TabsContent>
             <TabsContent value="release" className="mt-4">
@@ -726,7 +734,7 @@ export default function StockReleaseApp() {
           </Tabs>
         </div>
       );
-      case "history": return <HistoryPanel itemHistory={history} entryHistory={entryHistory} toolHistory={toolHistory} onDeleteItemRecord={(id) => handleDeleteRecord(id, 'withdrawals')} onDeleteEntryRecord={(id) => handleDeleteRecord(id, 'entries')} onDeleteToolRecord={(id) => handleDeleteRecord(id, 'tools')} onReturnItem={handleReturnItem} />;
+  case "history": return <HistoryPanel itemHistory={history} entryHistory={entryHistory} toolHistory={toolHistory} onDeleteItemRecord={(id) => handleDeleteRecord(id, 'withdrawals')} onDeleteEntryRecord={(id) => handleDeleteRecord(id, 'entries')} onDeleteToolRecord={(id) => handleDeleteRecord(id, 'tools')} onReturnItem={handleReturnItem} onClearAll={handleClearAllHistory} />;
       case "tools": return <ToolManagement tools={tools} setTools={setTools} toolHistory={toolHistory} setToolHistory={setToolHistory} onSetEditingTool={setEditingTool} onSetIsAddToolDialogOpen={setAddToolDialogOpen} />;
       default: return null;
     }
