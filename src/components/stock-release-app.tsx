@@ -74,12 +74,15 @@ export default function StockReleaseApp() {
   const [isAddToolDialogOpen, setAddToolDialogOpen] = useState(false);
   const [editingTool, setEditingTool] = useState<Tool | null>(null);
 
-  const [activeView, setActiveView] = useState<View>("dashboard");
+  // Inicial: página de Saída como tela inicial
+  const [activeView, setActiveView] = useState<View>("release");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [lowStockFilter, setLowStockFilter] = useState(false);
   // densityLevel: -1 (mais compacto), 0 (normal), 1 (amplo)
   const [densityLevel, setDensityLevel] = useState(0);
   const [globalSearch, setGlobalSearch] = useState("");
+  // Controla as abas internas do módulo "Itens" (métricas/cadastro/entrada)
+  const [itemsTab, setItemsTab] = useState<'metrics' | 'cadastro' | 'entry'>('metrics');
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
   const tracking = useRef(false);
@@ -91,7 +94,7 @@ export default function StockReleaseApp() {
     const maxAngleDeg = 35; // tolerância de desvio vertical
 
     function onTouchStart(e: TouchEvent) {
-      if (activeView === 'dashboard') return; // nada a fazer
+      if (activeView === 'release') return; // nada a fazer na tela inicial
       if (e.touches.length !== 1) return;
       const t = e.touches[0];
       if (t.clientX <= edgeZone) {
@@ -118,7 +121,7 @@ export default function StockReleaseApp() {
       const changed = e.changedTouches[0];
       const dx = changed.clientX - touchStartX.current;
       if (dx > threshold) {
-        setActiveView('dashboard');
+        setActiveView('release');
       }
       tracking.current = false;
       touchStartX.current = null;
@@ -152,7 +155,7 @@ export default function StockReleaseApp() {
       if (isAddItemDialogOpen) { setAddItemDialogOpen(false); return; }
       if (isAddToolDialogOpen) { setAddToolDialogOpen(false); return; }
       // If we're not on the dashboard, go back to it
-      if (activeView !== 'dashboard') { setActiveView('dashboard'); return; }
+      if (activeView !== 'release') { setActiveView('release'); return; }
       // If webview can go back in history, prefer that
       if (canGoBack) { window.history.back(); return; }
       // Ask to exit the app
@@ -197,6 +200,84 @@ export default function StockReleaseApp() {
       setRepo(null);
     }
   }, [firestore]);
+
+  // Source of truth for itens:
+  // - Quando Firestore está disponível: assina a coleção e popula o estado a partir da nuvem (com cache offline do Firestore).
+  // - Quando Firestore NÃO está configurado: persiste e restaura do localStorage para não perder dados ao fechar o app.
+  useEffect(() => {
+    // Firestore online/offline com cache (quando disponível)
+    if (repo) {
+      const unsubscribeItems = repo.onItems(items => {
+        setStockItems(items || []);
+        try { localStorage.setItem('local:stockItems:lastSnapshot', JSON.stringify(items || [])); } catch {}
+      });
+      return () => { try { unsubscribeItems(); } catch {} };
+    }
+
+    // Fallback local (nenhuma configuração do Firebase)
+    try {
+      const raw = localStorage.getItem('local:stockItems');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) setStockItems(parsed);
+      }
+    } catch {}
+  }, [repo]);
+
+  // Persistência local apenas quando não há Firestore configurado
+  useEffect(() => {
+    if (repo) return; // Se houver Firestore, o snapshot é a fonte de verdade
+    try {
+      localStorage.setItem('local:stockItems', JSON.stringify(stockItems));
+    } catch {}
+  }, [repo, stockItems]);
+
+  // Source of truth for histories (withdrawals and entries): subscribe when Firestore is available;
+  // otherwise, restore from and persist to localStorage to survive app restarts.
+  useEffect(() => {
+    if (repo) {
+      const unsubs: Array<() => void> = [];
+      try {
+        unsubs.push(repo.onWithdrawals(list => {
+          setHistory(Array.isArray(list) ? list : []);
+          try { localStorage.setItem('local:history:lastSnapshot', JSON.stringify(list || [])); } catch {}
+        }));
+      } catch {}
+      try {
+        unsubs.push(repo.onEntries(list => {
+          setEntryHistory(Array.isArray(list) ? list : []);
+          try { localStorage.setItem('local:entryHistory:lastSnapshot', JSON.stringify(list || [])); } catch {}
+        }));
+      } catch {}
+      return () => { unsubs.forEach(u => { try { u(); } catch {} }); };
+    }
+
+    // Fallback local (nenhuma configuração do Firebase)
+    try {
+      const rawW = localStorage.getItem('local:history');
+      if (rawW) {
+        const parsed = JSON.parse(rawW);
+        if (Array.isArray(parsed)) setHistory(parsed);
+      }
+    } catch {}
+    try {
+      const rawE = localStorage.getItem('local:entryHistory');
+      if (rawE) {
+        const parsed = JSON.parse(rawE);
+        if (Array.isArray(parsed)) setEntryHistory(parsed);
+      }
+    } catch {}
+  }, [repo]);
+
+  // Persist histories locally only when Firestore is not configured
+  useEffect(() => {
+    if (repo) return;
+    try { localStorage.setItem('local:history', JSON.stringify(history)); } catch {}
+  }, [repo, history]);
+  useEffect(() => {
+    if (repo) return;
+    try { localStorage.setItem('local:entryHistory', JSON.stringify(entryHistory)); } catch {}
+  }, [repo, entryHistory]);
 
   // Prefetch heavy client chunks on idle to reduce first navigation delay
   useEffect(() => {
@@ -685,12 +766,55 @@ export default function StockReleaseApp() {
       case "entry": return <StockEntryClient stockItems={stockItems} onUpdateHistory={handleNewEntry} uniqueAdders={uniqueAdders} />;
       case "items": return (
         <div className="space-y-4">
-          <Tabs defaultValue="cadastro" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+          <Tabs value={itemsTab} onValueChange={(v)=>setItemsTab(v as any)} className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="metrics">Métricas</TabsTrigger>
               <TabsTrigger value="cadastro">Cadastro</TabsTrigger>
-              <TabsTrigger value="release">Saída</TabsTrigger>
-              <TabsTrigger value="entry">Entrada</TabsTrigger>
             </TabsList>
+            <TabsContent value="metrics" className="mt-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {metricCards.map(card => {
+                  const isLowStockCard = card.title === 'Itens em Baixo Nível';
+                  const isTiposItens = card.title === 'Itens';
+                  const isFerramentas = card.title === 'Ferramentas';
+                  const isActionable = (card as any).actionable || isTiposItens || isFerramentas || isLowStockCard;
+                  return (
+                    <div
+                      key={card.title}
+                      className={"bg-card p-5 rounded-lg shadow-sm flex justify-between items-start " + (isActionable ? 'cursor-pointer hover:shadow-sm focus-visible:ring-2 ring-primary/50' : '')}
+                      tabIndex={isActionable ? 0 : -1}
+                      onClick={() => {
+                        if (isLowStockCard) { setLowStockFilter(true); setItemsTab('cadastro'); return; }
+                        if (isTiposItens) { setLowStockFilter(false); setItemsTab('cadastro'); return; }
+                        if (isFerramentas) { setActiveView('tools'); return; }
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key !== 'Enter') return;
+                        if (isLowStockCard) { setLowStockFilter(true); setItemsTab('cadastro'); }
+                        else if (isTiposItens) { setLowStockFilter(false); setItemsTab('cadastro'); }
+                        else if (isFerramentas) { setActiveView('tools'); }
+                      }}
+                      aria-pressed={isActionable && isLowStockCard ? lowStockFilter : undefined}
+                      aria-label={isActionable ? 'Abrir seção relacionada' : undefined}
+                    >
+                      <div>
+                        <h2 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                          {card.title}
+                          {isLowStockCard && isActionable && (
+                            <span className="text-[10px] bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 px-2 py-0.5 rounded-full">filtrável</span>
+                          )}
+                        </h2>
+                        <p className={`text-3xl font-bold mt-1 ${isLowStockCard ? 'text-red-500' : 'text-foreground'}`}>{card.value}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{card.description}</p>
+                      </div>
+                      <span className={`material-icons ${ isLowStockCard ? 'text-red-500' : 'text-primary' }`}>
+                        {isLowStockCard ? 'warning' : card.title === 'Ferramentas' ? 'build' : 'category'}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </TabsContent>
             <TabsContent value="cadastro" className="mt-4">
               <ItemManagement
                 stockItems={stockItems}
@@ -714,14 +838,7 @@ export default function StockReleaseApp() {
                   else setStockItems(prev => prev.map(i => i.id === item.id ? item : i));
                 }}
                 onGoToRelease={() => setActiveView('release')}
-              />
-            </TabsContent>
-            <TabsContent value="release" className="mt-4">
-              <StockReleaseClient
-                stockItems={stockItems}
-                onUpdateHistory={handleNewWithdrawal}
-                uniqueRequesters={uniqueRequesters}
-                uniqueDestinations={uniqueDestinations}
+                onGoToEntry={() => setItemsTab('entry')}
               />
             </TabsContent>
             <TabsContent value="entry" className="mt-4">
@@ -831,7 +948,7 @@ export default function StockReleaseApp() {
   <nav className="fixed inset-x-0 z-40 border-t border-border bg-card shadow-sm pb-[calc(env(safe-area-inset-bottom)+0.25rem)]" style={{ insetBlockEnd: 'calc(var(--admob-bottom-inset, 0px) + env(safe-area-inset-bottom))' }}>
           <div className="mx-auto max-w-md px-2">
             <div className="flex justify-around h-16">
-              {[{key:'dashboard', label:'Menu', icon:'menu'},{key:'items', label:'Itens', icon:'inventory'}, {key:'tools', label:'Ferramentas', icon:'build'}, {key:'history', label:'Histórico', icon:'history'}].map(tab => {
+              {[{key:'release', label:'Início', icon:'home'},{key:'items', label:'Itens', icon:'inventory'}, {key:'tools', label:'Ferramentas', icon:'build'}, {key:'history', label:'Histórico', icon:'history'}].map(tab => {
                 const isActive = activeView === tab.key;
                 return (
                   <button key={tab.key} className={"flex flex-col items-center justify-center w-1/4 p-2 rounded-lg text-xs " + (isActive ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:bg-primary/10 hover:text-primary')} onClick={() => setActiveView(tab.key as any)}>

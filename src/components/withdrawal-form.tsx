@@ -28,9 +28,11 @@ interface WithdrawalFormProps {
   uniqueDestinations: string[];
   onSubmit: (values: WithdrawalFormValues) => void;
   onAppendItem: (item: WithdrawalItem) => void;
-  onRemoveItem: (itemId: string) => void;
-  onUpdateItemQuantity: (itemId: string, quantity: number) => void;
+  onRemoveItem: (cartKey: string) => void;
+  onUpdateItemQuantity: (cartKey: string, quantity: number) => void;
   onClearCart: () => void;
+  // Opcional: preencher os campos do formulário quando vier de um atalho na aba Itens
+  prefill?: { itemId?: string; quantity?: number; unit?: string } | null;
 }
 
 export const WithdrawalForm = React.forwardRef<HTMLFormElement, WithdrawalFormProps>(({
@@ -45,6 +47,7 @@ export const WithdrawalForm = React.forwardRef<HTMLFormElement, WithdrawalFormPr
   onRemoveItem,
   onUpdateItemQuantity,
   onClearCart,
+  prefill,
 }, ref) => {
   const { toast } = useToast();
   const [isSearchScannerOpen, setSearchScannerOpen] = useState(false);
@@ -56,6 +59,18 @@ export const WithdrawalForm = React.forwardRef<HTMLFormElement, WithdrawalFormPr
   const [customUnit, setCustomUnit] = useState('');
 
   const hasStockAvailable = useMemo(() => stockItems.some(item => item.quantity > 0), [stockItems]);
+
+  // Preenche os campos quando solicitado (fluxo: Cadastro -> Saída com prefill)
+  React.useEffect(() => {
+    if (!prefill) return;
+    // Aguarda o item existir na lista para evitar que o SelectValue não reconheça o label
+    if (!currentItemId && prefill.itemId) {
+      const exists = stockItems.some(i => i.id === prefill.itemId);
+      if (exists) setCurrentItemId(prefill.itemId);
+    }
+    if (typeof prefill.quantity === 'number') setQuantity(prefill.quantity);
+    if (prefill.unit) setUnit(prefill.unit.toUpperCase());
+  }, [prefill, stockItems, currentItemId]);
 
   const handleScanSuccess = (foundItem: StockItem) => {
     // Usa a unidade selecionada atualmente (ou UN por padrão)
@@ -74,11 +89,12 @@ export const WithdrawalForm = React.forwardRef<HTMLFormElement, WithdrawalFormPr
   };
   
   const handleAddItemToCart = () => {
-    if (!currentItemId) {
+    const effectiveItemId = currentItemId || prefill?.itemId || '';
+    if (!effectiveItemId) {
       toast({ variant: 'destructive', title: 'Nenhum item selecionado' });
       return;
     }
-    const item = stockItems.find(i => i.id === currentItemId);
+    const item = stockItems.find(i => i.id === effectiveItemId);
     if (item) {
   let finalQuantity = Number(quantity) || 1;
   if (finalQuantity > MAX_QUANTITY) finalQuantity = MAX_QUANTITY;
@@ -145,7 +161,7 @@ export const WithdrawalForm = React.forwardRef<HTMLFormElement, WithdrawalFormPr
                             </SelectTrigger>
                           <SelectContent>
                             {stockItems.map((item) => (
-                              <SelectItem key={item.id} value={item.id} disabled={item.quantity <= 0}>
+                              <SelectItem key={item.id} value={item.id}>
                                 {item.name} - ({item.quantity} em estoque)
                               </SelectItem>
                             ))}

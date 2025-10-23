@@ -2,6 +2,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import GoogleSignIn from "../../components/googleSignIn";
+import { Capacitor } from "@capacitor/core";
+import { signInWithGoogleNative } from "@/lib/auth/google-native";
 
 // Toggle login availability via env var NEXT_PUBLIC_LOGIN_ENABLED (set to 'false' to disable)
 const loginEnabled = process.env.NEXT_PUBLIC_LOGIN_ENABLED !== "false";
@@ -94,6 +96,31 @@ export default function LoginPage() {
     }
   }
 
+  async function handleGoogleNative() {
+    try {
+      const native = await signInWithGoogleNative();
+      if (!native.ok || !native.idToken) {
+        showSnackbar("Falha no login Google (Android).", true);
+        return;
+      }
+      const res = await fetch("/api/auth/google", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken: native.idToken }),
+      });
+      const data = await res.json();
+      if (res.ok && data.ok) {
+        showSnackbar(`Login Google: Bem-vindo(a), ${data.user?.name || data.user?.email || 'Usuário'}!`, false);
+        router.push("/");
+      } else {
+        showSnackbar(data.error || "Falha na autenticação com Google.", true);
+      }
+    } catch (e) {
+      console.error("Erro Google nativo", e);
+      showSnackbar("Erro ao autenticar com Google (Android).", true);
+    }
+  }
+
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-md bg-card p-8 md:p-10 rounded-xl shadow-2xl border border-border text-foreground">
@@ -157,10 +184,21 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Google Sign In */}
-          <div className="w-full">
-            <GoogleSignIn onCredential={handleGoogleCredential} />
-          </div>
+          {/* Google Sign In (Web) or Nativo (Android) */}
+          {Capacitor.getPlatform() === 'android' ? (
+            <button
+              type="button"
+              onClick={handleGoogleNative}
+              className="w-full flex items-center justify-center gap-2 py-3 px-4 border rounded-lg shadow-md text-sm font-medium bg-white text-gray-700 hover:bg-gray-50 dark:bg-gray-800 dark:text-white"
+            >
+              <img src="/a6-logo.png" alt="Google" className="h-5 w-5" />
+              Entrar com Google (Android)
+            </button>
+          ) : (
+            <div className="w-full">
+              <GoogleSignIn onCredential={handleGoogleCredential} />
+            </div>
+          )}
 
           <div className="text-center mt-4">
             <a href="#" className="text-sm font-medium text-primary hover:opacity-90 dark:text-indigo-400">

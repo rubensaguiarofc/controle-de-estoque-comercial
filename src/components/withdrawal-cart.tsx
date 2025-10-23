@@ -10,8 +10,9 @@ import { MAX_QUANTITY } from "@/lib/constants";
 
 interface WithdrawalCartProps {
   items: WithdrawalItem[];
-  onRemove: (itemId: string) => void;
-  onUpdateQuantity: (itemId: string, quantity: number) => void;
+  // Use cartKey to uniquely identify entries (item + unit)
+  onRemove: (cartKey: string) => void;
+  onUpdateQuantity: (cartKey: string, quantity: number) => void;
 }
 
 export const WithdrawalCart = React.memo(function WithdrawalCart({ items, onRemove, onUpdateQuantity }: WithdrawalCartProps) {
@@ -27,8 +28,8 @@ export const WithdrawalCart = React.memo(function WithdrawalCart({ items, onRemo
     <div className="space-y-4">
         <h3 className="text-lg font-medium">Itens para Retirada</h3>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {items.map(({ item, quantity, unit }) => (
-              <Card key={item.id} className="overflow-hidden">
+            {items.map(({ item, quantity, unit, cartKey }) => (
+              <Card key={cartKey || `${item.id}__${unit}`} className="overflow-hidden">
                 <CardContent className="p-4 flex flex-col justify-between h-full">
                   <div>
                     <p className="font-semibold text-foreground dark:text-white">{item.name}</p>
@@ -42,7 +43,7 @@ export const WithdrawalCart = React.memo(function WithdrawalCart({ items, onRemo
                           const v = parseInt(e.target.value);
                           let next = Number.isNaN(v) ? 1 : v;
                           if (next > MAX_QUANTITY) next = MAX_QUANTITY;
-                          onUpdateQuantity(item.id, next);
+                          onUpdateQuantity(cartKey || `${item.id}__${unit}`, next);
                         }}
                         className="h-9 w-24"
                         min="1"
@@ -50,7 +51,7 @@ export const WithdrawalCart = React.memo(function WithdrawalCart({ items, onRemo
                     />
                     <span className="text-sm text-muted-foreground">{unit}</span>
                     <div className="flex-grow" />
-          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => onRemove(item.id)}>
+          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => onRemove(cartKey || `${item.id}__${unit}`)}>
             <Trash className="h-4 w-4 text-destructive" />
                         <span className="sr-only">Remover</span>
                     </Button>

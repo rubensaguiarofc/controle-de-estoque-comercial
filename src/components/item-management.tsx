@@ -30,6 +30,8 @@ interface ItemManagementProps {
   onUpdateItem?: (item: StockItem) => void;
   // optional: allow parent to navigate to release view when quick-adding
   onGoToRelease?: () => void;
+  // optional: allow parent to navigate to entry tab from header button
+  onGoToEntry?: () => void;
 }
 
 export default function ItemManagement({
@@ -43,6 +45,7 @@ export default function ItemManagement({
   onDeleteItem,
   onUpdateItem,
   onGoToRelease,
+  onGoToEntry,
 }: ItemManagementProps) {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
@@ -211,6 +214,10 @@ export default function ItemManagement({
                           <Plus className="mr-2 h-4 w-4" />
                           Cadastrar Item
                       </Button>
+            <Button size="sm" className="w-full sm:w-auto" onClick={() => { if (onGoToEntry) onGoToEntry(); }}>
+              <Plus className="mr-2 h-4 w-4" />
+              Entrada de Estoque
+            </Button>
             <Button variant="outline" size="sm" className="w-full sm:w-auto" onClick={handlePrintAllBarcodes}>
                           <Printer className="mr-2 h-4 w-4" />
                           Imprimir Etiquetas
@@ -331,11 +338,14 @@ function QuickAddButton({ item, onGoToRelease }: { item: StockItem; onGoToReleas
     if (!quantity || quantity <= 0) quantity = 1;
     if (quantity > MAX_QUANTITY) quantity = MAX_QUANTITY;
     const finalUnit = unit === 'OUTRA' ? (customUnit || 'UN') : unit;
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('almox:add-to-release', { detail: { item, quantity, unit: finalUnit } }));
-    }
-    setOpen(false);
+    // Em vez de adicionar direto ao carrinho, preenche o formulário da Saída
+    try {
+      localStorage.setItem('prefillReleaseForm', JSON.stringify({ itemId: item.id, quantity, unit: finalUnit }));
+    } catch {}
+
+    // Navega para Saída (os campos serão preenchidos ao montar)
     if (onGoToRelease) onGoToRelease();
+    setOpen(false);
   };
 
   return (

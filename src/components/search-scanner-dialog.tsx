@@ -25,6 +25,8 @@ export function SearchScannerDialog({ isOpen, onOpenChange, stockItems, onSucces
   const [manualCode, setManualCode] = useState<string>("");
   const videoRef = useRef<HTMLVideoElement>(null);
   const codeReaderRef = useRef(new BrowserMultiFormatReader());
+  const videoTrackRef = useRef<MediaStreamTrack | null>(null);
+  const [torchOn, setTorchOn] = useState(false);
   const streamRef = useRef<MediaStream | null>(null);
 
   const stopCamera = useCallback(() => {
@@ -32,7 +34,15 @@ export function SearchScannerDialog({ isOpen, onOpenChange, stockItems, onSucces
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
     }
-    codeReaderRef.current.reset();
+    try { codeReaderRef.current.reset(); } catch {}
+    try {
+      if (videoTrackRef.current) {
+        // turn off torch if enabled
+        // @ts-expect-error - non-standard constraint in some browsers
+        videoTrackRef.current.applyConstraints({ advanced: [{ torch: false }] }).catch(()=>{});
+      }
+    } catch {}
+    videoTrackRef.current = null;
   }, []);
 
   // debug logs collector to help capture runtime info for devices
@@ -112,7 +122,11 @@ export function SearchScannerDialog({ isOpen, onOpenChange, stockItems, onSucces
         pushDebug('requesting-getUserMedia');
         let stream: MediaStream | null = null;
         try {
-          stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+          const constraints: any = {
+            video: { facingMode: { ideal: 'environment' } },
+            audio: false,
+          };
+          stream = await navigator.mediaDevices.getUserMedia(constraints as MediaStreamConstraints);
         } catch (gmErr) {
           // map common errors for better UX
           pushDebug('getUserMedia-error', { error: String(gmErr) });
@@ -126,7 +140,20 @@ export function SearchScannerDialog({ isOpen, onOpenChange, stockItems, onSucces
 
         setHasCameraPermission(true);
         streamRef.current = stream;
-        pushDebug('stream-started', { tracks: stream.getTracks().map(t => ({ kind: t.kind, id: t.id })) });
+  const tracks = stream.getTracks();
+  pushDebug('stream-started', { tracks: tracks.map(t => ({ kind: t.kind, id: t.id })) });
+        const vtrack = stream.getVideoTracks()[0] || null;
+  videoTrackRef.current = vtrack;
+        // Try to bump resolution and enable continuous focus if supported
+        try {
+          if (vtrack && vtrack.applyConstraints) {
+            await vtrack.applyConstraints({
+              advanced: [{ focusMode: 'continuous' } as any],
+            } as any);
+          }
+        } catch (e) {
+          pushDebug('applyConstraints-error', { error: String(e) });
+        }
 
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
@@ -138,22 +165,42 @@ export function SearchScannerDialog({ isOpen, onOpenChange, stockItems, onSucces
         const formats = [BarcodeFormat.EAN_13, BarcodeFormat.EAN_8, BarcodeFormat.UPC_A, BarcodeFormat.UPC_E, BarcodeFormat.CODE_128, BarcodeFormat.QR_CODE];
         hints.set(DecodeHintType.POSSIBLE_FORMATS, formats);
         hints.set(DecodeHintType.TRY_HARDER, true);
+        const handleResult = (txt: string) => {
+          const raw = (txt || '').trim();
+          // Normalize common UPC/EAN variants
+          const candidates = [raw];
+          if (raw.length === 13 && raw.startsWith('0')) candidates.push(raw.slice(1));
+          if (raw.length === 12) candidates.push('0' + raw);
+          const foundItem = stockItems.find(item => item.barcode && candidates.includes(String(item.barcode).trim()));
+          if (foundItem) onSuccess(foundItem); else onNotFound();
+        };
 
-        await codeReader.decodeFromStream(stream, videoRef.current!, (result, err) => {
-          if (result && isMounted) {
-            pushDebug('decode-result', { text: result.getText() });
-            const foundItem = stockItems.find(item => item.barcode === result.getText());
-            if (foundItem) {
-              onSuccess(foundItem);
-            } else {
-              onNotFound();
+        try {
+          await codeReader.decodeFromStream(stream, videoRef.current!, (result, err) => {
+            if (!isMounted) return;
+            if (result) {
+              pushDebug('decode-result', { text: result.getText() });
+              handleResult(result.getText());
             }
-          }
-          if (err && !(err instanceof NotFoundException) && isMounted) {
-            pushDebug('decode-error', { error: String(err) });
-            console.error('Search barcode scan error:', err);
-          }
-        });
+            if (err && !(err instanceof NotFoundException)) {
+              pushDebug('decode-error', { error: String(err) });
+              console.error('Search barcode scan error:', err);
+            }
+          });
+        } catch (dfErr) {
+          // Fallback for older browsers/zxing versions
+          pushDebug('decode-fallback', { error: String(dfErr) });
+          await codeReader.decodeFromVideoDevice(null, videoRef.current!, (result, err) => {
+            if (!isMounted) return;
+            if (result) {
+              pushDebug('decode-result-legacy', { text: result.getText() });
+              handleResult(result.getText());
+            }
+            if (err && !(err instanceof NotFoundException)) {
+              pushDebug('decode-error-legacy', { error: String(err) });
+            }
+          });
+        }
       } catch (error) {
         console.error('Error starting search camera stream:', error);
         pushDebug('start-scanner-error', { error: String(error) });
@@ -216,6 +263,25 @@ export function SearchScannerDialog({ isOpen, onOpenChange, stockItems, onSucces
               <div className="w-full max-w-xs h-24 border-4 border-dashed border-primary rounded-lg opacity-75 dark:border-primary" />
             </div>
             <div className="absolute top-0 left-0 right-0 h-[2px] bg-destructive shadow-[0_0_10px_2px_#ef4444] animate-scan dark:bg-destructive" />
+          </div>
+          {/* Torch toggle (when supported) */}
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={async () => {
+                try {
+                  const track = videoTrackRef.current;
+                  if (!track) return;
+                  // @ts-expect-error non-standard torch constraint
+                  await track.applyConstraints({ advanced: [{ torch: !torchOn }] });
+                  setTorchOn(v => !v);
+                } catch (e) {
+                  toast({ variant: 'destructive', title: 'Lanterna não suportada' });
+                }
+              }}
+            >{torchOn ? 'Desligar lanterna' : 'Ligar lanterna'}</Button>
           </div>
           {hasCameraPermission === false && (
             <>

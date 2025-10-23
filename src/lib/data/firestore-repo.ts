@@ -19,6 +19,30 @@ export class StockRepo {
     });
   }
 
+  onEntries(cb: (records: EntryRecord[]) => void) {
+    // Order by server timestamp when available; fallback to client date if needed
+    const q = query(this.entriesCol(), orderBy('createdAt'));
+    return onSnapshot(q, (snap) => {
+      const list: EntryRecord[] = snap.docs.map(d => {
+        const data = d.data() as any;
+        // Ensure we always have an id set
+        return { id: d.id, ...data } as EntryRecord;
+      });
+      cb(list);
+    });
+  }
+
+  onWithdrawals(cb: (records: WithdrawalRecord[]) => void) {
+    const q = query(this.withdrawalsCol(), orderBy('createdAt'));
+    return onSnapshot(q, (snap) => {
+      const list: WithdrawalRecord[] = snap.docs.map(d => {
+        const data = d.data() as any;
+        return { id: d.id, ...data } as WithdrawalRecord;
+      });
+      cb(list);
+    });
+  }
+
   async upsertItem(item: StockItem) {
     const ref = doc(this.itemsCol(), item.id);
     await setDoc(ref, item, { merge: true });

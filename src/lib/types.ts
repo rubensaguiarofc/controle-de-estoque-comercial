@@ -11,6 +11,8 @@ export type WithdrawalItem = {
   item: StockItem;
   quantity: number;
   unit: string;
+  // Optional unique key to distinguish entries of the same item with different units in the cart
+  cartKey?: string;
 };
 
 export type WithdrawalRecord = {
