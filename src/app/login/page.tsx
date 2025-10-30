@@ -4,23 +4,22 @@ import { useRouter } from "next/navigation";
 import GoogleSignIn from "../../components/googleSignIn";
 import { Capacitor } from "@capacitor/core";
 import { signInWithGoogleNative } from "@/lib/auth/google-native";
+import { GoogleAuthProvider, signInWithCredential } from "firebase/auth";
+import { useAuth } from "@/firebase/provider";
 
 // Toggle login availability via env var NEXT_PUBLIC_LOGIN_ENABLED (set to 'false' to disable)
 const loginEnabled = process.env.NEXT_PUBLIC_LOGIN_ENABLED !== "false";
+// Toggle ONLY Google login via env var NEXT_PUBLIC_GOOGLE_LOGIN_ENABLED (set to 'false' to hide Google buttons)
+const googleLoginEnabled = process.env.NEXT_PUBLIC_GOOGLE_LOGIN_ENABLED !== "false";
 
 export default function LoginPage() {
-  if (!loginEnabled) {
-    return (
-      <div className="min-h-screen bg-background dark:bg-gray-900 flex items-center justify-center p-4">
-        <div className="w-full max-w-md bg-card dark:bg-gray-800 p-8 rounded-xl shadow-2xl border border-border dark:border-gray-700 text-foreground dark:text-gray-100 text-center">
-          <h2 className="text-xl font-semibold text-primary dark:text-indigo-400 mb-2">Almoxarifado Fácil</h2>
-          <h1 className="text-2xl font-bold text-foreground dark:text-white mb-4">Login temporariamente desativado</h1>
-          <p className="text-muted-foreground dark:text-gray-300 mb-4">O acesso via e-mail/senha e Google está temporariamente desabilitado para manutenção.</p>
-          <p className="text-sm text-muted-foreground dark:text-gray-500">Se precisar de acesso, contate o administrador.</p>
-        </div>
-      </div>
-    );
-  }
+  const auth = useAuth();
+  const router = useRouter();
+  // If login is disabled, immediately send user to home
+  useEffect(() => {
+    if (!loginEnabled) router.replace("/");
+  }, []);
+  if (!loginEnabled) return null;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -41,7 +40,7 @@ export default function LoginPage() {
     }, 3000);
   }
 
-  const router = useRouter();
+  // router already defined above
 
   async function handleLogin() {
     if (!email || !password) {
@@ -75,18 +74,35 @@ export default function LoginPage() {
   async function handleGoogleCredential(response: any) {
     if (response?.credential) {
       try {
-        const res = await fetch("/api/auth/google", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ idToken: response.credential }),
-        });
-        const data = await res.json();
-        if (res.ok && data.ok) {
-          showSnackbar(`Login Google: Bem-vindo(a), ${data.user?.name || data.user?.email || 'Usuário'}!`, false);
-          router.push("/");
-        } else {
-          showSnackbar(data.error || "Falha na autenticação com Google.", true);
+        // 1) Autenticar no Firebase Web SDK (válido no browser e no APK)
+        try {
+          if (auth) {
+            const cred = GoogleAuthProvider.credential(response.credential);
+            await signInWithCredential(auth, cred);
+          }
+        } catch (e) {
+          console.warn("Falha ao autenticar no Firebase com GIS", e);
         }
+
+        // 2) Backend opcional: em dev server local, a rota /api existe; no APK, ignorar erros
+        try {
+          const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+          const url = backendUrl ? `${backendUrl}/api/auth/google` : `/api/auth/google`;
+          const res = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ idToken: response.credential }),
+          });
+          if (!res.ok) {
+            try { const err = await res.json(); console.warn('Backend auth falhou (web GIS):', err); } catch {}
+          }
+        } catch (e) {
+          // Em APK (static export), esta rota não existe; tudo bem seguir sem backend
+          console.debug('Ignorando falha ao contactar backend em ambiente sem API');
+        }
+
+        showSnackbar(`Login Google: Bem-vindo(a)!`, false);
+        router.push("/");
       } catch (e) {
         console.error("Erro ao autenticar com Google.", e);
         showSnackbar("Erro ao autenticar com Google.", true);
@@ -100,21 +116,41 @@ export default function LoginPage() {
     try {
       const native = await signInWithGoogleNative();
       if (!native.ok || !native.idToken) {
-        showSnackbar("Falha no login Google (Android).", true);
+        const msg = native.error ? `Falha no login Google (Android): ${native.error}` : "Falha no login Google (Android).";
+        showSnackbar(msg, true);
         return;
       }
-      const res = await fetch("/api/auth/google", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idToken: native.idToken }),
-      });
-      const data = await res.json();
-      if (res.ok && data.ok) {
-        showSnackbar(`Login Google: Bem-vindo(a), ${data.user?.name || data.user?.email || 'Usuário'}!`, false);
-        router.push("/");
-      } else {
-        showSnackbar(data.error || "Falha na autenticação com Google.", true);
+      // 1) Tentar autenticar também no Firebase Web SDK (sem depender de backend)
+      try {
+        if (auth) {
+          const cred = GoogleAuthProvider.credential(native.idToken, native.accessToken);
+          await signInWithCredential(auth, cred);
+        }
+      } catch (e) {
+        console.warn("Falha ao vincular login nativo ao Firebase Web SDK", e);
       }
+
+      // 2) Se houver backend configurado, chamar para criar sessão (opcional)
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+      if (backendUrl) {
+        try {
+          const res = await fetch(`${backendUrl}/api/auth/google`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ idToken: native.idToken }),
+          });
+          const data = await res.json();
+          if (!res.ok || !data.ok) {
+            console.warn("Backend auth falhou:", data?.error || res.statusText);
+          }
+        } catch (e) {
+          console.warn("Não foi possível contactar o backend para criar sessão.", e);
+        }
+      }
+
+      // Sucesso local: seguir para a home
+      showSnackbar(`Login Google: Bem-vindo(a)!`, false);
+      router.push("/");
     } catch (e) {
       console.error("Erro Google nativo", e);
       showSnackbar("Erro ao autenticar com Google (Android).", true);
@@ -175,29 +211,39 @@ export default function LoginPage() {
             {loading ? "Carregando..." : "Entrar"}
           </button>
 
-          <div className="relative py-4">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-border dark:border-gray-700"></div>
+          {googleLoginEnabled && (
+            <div className="relative py-4">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-border dark:border-gray-700"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-card text-muted-foreground font-semibold dark:bg-gray-800 dark:text-gray-400">OU</span>
+              </div>
             </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-card text-muted-foreground font-semibold dark:bg-gray-800 dark:text-gray-400">OU</span>
-            </div>
-          </div>
+          )}
 
-          {/* Google Sign In (Web) or Nativo (Android) */}
-          {Capacitor.getPlatform() === 'android' ? (
-            <button
-              type="button"
-              onClick={handleGoogleNative}
-              className="w-full flex items-center justify-center gap-2 py-3 px-4 border rounded-lg shadow-md text-sm font-medium bg-white text-gray-700 hover:bg-gray-50 dark:bg-gray-800 dark:text-white"
-            >
-              <img src="/a6-logo.png" alt="Google" className="h-5 w-5" />
-              Entrar com Google (Android)
-            </button>
-          ) : (
-            <div className="w-full">
-              <GoogleSignIn onCredential={handleGoogleCredential} />
-            </div>
+          {/* Google Sign In: permitir/desabilitar via NEXT_PUBLIC_GOOGLE_LOGIN_ENABLED */}
+          {googleLoginEnabled && (
+            Capacitor.getPlatform() === 'android' ? (
+              <div className="w-full space-y-3">
+                <button
+                  type="button"
+                  onClick={handleGoogleNative}
+                  className="w-full flex items-center justify-center gap-2 py-3 px-4 border rounded-lg shadow-md text-sm font-medium bg-white text-gray-700 hover:bg-gray-50 dark:bg-gray-800 dark:text-white"
+                >
+                  <img src="/a6-logo.png" alt="Google" className="h-5 w-5" />
+                  Entrar com Google (Android)
+                </button>
+                <div className="text-center text-[11px] text-muted-foreground">ou</div>
+                <div className="w-full">
+                  <GoogleSignIn onCredential={handleGoogleCredential} />
+                </div>
+              </div>
+            ) : (
+              <div className="w-full">
+                <GoogleSignIn onCredential={handleGoogleCredential} />
+              </div>
+            )
           )}
 
           <div className="text-center mt-4">

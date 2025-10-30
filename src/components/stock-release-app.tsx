@@ -16,11 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { AddItemDialog } from "./add-item-dialog";
 import { Skeleton } from "./ui/skeleton";
 import { AddToolDialog } from "./add-tool-dialog";
-import { MOCK_STOCK_ITEMS } from "@/lib/mock-data";
-import { cn } from "@/lib/utils";
-import { Button } from "./ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 // Lazy-load AdMob banner only on client to keep web/dev bundle lighter
 const AdmobBanner = dynamic(() => import('./admob-banner').then(m => m.AdmobBanner), { ssr: false });
@@ -48,8 +44,51 @@ const ToolManagement = dynamic(() => import('./tool-management'), {
   ssr: false,
 });
 
+const getStorage = () => {
+  if (typeof window === 'undefined') return null;
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+};
 
-type View = "dashboard" | "release" | "entry" | "items" | "history" | "tools";
+const safeGetItem = (key: string) => {
+  const storage = getStorage();
+  if (!storage) return null;
+  try {
+    return storage.getItem(key);
+  } catch {
+    return null;
+  }
+};
+
+const safeSetItem = (key: string, value: string) => {
+  const storage = getStorage();
+  if (!storage) return;
+  try {
+    storage.setItem(key, value);
+  } catch {}
+};
+
+const safeGetArray = <T,>(key: string): T[] => {
+  const raw = safeGetItem(key);
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as T[]) : [];
+  } catch {
+    return [];
+  }
+};
+
+const safeSetArray = (key: string, value: unknown[]) => {
+  try {
+    safeSetItem(key, JSON.stringify(value));
+  } catch {}
+};
+
+type View = "release" | "entry" | "items" | "history" | "tools";
 
 export default function StockReleaseApp() {
   const { toast } = useToast();
@@ -74,7 +113,7 @@ export default function StockReleaseApp() {
   const [isAddToolDialogOpen, setAddToolDialogOpen] = useState(false);
   const [editingTool, setEditingTool] = useState<Tool | null>(null);
 
-  // Inicial: página de Saída como tela inicial
+  // Página de Saída como tela inicial
   const [activeView, setActiveView] = useState<View>("release");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [lowStockFilter, setLowStockFilter] = useState(false);
@@ -139,12 +178,14 @@ export default function StockReleaseApp() {
 
   // Persist preferences: density and lowStock filter
   useEffect(() => {
-    try {
-      const d = localStorage.getItem("densityLevel");
-      if (d != null && !Number.isNaN(parseInt(d))) setDensityLevel(parseInt(d));
-      const ls = localStorage.getItem("lowStockFilter");
-      if (ls != null) setLowStockFilter(ls === "true");
-    } catch {}
+    const storedDensity = safeGetItem("densityLevel");
+    if (storedDensity != null && !Number.isNaN(parseInt(storedDensity))) {
+      setDensityLevel(parseInt(storedDensity));
+    }
+    const storedLowStock = safeGetItem("lowStockFilter");
+    if (storedLowStock != null) {
+      setLowStockFilter(storedLowStock === "true");
+    }
   }, []);
   
   // Android hardware back button: confirm exit when at root, otherwise navigate back/close dialogs
@@ -154,7 +195,7 @@ export default function StockReleaseApp() {
       // Close any open dialog first
       if (isAddItemDialogOpen) { setAddItemDialogOpen(false); return; }
       if (isAddToolDialogOpen) { setAddToolDialogOpen(false); return; }
-      // If we're not on the dashboard, go back to it
+      // If we're not on the release page, go back to it
       if (activeView !== 'release') { setActiveView('release'); return; }
       // If webview can go back in history, prefer that
       if (canGoBack) { window.history.back(); return; }
@@ -184,10 +225,10 @@ export default function StockReleaseApp() {
     setIsInitialLoad(false);
   }, []);
   useEffect(() => {
-    try { localStorage.setItem("densityLevel", String(densityLevel)); } catch {}
+    safeSetItem("densityLevel", String(densityLevel));
   }, [densityLevel]);
   useEffect(() => {
-    try { localStorage.setItem("lowStockFilter", String(lowStockFilter)); } catch {}
+    safeSetItem("lowStockFilter", String(lowStockFilter));
   }, [lowStockFilter]);
 
   // (nav menu removido do topo por decisão de design)
@@ -205,31 +246,27 @@ export default function StockReleaseApp() {
   // - Quando Firestore está disponível: assina a coleção e popula o estado a partir da nuvem (com cache offline do Firestore).
   // - Quando Firestore NÃO está configurado: persiste e restaura do localStorage para não perder dados ao fechar o app.
   useEffect(() => {
-    // Firestore online/offline com cache (quando disponível)
     if (repo) {
-      const unsubscribeItems = repo.onItems(items => {
-        setStockItems(items || []);
-        try { localStorage.setItem('local:stockItems:lastSnapshot', JSON.stringify(items || [])); } catch {}
+      const unsubscribeItems = repo.onItems(itemsSnapshot => {
+        const nextItems = Array.isArray(itemsSnapshot) ? itemsSnapshot : [];
+        setStockItems(nextItems);
+        safeSetArray('local:stockItems:lastSnapshot', nextItems);
       });
-      return () => { try { unsubscribeItems(); } catch {} };
+      return () => {
+        try { unsubscribeItems(); } catch {}
+      };
     }
 
-    // Fallback local (nenhuma configuração do Firebase)
-    try {
-      const raw = localStorage.getItem('local:stockItems');
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) setStockItems(parsed);
-      }
-    } catch {}
+    const storedItems = safeGetArray<StockItem>('local:stockItems');
+    if (storedItems.length) {
+      setStockItems(storedItems);
+    }
   }, [repo]);
 
   // Persistência local apenas quando não há Firestore configurado
   useEffect(() => {
-    if (repo) return; // Se houver Firestore, o snapshot é a fonte de verdade
-    try {
-      localStorage.setItem('local:stockItems', JSON.stringify(stockItems));
-    } catch {}
+    if (repo) return;
+    safeSetArray('local:stockItems', stockItems);
   }, [repo, stockItems]);
 
   // Source of truth for histories (withdrawals and entries): subscribe when Firestore is available;
@@ -239,44 +276,38 @@ export default function StockReleaseApp() {
       const unsubs: Array<() => void> = [];
       try {
         unsubs.push(repo.onWithdrawals(list => {
-          setHistory(Array.isArray(list) ? list : []);
-          try { localStorage.setItem('local:history:lastSnapshot', JSON.stringify(list || [])); } catch {}
+          const snapshot = Array.isArray(list) ? list : [];
+          setHistory(snapshot);
+          safeSetArray('local:history:lastSnapshot', snapshot);
         }));
       } catch {}
       try {
         unsubs.push(repo.onEntries(list => {
-          setEntryHistory(Array.isArray(list) ? list : []);
-          try { localStorage.setItem('local:entryHistory:lastSnapshot', JSON.stringify(list || [])); } catch {}
+          const snapshot = Array.isArray(list) ? list : [];
+          setEntryHistory(snapshot);
+          safeSetArray('local:entryHistory:lastSnapshot', snapshot);
         }));
       } catch {}
       return () => { unsubs.forEach(u => { try { u(); } catch {} }); };
     }
 
-    // Fallback local (nenhuma configuração do Firebase)
-    try {
-      const rawW = localStorage.getItem('local:history');
-      if (rawW) {
-        const parsed = JSON.parse(rawW);
-        if (Array.isArray(parsed)) setHistory(parsed);
-      }
-    } catch {}
-    try {
-      const rawE = localStorage.getItem('local:entryHistory');
-      if (rawE) {
-        const parsed = JSON.parse(rawE);
-        if (Array.isArray(parsed)) setEntryHistory(parsed);
-      }
-    } catch {}
+    const storedWithdrawals = safeGetArray<WithdrawalRecord>('local:history');
+    if (storedWithdrawals.length) {
+      setHistory(storedWithdrawals);
+    }
+    const storedEntries = safeGetArray<EntryRecord>('local:entryHistory');
+    if (storedEntries.length) {
+      setEntryHistory(storedEntries);
+    }
   }, [repo]);
 
-  // Persist histories locally only when Firestore is not configured
   useEffect(() => {
     if (repo) return;
-    try { localStorage.setItem('local:history', JSON.stringify(history)); } catch {}
+    safeSetArray('local:history', history);
   }, [repo, history]);
   useEffect(() => {
     if (repo) return;
-    try { localStorage.setItem('local:entryHistory', JSON.stringify(entryHistory)); } catch {}
+    safeSetArray('local:entryHistory', entryHistory);
   }, [repo, entryHistory]);
 
   // Prefetch heavy client chunks on idle to reduce first navigation delay
@@ -331,6 +362,11 @@ export default function StockReleaseApp() {
         URL.revokeObjectURL(url);
       }
       toast({ title: 'Backup criado', description: `Arquivo salvo: ${filename}` });
+      // Após exportar dados, exibir vídeo de 30s (rewarded)
+      try {
+        const { showLongRewarded } = await import('@/lib/native/ad-manager');
+        await showLongRewarded();
+      } catch {}
     } catch (error) {
       console.error('Backup export error', error);
       toast({ variant: 'destructive', title: 'Falha no Backup', description: 'Não foi possível criar o backup.' });
@@ -430,8 +466,8 @@ export default function StockReleaseApp() {
         setToolHistory(normalized.toolHistory);
       }
 
-      // Persist a small marker for UX and optional re-restore (does not alter Firestore)
-      try { localStorage.setItem('lastRestoreAt', new Date().toISOString()); } catch {}
+  // Persist a small marker for UX and optional re-restore (does not alter Firestore)
+  safeSetItem('lastRestoreAt', new Date().toISOString());
 
       toast({ title: 'Restauração concluída', description: `${restoreMerge ? 'Mesclado' : 'Substituído'}: ${normalized.stockItems.length} itens, ${normalized.history.length} saídas, ${normalized.entryHistory.length} entradas, ${normalized.tools.length} ferramentas, ${normalized.toolHistory.length} registros de ferramentas.` });
 
@@ -674,14 +710,6 @@ export default function StockReleaseApp() {
     toast({ title: 'Histórico apagado', description: 'Todos os registros de saídas, entradas e ferramentas foram removidos deste dispositivo.' });
   }, [toast]);
 
-  const navItems: Array<{ view: View; title: string; description: string; icon: string }> = [
-    { view: "release", title: "Saída de Estoque", description: "Registrar retirada de itens do estoque.", icon: 'call_made' },
-    { view: "entry", title: "Entrada de Estoque", description: "Adicionar novos itens ao estoque.", icon: 'call_received' },
-    { view: "items", title: "Gerenciar Itens", description: "Adicionar, editar ou remover tipos de itens.", icon: 'inventory' },
-    { view: "tools", title: "Gerenciar Ferramentas", description: "Adicionar, editar e controlar ferramentas.", icon: 'build' },
-    { view: "history", title: "Histórico Geral", description: "Visualizar todas as movimentações.", icon: 'history' },
-  ];
-
   const lowStockThreshold = 5;
   const metrics = useMemo(() => {
     const totalItemTypes = stockItems.length;
@@ -698,68 +726,6 @@ export default function StockReleaseApp() {
 
   const renderContent = () => {
   if (isInitialLoad) return <ManagementSkeleton />;
-
-    if (activeView === 'dashboard') {
-      return (
-        <div className="space-y-10">
-          <section className="space-y-4">
-            <div className="relative">
-              <span className="material-icons absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">search</span>
-              <input
-                type="search"
-                value={globalSearch}
-                onChange={(e) => setGlobalSearch(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') { setActiveView('items'); } }}
-                placeholder="Pesquisar itens..."
-                aria-label="Pesquisar itens"
-                className="w-full pl-10 pr-4 py-3 bg-card border border-border rounded-lg focus:ring-primary focus:border-primary"
-              />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {metricCards.map(card => {
-                const isLowStockCard = card.title === 'Itens em Baixo Nível';
-                const isTiposItens = card.title === 'Itens';
-                const isFerramentas = card.title === 'Ferramentas';
-                const isActionable = (card as any).actionable || isTiposItens || isFerramentas;
-                return (
-                  <div
-                    key={card.title}
-                    className={"bg-card p-5 rounded-lg shadow-sm flex justify-between items-start " + (isActionable ? 'cursor-pointer hover:shadow-sm focus-visible:ring-2 ring-primary/50' : '')}
-                    tabIndex={isActionable ? 0 : -1}
-                    onClick={() => {
-                      if (isLowStockCard) { setLowStockFilter(true); setActiveView('items'); return; }
-                      if (isTiposItens) { setLowStockFilter(false); setActiveView('items'); return; }
-                      if (isFerramentas) { setActiveView('tools'); return; }
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key !== 'Enter') return;
-                      if (isLowStockCard) { setLowStockFilter(true); setActiveView('items'); }
-                      else if (isTiposItens) { setLowStockFilter(false); setActiveView('items'); }
-                      else if (isFerramentas) { setActiveView('tools'); }
-                    }}
-                    aria-pressed={isActionable && isLowStockCard ? lowStockFilter : undefined}
-                    aria-label={isActionable ? 'Abrir seção relacionada' : undefined}
-                  >
-                    <div>
-                      <h2 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                        {card.title}
-                        {isLowStockCard && isActionable && (
-                          <span className="text-[10px] bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 px-2 py-0.5 rounded-full">filtrável</span>
-                        )}
-                      </h2>
-                      <p className={`text-3xl font-bold mt-1 ${isLowStockCard ? 'text-red-500' : 'text-foreground'}`}>{card.value}</p>
-                      <p className="text-xs text-muted-foreground mt-1">{card.description}</p>
-                    </div>
-                    <span className={`material-icons ${isLowStockCard ? 'text-red-500' : 'text-primary'}`}>{isLowStockCard ? 'warning' : card.title === 'Ferramentas' ? 'build' : 'category'}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-          {/* Seção de Ações Rápidas removida por solicitação: dashboard mantém apenas o Resumo */}
-        </div>
-      );
-    }
     
     switch (activeView) {
       case "release": return <StockReleaseClient stockItems={stockItems} onUpdateHistory={handleNewWithdrawal} uniqueRequesters={uniqueRequesters} uniqueDestinations={uniqueDestinations} />;
@@ -859,7 +825,9 @@ export default function StockReleaseApp() {
 
     return (
   <div className="flex flex-col min-h-dvh bg-background text-foreground pt-[env(safe-area-inset-top)] overflow-x-hidden" style={{ paddingBlockEnd: 'calc(var(--admob-bottom-inset, 0px) + env(safe-area-inset-bottom) + var(--bottom-bar-height, 5.2rem))' }}>
-  <header className="sticky top-0 z-40 bg-card shadow-sm px-4 py-2.5 border-b border-border pt-[env(safe-area-inset-top)]">
+  
+  {/* Header principal */}
+    <header className="sticky top-0 z-40 bg-card shadow-sm px-4 py-2.5 border-b border-border pt-[env(safe-area-inset-top)]">
           <div className="mx-auto max-w-md flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 min-w-0">
               <span className="material-icons text-foreground">inventory</span>
@@ -917,16 +885,16 @@ export default function StockReleaseApp() {
             </div>
           </div>
         </header>
-
-        <main className={"flex-1 overflow-auto relative " + (densityLevel === -1 ? 'text-sm' : densityLevel === 1 ? 'text-base' : '')}>
-          <div className={"max-w-md mx-auto w-full px-4 " + (densityLevel === -1 ? 'py-3 md:py-4 space-y-5' : densityLevel === 1 ? 'py-8 md:py-10 space-y-10' : 'py-6 md:py-8 space-y-8')}>
-            {/* Busca abaixo do cabeçalho removida no novo layout */}
-            {renderContent()}
-          </div>
-          <div className="sr-only" aria-live="polite" aria-atomic="true">
-            {`Métricas: ${metrics.totalItemTypes} itens cadastrados, ${metrics.lowStockItems} itens em baixo nível, ${metrics.totalTools} ferramentas.`}
-          </div>
-        </main>
+        
+        {/* Main content */}
+          <main className={"flex-1 overflow-auto relative " + (densityLevel === -1 ? 'text-sm' : densityLevel === 1 ? 'text-base' : '')}>
+            <div className={"max-w-md mx-auto w-full px-4 " + (densityLevel === -1 ? 'py-3 md:py-4 space-y-5' : densityLevel === 1 ? 'py-8 md:py-10 space-y-10' : 'py-6 md:py-8 space-y-8')}>
+              {renderContent()}
+            </div>
+            <div className="sr-only" aria-live="polite" aria-atomic="true">
+              {`Métricas: ${metrics.totalItemTypes} itens cadastrados, ${metrics.lowStockItems} itens em baixo nível, ${metrics.totalTools} ferramentas.`}
+            </div>
+          </main>
 
         <AddItemDialog
             isOpen={isAddItemDialogOpen}
@@ -944,11 +912,12 @@ export default function StockReleaseApp() {
 
   {/* AdMob banner (native builds only). It's a system overlay at bottom-center. */}
   {process.env.NODE_ENV === 'production' && <AdmobBanner />}
+  {/* Spacer removed: nav is hidden while banner is visible; no need for a background filler */}
   {/* Bottom tab bar (Material Icons) - Menu + módulos */}
-  <nav className="fixed inset-x-0 z-40 border-t border-border bg-card shadow-sm pb-[calc(env(safe-area-inset-bottom)+0.25rem)]" style={{ insetBlockEnd: 'calc(var(--admob-bottom-inset, 0px) + env(safe-area-inset-bottom))' }}>
+  <nav className="bottom-nav fixed inset-x-0 z-40 border-t border-border bg-card shadow-sm pb-[calc(env(safe-area-inset-bottom)+0.25rem)]" style={{ insetBlockEnd: 'calc(var(--admob-bottom-inset, 0px) + env(safe-area-inset-bottom))' }}>
           <div className="mx-auto max-w-md px-2">
             <div className="flex justify-around h-16">
-              {[{key:'release', label:'Início', icon:'home'},{key:'items', label:'Itens', icon:'inventory'}, {key:'tools', label:'Ferramentas', icon:'build'}, {key:'history', label:'Histórico', icon:'history'}].map(tab => {
+              {[{key:'release', label:'Saída', icon:'home'},{key:'items', label:'Itens', icon:'inventory'}, {key:'tools', label:'Ferramentas', icon:'build'}, {key:'history', label:'Histórico', icon:'history'}].map(tab => {
                 const isActive = activeView === tab.key;
                 return (
                   <button key={tab.key} className={"flex flex-col items-center justify-center w-1/4 p-2 rounded-lg text-xs " + (isActive ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:bg-primary/10 hover:text-primary')} onClick={() => setActiveView(tab.key as any)}>

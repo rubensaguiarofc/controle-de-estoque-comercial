@@ -5,6 +5,7 @@ import { useEffect, useRef } from "react";
 import JsBarcode from "jsbarcode";
 import jsPDF from "jspdf";
 import { savePdf } from '@/lib/save-pdf';
+import { incrementPrintCounter, showShortInterstitial } from '@/lib/native/ad-manager';
 import type { StockItem } from "@/lib/types";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -97,6 +98,12 @@ export function BarcodeDisplayDialog({ isOpen, onOpenChange, item }: BarcodeDisp
         const res = await savePdf(doc, filename);
         if (res && res.success) {
           toast({ title: "PDF Gerado", description: "O arquivo da etiqueta foi salvo." });
+          // Contabiliza 1 impressão e, ao atingir o limiar configurado, exibe um vídeo curto (interstitial)
+          try {
+            if (incrementPrintCounter(1)) {
+              await showShortInterstitial();
+            }
+          } catch {}
         } else {
           toast({ variant: 'destructive', title: 'Falha ao salvar PDF' });
         }

@@ -1,1 +1,0 @@
-"use strict";exports.id=933,exports.ids=[933],exports.modules={66933:(e,t,d)=>{d.r(t),d.d(t,{ToastWeb:()=>s});var o=d(98401);class s extends o.WebPlugin{async show(e){if("undefined"!=typeof document){let t=2e3;e.duration&&(t="long"===e.duration?3500:2e3);let d=document.createElement("pwa-toast");d.duration=t,d.message=e.text,document.body.appendChild(d)}}}}};

@@ -29,7 +29,8 @@ export default function RootLayout({
               {children}
             </div>
           </div>
-          <footer className="border-t mt-8 text-center text-xs text-muted-foreground py-4 space-y-2">
+          {/* Oculta o rodapé em telas móveis para evitar sobreposição/"flutuar" com a barra inferior */}
+          <footer className="hidden md:block border-t mt-8 text-center text-xs text-muted-foreground py-4 space-y-2">
             <p>© {new Date().getFullYear()} Controle de Almoxarifado</p>
             <p>
               <a href="https://docs.google.com/document/d/1o7_RCTS3Kexrzd2FVomTZ6__R8uaL9Y9bwhfBBHsefo" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">Política de Privacidade</a>

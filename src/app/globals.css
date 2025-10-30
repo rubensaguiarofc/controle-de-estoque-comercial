@@ -155,3 +155,11 @@ button, .btn, [role="button"] {
   @apply rounded-md leading-snug;
 }
 
+/* Smooth reposition of bottom nav when ad shows/hides */
+.bottom-nav {
+  transition: inset 180ms ease, bottom 180ms ease, inset-block-end 180ms ease;
+}
+
+/* Hide bottom navigation while AdMob banner is visible */
+.admob-banner-visible .bottom-nav { display: none; }
+

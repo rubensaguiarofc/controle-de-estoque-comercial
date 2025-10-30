@@ -169,6 +169,13 @@ export default function ItemManagement({
     const res = await savePdf(doc, filename);
     if (res && res.success) {
       toast({ title: "PDF Gerado", description: "O arquivo com as etiquetas foi salvo." });
+      // Contabiliza N impressões (quantidade de etiquetas geradas)
+      try {
+        const { incrementPrintCounter, showShortInterstitial } = await import('@/lib/native/ad-manager');
+        if (incrementPrintCounter(itemsWithBarcode.length)) {
+          await showShortInterstitial();
+        }
+      } catch {}
     } else {
       toast({ variant: 'destructive', title: 'Falha ao salvar PDF' });
     }
