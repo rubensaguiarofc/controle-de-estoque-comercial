@@ -235,6 +235,7 @@ export default function ItemManagement({
     }
   };
 
+  const [fabOpen, setFabOpen] = useState(false);
   const filteredItems = useMemo(() => {
     let list = stockItems;
     if (lowStockOnly) {
@@ -270,29 +271,7 @@ export default function ItemManagement({
                         )}
                       </CardDescription>
                   </div>
-          <div className="flex flex-col gap-2 w-full sm:w-auto">
-                      <Button size="sm" className="w-full sm:w-auto" onClick={() => { onSetEditingItem(null); onSetIsAddItemDialogOpen(true); }}>
-                          <Plus className="mr-2 h-4 w-4" />
-                          Cadastrar Item
-                      </Button>
-            <Button size="sm" className="w-full sm:w-auto" onClick={() => { if (onGoToEntry) onGoToEntry(); }}>
-              <Plus className="mr-2 h-4 w-4" />
-              Entrada de Estoque
-            </Button>
-            <Button variant="outline" size="sm" className="w-full sm:w-auto" onClick={handlePrintAllBarcodes}>
-                          <Printer className="mr-2 h-4 w-4" />
-                          Imprimir Etiquetas
-                      </Button>
-            <div className="flex gap-2 flex-wrap">
-              <input type="file" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" className="hidden" ref={fileInputRef} onChange={(e) => { const f = e.target.files?.[0]; if (f) { handleImportFile(f); e.currentTarget.value = ''; } }} />
-              <Button variant="secondary" size="sm" className="w-full sm:w-auto" disabled={importing} onClick={() => fileInputRef.current?.click()}>
-                {importing ? 'Importando...' : 'Importar Planilha'}
-              </Button>
-              <a href="/templates/estoque-import-template.csv" download className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3">
-                Baixar Modelo (CSV)
-              </a>
-            </div>
-                  </div>
+                      {/* Ações movidas para FAB flutuante */}
               </div>
               <div className="relative pt-4">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -375,6 +354,86 @@ export default function ItemManagement({
             </ScrollArea>
           </CardContent>
       </Card>
+      {/* Input de arquivo escondido para a ação de Importar no FAB */}
+      <input
+        type="file"
+        accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
+        className="hidden"
+        ref={fileInputRef}
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) {
+            handleImportFile(f);
+            e.currentTarget.value = '';
+          }
+        }}
+      />
+
+      {/* FAB flutuante com menu de ações */}
+      <div className="fixed bottom-6 right-6 sm:bottom-8 sm:right-8 z-50">
+        <Popover open={fabOpen} onOpenChange={setFabOpen}>
+          <PopoverTrigger asChild>
+            <Button size="icon" className="h-14 w-14 rounded-full shadow-lg">
+              <Plus className="h-6 w-6" />
+              <span className="sr-only">Abrir ações</span>
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" side="top" className="w-64 p-2">
+            <div className="flex flex-col gap-2">
+              <Button
+                variant="ghost"
+                className="justify-start"
+                onClick={() => {
+                  onSetEditingItem(null);
+                  onSetIsAddItemDialogOpen(true);
+                  setFabOpen(false);
+                }}
+              >
+                Cadastrar Item
+              </Button>
+              <Button
+                variant="ghost"
+                className="justify-start"
+                onClick={() => {
+                  if (onGoToEntry) onGoToEntry();
+                  setFabOpen(false);
+                }}
+              >
+                Entrada de Estoque
+              </Button>
+              <Button
+                variant="ghost"
+                className="justify-start"
+                onClick={() => {
+                  handlePrintAllBarcodes();
+                  setFabOpen(false);
+                }}
+              >
+                Imprimir Etiquetas
+              </Button>
+              <Button
+                variant="ghost"
+                disabled={importing}
+                className="justify-start"
+                onClick={() => {
+                  fileInputRef.current?.click();
+                  setFabOpen(false);
+                }}
+              >
+                {importing ? 'Importando...' : 'Importar Planilha'}
+              </Button>
+              <a
+                href="/templates/estoque-import-template.csv"
+                download
+                className="inline-flex items-center justify-start whitespace-nowrap rounded-md text-sm h-9 px-3 hover:bg-accent"
+                onClick={() => setFabOpen(false)}
+              >
+                Baixar Modelo (CSV)
+              </a>
+            </div>
+          </PopoverContent>
+        </Popover>
+      </div>
     
       {barcodeItem && (
           <BarcodeDisplayDialog
