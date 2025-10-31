@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import type { StockItem } from '@/lib/types';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
@@ -32,6 +32,8 @@ interface ItemManagementProps {
   onGoToRelease?: () => void;
   // optional: allow parent to navigate to entry tab from header button
   onGoToEntry?: () => void;
+  // optional: bulk add hook implemented by parent (repo ou local)
+  onBulkAddItems?: (items: Array<Omit<StockItem, 'id'>>) => Promise<{ added: number; skipped: number } | void>;
 }
 
 export default function ItemManagement({
@@ -46,11 +48,14 @@ export default function ItemManagement({
   onUpdateItem,
   onGoToRelease,
   onGoToEntry,
+  onBulkAddItems,
 }: ItemManagementProps) {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
   const [barcodeItem, setBarcodeItem] = useState<StockItem | null>(null);
   const [viewingItem, setViewingItem] = useState<StockItem | null>(null);
+  const [importing, setImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleEdit = (item: StockItem) => {
     onSetEditingItem(item);
@@ -181,6 +186,55 @@ export default function ItemManagement({
     }
   };
 
+  const handleImportFile = async (file: File) => {
+    try {
+      setImporting(true);
+      const xlsx = await import('xlsx');
+      const ab = await file.arrayBuffer();
+      const wb = xlsx.read(ab, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows: any[] = xlsx.utils.sheet_to_json(ws, { defval: '' });
+      if (!rows || rows.length === 0) {
+        toast({ variant: 'destructive', title: 'Planilha vazia', description: 'Nenhuma linha encontrada.' });
+        return;
+      }
+      const normalizeKey = (k: string) => k.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+      const toItem = (r: any) => {
+        const m: Record<string, any> = {};
+        Object.keys(r).forEach(k => { m[normalizeKey(k)] = r[k]; });
+        const name = String(m['name'] ?? m['nome'] ?? '').toUpperCase().trim();
+        const specifications = String(m['specifications'] ?? m['especificacoes'] ?? m['especificações'] ?? '').toUpperCase().trim();
+        const quantityRaw = m['quantity'] ?? m['quantidade'] ?? 0;
+        const quantity = Math.max(0, Math.min(Number(quantityRaw) || 0, MAX_QUANTITY));
+        const barcode = String(m['barcode'] ?? m['codigo'] ?? m['código'] ?? '').trim() || undefined;
+        return { name, specifications, quantity, barcode } as Omit<StockItem,'id'>;
+      };
+      const candidates = rows.map(toItem).filter(i => i.name && i.specifications);
+      if (candidates.length === 0) {
+        toast({ variant: 'destructive', title: 'Colunas ausentes', description: 'Certifique-se de ter Nome, Especificações e (opcional) Quantidade/Código.' });
+        return;
+      }
+      if (onBulkAddItems) {
+        const res = await onBulkAddItems(candidates) as any;
+        const added = res?.added ?? 0;
+        const skipped = res?.skipped ?? 0;
+        toast({ title: 'Importação concluída', description: `${added} itens adicionados, ${skipped} ignorados.` });
+      } else {
+        // Fallback local: evitar duplicados por nome exato
+        const existingNames = new Set(stockItems.map(i => i.name));
+        const unique = candidates.filter(i => !existingNames.has(i.name));
+        const withIds: StockItem[] = unique.map((i, idx) => ({ id: `IMP-${Date.now()}-${idx}`, ...i }));
+        await onSetStockItems([ ...withIds, ...stockItems ]);
+        toast({ title: 'Importação concluída', description: `${withIds.length} itens adicionados (local).` });
+      }
+    } catch (e) {
+      console.error(e);
+      toast({ variant: 'destructive', title: 'Falha na importação', description: 'Verifique o arquivo e tente novamente.' });
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const filteredItems = useMemo(() => {
     let list = stockItems;
     if (lowStockOnly) {
@@ -229,6 +283,15 @@ export default function ItemManagement({
                           <Printer className="mr-2 h-4 w-4" />
                           Imprimir Etiquetas
                       </Button>
+            <div className="flex gap-2 flex-wrap">
+              <input type="file" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" className="hidden" ref={fileInputRef} onChange={(e) => { const f = e.target.files?.[0]; if (f) { handleImportFile(f); e.currentTarget.value = ''; } }} />
+              <Button variant="secondary" size="sm" className="w-full sm:w-auto" disabled={importing} onClick={() => fileInputRef.current?.click()}>
+                {importing ? 'Importando...' : 'Importar Planilha'}
+              </Button>
+              <a href="/templates/estoque-import-template.csv" download className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3">
+                Baixar Modelo (CSV)
+              </a>
+            </div>
                   </div>
               </div>
               <div className="relative pt-4">

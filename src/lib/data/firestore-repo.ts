@@ -1,6 +1,6 @@
 "use client";
 
-import { collection, doc, onSnapshot, orderBy, query, setDoc, updateDoc, addDoc, serverTimestamp, increment } from "firebase/firestore";
+import { collection, doc, onSnapshot, orderBy, query, setDoc, updateDoc, addDoc, serverTimestamp, increment, deleteDoc } from "firebase/firestore";
 import type { Firestore } from "firebase/firestore";
 import type { StockItem, EntryRecord, WithdrawalRecord } from "@/lib/types";
 
@@ -46,6 +46,11 @@ export class StockRepo {
   async upsertItem(item: StockItem) {
     const ref = doc(this.itemsCol(), item.id);
     await setDoc(ref, item, { merge: true });
+  }
+
+  async deleteItem(itemId: string) {
+    const ref = doc(this.itemsCol(), itemId);
+    await deleteDoc(ref);
   }
 
   async addEntry(rec: EntryRecord) {

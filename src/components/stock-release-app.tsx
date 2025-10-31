@@ -569,7 +569,31 @@ export default function StockReleaseApp() {
     };
   }, [history, entryHistory]);
 
+  const handleBulkAddItems = useCallback(async (items: Array<Omit<StockItem, 'id'>>) => {
+    const normalize = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim().replace(/\s+/g, ' ');
+    const existingByName = new Set(stockItems.map(i => normalize(i.name)));
+    let maxNum = stockItems.reduce((acc, i) => Math.max(acc, parseInt(i.id.split('-')[1]) || 0), 0);
+    const toSave: StockItem[] = [];
+    let skipped = 0;
+    for (const it of items) {
+      if (!it.name || !it.specifications) continue;
+      if (existingByName.has(normalize(it.name))) { skipped++; continue; }
+      maxNum += 1;
+      const id = `ITM-${String(maxNum).padStart(3, '0')}`;
+      toSave.push({ id, quantity: it.quantity ?? 0, name: it.name, specifications: it.specifications, barcode: it.barcode });
+      existingByName.add(normalize(it.name));
+    }
+    if (toSave.length === 0) return { added: 0, skipped };
+    if (repo) {
+      await Promise.all(toSave.map(i => repo.upsertItem(i).catch(console.error)));
+    } else {
+      setStockItems(prev => [...toSave, ...prev]);
+    }
+    return { added: toSave.length, skipped };
+  }, [repo, stockItems]);
+
   const handleItemDialogSubmit = useCallback((itemData: Omit<StockItem, 'id' | 'quantity'> & { quantity?: number }) => {
+    const normalize = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim().replace(/\s+/g, ' ');
     let itemToSave: StockItem;
     if (editingItem) {
       itemToSave = {
@@ -580,12 +604,24 @@ export default function StockReleaseApp() {
         // allow updating quantity when editing
         quantity: typeof itemData.quantity === 'number' ? itemData.quantity : editingItem.quantity,
       };
+      // Prevent renaming to an existing item name (exact normalized match)
+      const existsOther = stockItems.some(i => i.id !== editingItem.id && normalize(i.name) === normalize(itemToSave.name));
+      if (existsOther) {
+        toast({ variant: 'destructive', title: 'Nome já cadastrado', description: 'Já existe um item com este nome. Ajuste o nome ou edite o item existente.' });
+        return;
+      }
       if (repo) {
         repo.upsertItem(itemToSave).catch(err => console.error('Failed to update item', err));
       } else {
         setStockItems(prev => prev.map(item => item.id === editingItem.id ? itemToSave : item));
       }
     } else {
+      // Block exact duplicate by normalized name
+      const exists = stockItems.some(i => normalize(i.name) === normalize(itemData.name));
+      if (exists) {
+        toast({ variant: 'destructive', title: 'Item duplicado', description: 'Já existe um item com o mesmo nome. Evite cadastros duplicados.' });
+        return;
+      }
       const newIdNumber = (stockItems.length > 0 ? Math.max(...stockItems.map(item => parseInt(item.id.split('-')[1]) || 0)) + 1 : 1).toString().padStart(3, '0');
       const newId = `ITM-${newIdNumber}`;
       itemToSave = { ...itemData, id: newId, quantity: itemData.quantity || 0 } as StockItem;
@@ -792,9 +828,7 @@ export default function StockReleaseApp() {
                 onClearLowStockFilter={() => setLowStockFilter(false)}
                 onDeleteItem={(id) => {
                   if (repo) {
-                    // Soft delete by setting quantity 0 or implement a delete function if needed
-                    const target = stockItems.find(i => i.id === id);
-                    if (target) repo.upsertItem({ ...target, quantity: 0 }).catch(console.error);
+                    repo.deleteItem(id).catch(console.error);
                   } else {
                     setStockItems(prev => prev.filter(i => i.id !== id));
                   }
@@ -803,6 +837,7 @@ export default function StockReleaseApp() {
                   if (repo) repo.upsertItem(item).catch(console.error);
                   else setStockItems(prev => prev.map(i => i.id === item.id ? item : i));
                 }}
+                onBulkAddItems={handleBulkAddItems}
                 onGoToRelease={() => setActiveView('release')}
                 onGoToEntry={() => setItemsTab('entry')}
               />
