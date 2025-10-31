@@ -370,7 +370,7 @@ export default function ItemManagement({
       />
 
       {/* FAB flutuante com menu de ações */}
-      <div className="fixed bottom-6 right-6 sm:bottom-8 sm:right-8 z-50">
+      <div className="fixed right-4 bottom-24 sm:right-8 sm:bottom-28 z-[60]">
         <Popover open={fabOpen} onOpenChange={setFabOpen}>
           <PopoverTrigger asChild>
             <Button size="icon" className="h-14 w-14 rounded-full shadow-lg">
