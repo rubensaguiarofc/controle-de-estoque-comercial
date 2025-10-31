@@ -331,8 +331,8 @@ export function HistoryPanel({ itemHistory, toolHistory, entryHistory, onDeleteI
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-        {/* Ações: Exportar PDF e XLSX */}
-        <div className="flex justify-stretch">
+        {/* Ações: Exportar PDF e XLSX (visíveis apenas em telas médias+; no mobile usar o menu kebab) */}
+        <div className="hidden md:flex justify-stretch">
           <div className="flex flex-1 gap-3 flex-wrap px-4 py-3 justify-between items-center">
             <div className="flex gap-2">
               <Button onClick={handleExportToPDF} className="h-10 px-4 bg-[#1172d4] hover:bg-[#0f63b8] text-white text-sm font-bold tracking-[0.015em]">Exportar PDF</Button>
