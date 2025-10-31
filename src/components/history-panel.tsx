@@ -406,8 +406,9 @@ export function HistoryPanel({ itemHistory, toolHistory, entryHistory, onDeleteI
         {/* Lista / estado vazio */}
         <div className="flex flex-col p-4">
           {paginatedHistory.length === 0 ? (
-            <div className="flex flex-col items-center gap-6 rounded-lg border-2 border-dashed border-[#cfdbe7] px-6 py-14">
+            <div className="flex flex-col items-center gap-3 rounded-lg border-2 border-dashed border-[#cfdbe7] px-6 py-12">
               <p className="text-lg font-bold tracking-[-0.015em] text-center">Nenhum registro encontrado.</p>
+              <p className="text-sm text-muted-foreground text-center">Use o menu de três pontos (...) no topo direito para exportar ou apagar o histórico.</p>
             </div>
           ) : (
             <div className="space-y-4">

@@ -7,6 +7,7 @@ import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Edit, Trash, Search, Plus, Barcode, Printer, ShoppingCart } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
@@ -373,10 +374,17 @@ export default function ItemManagement({
       <div className="fixed right-4 bottom-24 sm:right-8 sm:bottom-28 z-[60]">
         <Popover open={fabOpen} onOpenChange={setFabOpen}>
           <PopoverTrigger asChild>
-            <Button size="icon" className="h-14 w-14 rounded-full shadow-lg">
-              <Plus className="h-6 w-6" />
-              <span className="sr-only">Abrir ações</span>
-            </Button>
+            <TooltipProvider delayDuration={200}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button size="icon" className="h-14 w-14 rounded-full shadow-lg" aria-label="Ações de Itens">
+                    <Plus className="h-6 w-6" />
+                    <span className="sr-only">Abrir ações</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Ações de Itens</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </PopoverTrigger>
           <PopoverContent align="end" side="top" className="w-64 p-2">
             <div className="flex flex-col gap-2">
