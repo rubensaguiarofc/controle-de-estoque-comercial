@@ -3,7 +3,10 @@
 @tailwind components;
 @tailwind utilities;
 /* When AdMob banner is visible, hide bottom bar and reduce bottom padding baseline */
-:root { --bottom-bar-height: 5.2rem; }
+:root { 
+  --bottom-bar-height: 4.25rem;
+  --system-nav-gap: 0.5rem; /* Extra gap above system navigation bar */
+}
 .admob-banner-visible { --bottom-bar-height: 0rem; }
 
 /* Utility to hide elements when banner visible */

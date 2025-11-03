@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import type { StockItem } from '@/lib/types';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
@@ -252,6 +252,153 @@ export default function ItemManagement({
     );
   }, [stockItems, searchQuery, lowStockOnly, globalSearch]);
 
+  // Draggable/movable FAB component (defined inline so it can access component scope)
+  function DraggableFab() {
+    const storageKey = 'fabPos_items';
+    const btnRef = useRef<HTMLButtonElement | null>(null);
+    const dragRef = useRef({ dragging: false, startX: 0, startY: 0, startLeft: 0, startTop: 0, moved: false });
+    const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
+    const posRef = useRef(pos);
+
+    useEffect(() => { posRef.current = pos; }, [pos]);
+
+    useEffect(() => {
+      try {
+        const raw = localStorage.getItem(storageKey);
+        if (raw) {
+          const p = JSON.parse(raw);
+          if (typeof p.left === 'number' && typeof p.top === 'number') { setPos(p); return; }
+        }
+      } catch {}
+      // default: bottom-right above nav (approx 5rem + safe gap)
+      const btnSize = 56; // h-14 w-14
+      const right = 16;
+      const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+      const safetyGap = rem * 0.5; // --system-nav-gap in rem units
+      const bottomGap = rem * 5 + safetyGap; // Additional gap above system nav
+      const left = Math.max(8, window.innerWidth - btnSize - right);
+      const top = Math.max(8, window.innerHeight - bottomGap - btnSize);
+      setPos({ left, top });
+    }, []);
+
+    const onPointerDown = useCallback((e: React.PointerEvent) => {
+      if (fabOpen || (e.button && e.button !== 0)) return; // Don't start drag if menu is open
+      e.preventDefault(); // Prevent text selection during drag
+      (e.target as Element).setPointerCapture?.(e.pointerId);
+      dragRef.current.dragging = true;
+      dragRef.current.moved = false;
+      dragRef.current.startX = e.clientX;
+      dragRef.current.startY = e.clientY;
+      dragRef.current.startLeft = posRef.current?.left ?? 0;
+      dragRef.current.startTop = posRef.current?.top ?? 0;
+
+      const onMove = (ev: PointerEvent) => {
+        if (!dragRef.current.dragging) return;
+        const dx = ev.clientX - dragRef.current.startX;
+        const dy = ev.clientY - dragRef.current.startY;
+        if (Math.abs(dx) > 5 || Math.abs(dy) > 5) dragRef.current.moved = true; // Increased threshold for drag detection
+        const btnW = btnRef.current?.offsetWidth ?? 56;
+        let newLeft = dragRef.current.startLeft + dx;
+        let newTop = dragRef.current.startTop + dy;
+        newLeft = Math.max(8, Math.min(window.innerWidth - btnW - 8, newLeft));
+        newTop = Math.max(8, Math.min(window.innerHeight - btnW - 8, newTop));
+        setPos({ left: newLeft, top: newTop });
+      };
+
+      const onUp = () => {
+        if (!dragRef.current.dragging) return;
+        dragRef.current.dragging = false;
+        try { localStorage.setItem(storageKey, JSON.stringify(posRef.current ?? pos)); } catch {}
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', onUp);
+      };
+
+      window.addEventListener('pointermove', onMove);
+      window.addEventListener('pointerup', onUp);
+    }, [pos]);
+
+    if (!pos) return null;
+
+    return (
+      <div style={{ position: 'fixed', left: pos.left, top: pos.top, zIndex: 60 }}>
+        <Popover open={fabOpen} onOpenChange={setFabOpen}>
+          <TooltipProvider delayDuration={200}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <PopoverTrigger asChild>
+                  <Button
+                    ref={btnRef}
+                    size="icon"
+                    className="h-14 w-14 rounded-full shadow-lg"
+                    aria-label="Ações de Itens"
+                    onPointerDown={onPointerDown}
+                  >
+                    <Plus className="h-6 w-6" />
+                    <span className="sr-only">Abrir ações</span>
+                  </Button>
+                </PopoverTrigger>
+              </TooltipTrigger>
+              <TooltipContent>Ações de Itens</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <PopoverContent align="end" side="top" className="w-64 p-2">
+            <div className="flex flex-col gap-2">
+              <Button
+                variant="ghost"
+                className="justify-start"
+                onClick={() => {
+                  onSetEditingItem(null);
+                  onSetIsAddItemDialogOpen(true);
+                  setFabOpen(false);
+                }}
+              >
+                Cadastrar Item
+              </Button>
+              <Button
+                variant="ghost"
+                className="justify-start"
+                onClick={() => {
+                  if (onGoToEntry) onGoToEntry();
+                  setFabOpen(false);
+                }}
+              >
+                Entrada de Estoque
+              </Button>
+              <Button
+                variant="ghost"
+                className="justify-start"
+                onClick={() => {
+                  handlePrintAllBarcodes();
+                  setFabOpen(false);
+                }}
+              >
+                Imprimir Etiquetas
+              </Button>
+              <Button
+                variant="ghost"
+                disabled={importing}
+                className="justify-start"
+                onClick={() => {
+                  fileInputRef.current?.click();
+                  setFabOpen(false);
+                }}
+              >
+                {importing ? 'Importando...' : 'Importar Planilha'}
+              </Button>
+              <a
+                href="/templates/estoque-import-template.csv"
+                download
+                className="inline-flex items-center justify-start whitespace-nowrap rounded-md text-sm h-9 px-3 hover:bg-accent"
+                onClick={() => setFabOpen(false)}
+              >
+                Baixar Modelo (CSV)
+              </a>
+            </div>
+          </PopoverContent>
+        </Popover>
+      </div>
+    );
+  }
   return (
     <>
       <Card className="shadow-lg h-full flex flex-col bg-transparent sm:bg-card border-none sm:border">
@@ -370,78 +517,10 @@ export default function ItemManagement({
         }}
       />
 
-      {/* FAB flutuante com menu de ações */}
-      <div className="fixed right-4 bottom-24 sm:right-8 sm:bottom-28 z-[60]">
-        <Popover open={fabOpen} onOpenChange={setFabOpen}>
-          <PopoverTrigger asChild>
-            <TooltipProvider delayDuration={200}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button size="icon" className="h-14 w-14 rounded-full shadow-lg" aria-label="Ações de Itens">
-                    <Plus className="h-6 w-6" />
-                    <span className="sr-only">Abrir ações</span>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Ações de Itens</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </PopoverTrigger>
-          <PopoverContent align="end" side="top" className="w-64 p-2">
-            <div className="flex flex-col gap-2">
-              <Button
-                variant="ghost"
-                className="justify-start"
-                onClick={() => {
-                  onSetEditingItem(null);
-                  onSetIsAddItemDialogOpen(true);
-                  setFabOpen(false);
-                }}
-              >
-                Cadastrar Item
-              </Button>
-              <Button
-                variant="ghost"
-                className="justify-start"
-                onClick={() => {
-                  if (onGoToEntry) onGoToEntry();
-                  setFabOpen(false);
-                }}
-              >
-                Entrada de Estoque
-              </Button>
-              <Button
-                variant="ghost"
-                className="justify-start"
-                onClick={() => {
-                  handlePrintAllBarcodes();
-                  setFabOpen(false);
-                }}
-              >
-                Imprimir Etiquetas
-              </Button>
-              <Button
-                variant="ghost"
-                disabled={importing}
-                className="justify-start"
-                onClick={() => {
-                  fileInputRef.current?.click();
-                  setFabOpen(false);
-                }}
-              >
-                {importing ? 'Importando...' : 'Importar Planilha'}
-              </Button>
-              <a
-                href="/templates/estoque-import-template.csv"
-                download
-                className="inline-flex items-center justify-start whitespace-nowrap rounded-md text-sm h-9 px-3 hover:bg-accent"
-                onClick={() => setFabOpen(false)}
-              >
-                Baixar Modelo (CSV)
-              </a>
-            </div>
-          </PopoverContent>
-        </Popover>
-      </div>
+      {/* FAB flutuante movível (arrastável) */}
+      {/* Movable floating action button: user can drag to reposition; position persisted in localStorage */}
+      <DraggableFab />
+      
     
       {barcodeItem && (
           <BarcodeDisplayDialog
