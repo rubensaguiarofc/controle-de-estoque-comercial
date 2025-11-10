@@ -29,6 +29,7 @@ import { Badge } from "./ui/badge";
 import { SignatureDisplayDialog } from "./signature-display-dialog";
 import { ScrollArea } from "./ui/scroll-area";
 import { WithdrawalRecordDetailsDialog } from "./withdrawal-record-details-dialog";
+import { computeUsageSummary, computeSelectedItemTotalsByUnit } from '@/lib/usage';
 import { ReturnItemDialog } from "./return-item-dialog";
 
 const ITEMS_PER_PAGE = 10;
@@ -167,17 +168,7 @@ export function HistoryPanel({ itemHistory, toolHistory, entryHistory, onDeleteI
   // Resumo de uso (apenas para Saídas): soma das quantidades efetivamente usadas (retiradas - devolvidas)
   const usageSummary = useMemo(() => {
     if (activeTab !== 'withdrawals') return [] as { name: string; specifications: string; unit: string; totalUsed: number }[];
-    const map = new Map<string, { name: string; specifications: string; unit: string; totalUsed: number }>();
-    (filteredHistory as WithdrawalRecord[]).forEach(r => {
-      const used = (r.quantity || 0) - (r.returnedQuantity || 0);
-      // Chave: item + unidade (evita somar unidades distintas)
-      const key = `${r.item.name}__${r.unit}`;
-      const prev = map.get(key) || { name: r.item.name, specifications: r.item.specifications, unit: r.unit, totalUsed: 0 };
-      prev.totalUsed += used;
-      map.set(key, prev);
-    });
-    // Ordena por maior consumo
-    return Array.from(map.values()).sort((a, b) => (b.totalUsed - a.totalUsed));
+    return computeUsageSummary(filteredHistory as WithdrawalRecord[]);
   }, [activeTab, filteredHistory]);
 
   const itemNameOptions = useMemo(() => {
@@ -188,12 +179,7 @@ export function HistoryPanel({ itemHistory, toolHistory, entryHistory, onDeleteI
 
   const selectedItemTotalsByUnit = useMemo(() => {
     if (activeTab !== 'withdrawals' || !selectedItemName) return [] as { unit: string; totalUsed: number }[];
-    const map = new Map<string, number>();
-    (filteredHistory as WithdrawalRecord[]).forEach(r => {
-      const used = (r.quantity || 0) - (r.returnedQuantity || 0);
-      map.set(r.unit, (map.get(r.unit) || 0) + used);
-    });
-    return Array.from(map.entries()).map(([unit, totalUsed]) => ({ unit, totalUsed })).sort((a,b) => b.totalUsed - a.totalUsed);
+    return computeSelectedItemTotalsByUnit(filteredHistory as WithdrawalRecord[], selectedItemName);
   }, [activeTab, selectedItemName, filteredHistory]);
 
   const handleExportUsageToXLSX = async () => {

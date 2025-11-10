@@ -17,7 +17,9 @@
     "typecheck": "tsc --noEmit",
     "postinstall": "patch-package",
     "bump:android": "node scripts/bump-android-version.js",
-    "android:bundle": "cd android && gradlew.bat bundleRelease"
+    "android:bundle": "cd android && gradlew.bat bundleRelease",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@capacitor-community/admob": "^7.0.3",
@@ -73,14 +75,16 @@
     "lowdb": "^7.0.1",
     "lucide-react": "^0.475.0",
     "material-design-icons-iconfont": "^6.7.0",
-    "next": "15.3.3",
+    "next": "15.5.6",
     "patch-package": "^8.0.0",
     "react": "^18.3.1",
     "react-day-picker": "^8.10.1",
     "react-dom": "^18.3.1",
     "react-hook-form": "^7.54.2",
     "react-signature-canvas": "^1.0.6",
+    "react-window": "^2.2.2",
     "recharts": "^2.15.1",
+    "source-map": "^0.7.6",
     "tailwind-merge": "^3.0.1",
     "tailwindcss-animate": "^1.0.7",
     "xlsx": "^0.18.5",
@@ -99,6 +103,7 @@
     "genkit-cli": "^1.14.1",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "vitest": "^2.1.9"
   }
 }
