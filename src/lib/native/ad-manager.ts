@@ -36,10 +36,12 @@ async function callIfExists<T extends any[]>(obj: any, names: string[], ...args:
   throw new Error("No matching method found");
 }
 
-export async function showShortInterstitial() {
+export async function showShortInterstitial(force: boolean = false) {
   if (!Capacitor.isNativePlatform()) return;
   try {
-    if (!canShow('interstitial')) return;
+    if (!force && !canShow('interstitial')) return;
+    // Garantir inicialização única
+    await ensureInit();
     const adId = process.env.NEXT_PUBLIC_ADMOB_INTERSTITIAL_ID || "ca-app-pub-3940256099942544/1033173712"; // test interstitial
     // Prepare (varying API names across versions)
     try {
@@ -57,6 +59,7 @@ export async function showLongRewarded() {
   if (!Capacitor.isNativePlatform()) return;
   try {
     if (!canShow('rewarded')) return;
+    await ensureInit();
     const adId = process.env.NEXT_PUBLIC_ADMOB_REWARDED_ID || "ca-app-pub-3940256099942544/5224354917"; // test rewarded
     try {
       await callIfExists(AdMob, ["prepareRewardAd", "prepareRewardVideoAd", "prepareRewardedAd", "prepareRewardedVideoAd"], { adId, isTesting: !process.env.NEXT_PUBLIC_ADMOB_REWARDED_ID });
@@ -91,4 +94,28 @@ function markShown(kind: AdKind) {
     window.localStorage.setItem(LAST_ANY_TS, String(now));
     window.localStorage.setItem(kind === 'interstitial' ? LAST_INTERSTITIAL_TS : LAST_REWARDED_TS, String(now));
   } catch {}
+}
+
+export function canShowShortInterstitial(): boolean {
+  try {
+    if (!Capacitor.isNativePlatform()) return false;
+    return canShow('interstitial');
+  } catch {
+    return false;
+  }
+}
+
+let _initPromise: Promise<void> | null = null;
+async function ensureInit() {
+  if (!Capacitor.isNativePlatform()) return;
+  if (_initPromise) return _initPromise;
+  _initPromise = (async () => {
+    try {
+      // In some versions initialize() may not exist, so we swallow errors.
+      await callIfExists(AdMob, ["initialize"]);
+    } catch (e) {
+      console.debug('[ad-manager] initialize skipped', e);
+    }
+  })();
+  return _initPromise;
 }

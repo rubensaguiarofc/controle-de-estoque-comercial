@@ -16,6 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { AddItemDialog } from "./add-item-dialog";
 import { Skeleton } from "./ui/skeleton";
 import { AddToolDialog } from "./add-tool-dialog";
+import { HistoryPanel } from './history-panel';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 // Lazy-load AdMob banner only on client to keep web/dev bundle lighter
@@ -33,10 +34,6 @@ const StockEntryClient = dynamic(() => import('./stock-entry-client'), {
 });
 const ItemManagement = dynamic(() => import('./item-management'), {
   loading: () => <ManagementSkeleton />,
-  ssr: false,
-});
-const HistoryPanel = dynamic(() => import('./history-panel').then(mod => mod.HistoryPanel), {
-  loading: () => <HistorySkeleton />,
   ssr: false,
 });
 const ToolManagement = dynamic(() => import('./tool-management'), {
@@ -339,16 +336,34 @@ export default function StockReleaseApp() {
       const json = JSON.stringify(payload, null, 2);
       const filename = `almoxarifado_backup_${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
       if (Capacitor.isNativePlatform()) {
-        await Filesystem.writeFile({
-          path: filename,
-          data: json,
-          directory: Directory.Documents,
-          recursive: false,
-        });
-        const { uri } = await Filesystem.getUri({ path: filename, directory: Directory.Documents });
+        // 1) Tenta salvar no Cache e compartilhar via Sheet (mais confiável, sem permissões extras)
         try {
-          await Share.share({ title: 'Backup do Almoxarifado', text: 'Backup dos dados do aplicativo.', url: uri, dialogTitle: 'Compartilhar Backup' });
-        } catch {}
+          await Filesystem.writeFile({ path: filename, data: json, directory: Directory.Cache });
+          const { uri } = await Filesystem.getUri({ path: filename, directory: Directory.Cache });
+          try {
+            await Share.share({ title: 'Backup do Almoxarifado', text: 'Backup dos dados do aplicativo.', url: uri, dialogTitle: 'Compartilhar Backup' });
+          } catch (shareErr) {
+            // 2) Fallback: salvar em Downloads via MediaStore (Android 10+)
+            try {
+              const { MediaStoreSaver } = await import('@/lib/native/media-store-saver');
+              const base64 = btoa(unescape(encodeURIComponent(json)));
+              await MediaStoreSaver.saveToDownloads({ base64, filename, mimeType: 'application/json' });
+            } catch (msErr) {
+              // 3) Último recurso: tentar Documents (pode falhar em alguns devices/versões)
+              await Filesystem.writeFile({ path: filename, data: json, directory: Directory.Documents });
+            }
+          }
+        } catch (cacheErr) {
+          // Se falhar o Cache, tenta direto o MediaStore
+          try {
+            const { MediaStoreSaver } = await import('@/lib/native/media-store-saver');
+            const base64 = btoa(unescape(encodeURIComponent(json)));
+            await MediaStoreSaver.saveToDownloads({ base64, filename, mimeType: 'application/json' });
+          } catch (e) {
+            // Última tentativa: Documents
+            await Filesystem.writeFile({ path: filename, data: json, directory: Directory.Documents });
+          }
+        }
       } else {
         // Web fallback: trigger a file download
         const blob = new Blob([json], { type: 'application/json' });
@@ -580,7 +595,7 @@ export default function StockReleaseApp() {
       if (existingByName.has(normalize(it.name))) { skipped++; continue; }
       maxNum += 1;
       const id = `ITM-${String(maxNum).padStart(3, '0')}`;
-      toSave.push({ id, quantity: it.quantity ?? 0, name: it.name, specifications: it.specifications, barcode: it.barcode });
+  toSave.push({ id, quantity: it.quantity ?? 0, name: it.name, specifications: it.specifications, barcode: it.barcode ?? null });
       existingByName.add(normalize(it.name));
     }
     if (toSave.length === 0) return { added: 0, skipped };
@@ -600,7 +615,7 @@ export default function StockReleaseApp() {
         ...editingItem,
         name: itemData.name,
         specifications: itemData.specifications,
-        barcode: itemData.barcode,
+        barcode: typeof itemData.barcode === 'undefined' ? editingItem.barcode : itemData.barcode ?? null,
         // allow updating quantity when editing
         quantity: typeof itemData.quantity === 'number' ? itemData.quantity : editingItem.quantity,
       };
@@ -624,7 +639,7 @@ export default function StockReleaseApp() {
       }
       const newIdNumber = (stockItems.length > 0 ? Math.max(...stockItems.map(item => parseInt(item.id.split('-')[1]) || 0)) + 1 : 1).toString().padStart(3, '0');
       const newId = `ITM-${newIdNumber}`;
-      itemToSave = { ...itemData, id: newId, quantity: itemData.quantity || 0 } as StockItem;
+  itemToSave = { ...itemData, id: newId, quantity: itemData.quantity || 0, barcode: itemData.barcode ?? null } as StockItem;
       if (repo) {
         repo.upsertItem(itemToSave).catch(err => console.error('Failed to add item', err));
       } else {
@@ -949,9 +964,13 @@ export default function StockReleaseApp() {
   {process.env.NODE_ENV === 'production' && <AdmobBanner />}
   {/* Spacer removed: nav is hidden while banner is visible; no need for a background filler */}
   {/* Bottom tab bar (Material Icons) - Menu + módulos */}
-  <nav className="bottom-nav fixed inset-x-0 z-40 border-t border-border bg-card shadow-sm pb-[calc(env(safe-area-inset-bottom)+0.25rem)]" style={{ insetBlockEnd: 'calc(var(--admob-bottom-inset, 0px) + env(safe-area-inset-bottom))' }}>
+  <nav className="bottom-nav fixed inset-x-0 z-40 border-t border-border bg-card shadow-sm" style={{ 
+    bottom: 'env(safe-area-inset-bottom)',
+    paddingBottom: 'max(env(safe-area-inset-bottom), 0.5rem)',
+    marginBottom: 'var(--admob-bottom-inset, 0px)'
+  }}>
           <div className="mx-auto max-w-md px-2">
-            <div className="flex justify-around h-16">
+            <div className="flex justify-around h-14">
               {[{key:'release', label:'Saída', icon:'home'},{key:'items', label:'Itens', icon:'inventory'}, {key:'tools', label:'Ferramentas', icon:'build'}, {key:'history', label:'Histórico', icon:'history'}].map(tab => {
                 const isActive = activeView === tab.key;
                 return (
@@ -973,6 +992,10 @@ export default function StockReleaseApp() {
           className="hidden"
           onChange={handleFileSelected}
         />
+        {/* Mobile debug panel (visible when URL contains ?mobileDebug=1 or when localStorage.mobileDebug === '1') */}
+        {typeof window !== 'undefined' && (new URLSearchParams(window.location.search).get('mobileDebug') === '1' || window.localStorage.getItem('mobileDebug') === '1') && (
+          <MobileDebugPanel />
+        )}
       </div>
   );
 }
@@ -1020,4 +1043,64 @@ function HistorySkeleton() {
             <Skeleton className="h-[500px] w-full bg-muted-gray" />
         </div>
     )
+}
+
+function MobileDebugPanel() {
+  // lightweight debug controls for mobile device testing
+  const logState = () => {
+    try {
+      const wrapper = document.querySelector('[data-fab]');
+      const btn = document.querySelector('button[aria-label="Ações de Itens"]') || wrapper?.querySelector('button');
+      const bottomNav = document.querySelector('.bottom-nav');
+      const admobVisible = document.documentElement.classList.contains('admob-banner-visible');
+      console.log('MOBILE DEBUG STATE', {
+        fabWrapper: wrapper,
+        fabButton: btn,
+        fabRect: btn ? btn.getBoundingClientRect() : null,
+        fabLocalStorage: window.localStorage.getItem('fabPos_items'),
+        bottomNav,
+        bottomNavStyle: bottomNav ? getComputedStyle(bottomNav) : null,
+        admobVisible,
+        admobInset: getComputedStyle(document.documentElement).getPropertyValue('--admob-bottom-inset'),
+        admobLastClosed: window.localStorage.getItem('admob_last_closed_ts')
+      });
+      alert('Estado de debug impresso no console do dispositivo.');
+    } catch (e) { console.error(e); alert(String(e)); }
+  };
+
+  const resetFabPos = () => {
+    try { window.localStorage.removeItem('fabPos_items'); alert('fabPos_items removido. Recarregue a página.'); } catch(e){alert(String(e))}
+  };
+
+  const resetAdmob = () => {
+    try {
+      window.localStorage.removeItem('admob_last_closed_ts');
+      document.documentElement.classList.remove('admob-banner-visible');
+      document.documentElement.style.setProperty('--admob-bottom-inset', '0px');
+      alert('Estado AdMob resetado. Recarregue a página.');
+    } catch (e) { alert(String(e)); }
+  };
+
+  const clearAll = () => {
+    try {
+      window.localStorage.removeItem('fabPos_items');
+      window.localStorage.removeItem('admob_last_closed_ts');
+      document.documentElement.classList.remove('admob-banner-visible');
+      document.documentElement.style.setProperty('--admob-bottom-inset', '0px');
+      alert('Reset completo realizado. Recarregue a página.');
+    } catch (e) { alert(String(e)); }
+  };
+
+  return (
+    <div className="fixed left-3 top-3 z-60 bg-card/90 border border-border p-2 rounded-md shadow-sm text-xs">
+      <div className="font-medium mb-1">Mobile Debug</div>
+      <div className="flex flex-col gap-2">
+        <button className="btn" onClick={logState}>Log estado (console)</button>
+        <button className="btn" onClick={resetFabPos}>Reset FAB pos</button>
+        <button className="btn" onClick={resetAdmob}>Reset AdMob</button>
+        <button className="btn" onClick={clearAll}>Reset tudo</button>
+      </div>
+      <div className="mt-2 text-[11px] text-muted-foreground">Ative com ?mobileDebug=1 ou localStorage.mobileDebug='1'</div>
+    </div>
+  );
 }
