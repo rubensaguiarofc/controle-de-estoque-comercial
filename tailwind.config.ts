@@ -19,6 +19,7 @@ export default {
       fontFamily: {
         body: ['PT Sans', 'sans-serif'],
         headline: ['PT Sans', 'sans-serif'],
+        display: ['Be Vietnam Pro', 'PT Sans', 'sans-serif'],
         code: ['monospace'],
       },
       colors: {

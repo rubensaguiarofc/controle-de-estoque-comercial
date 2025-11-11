@@ -16,10 +16,17 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" suppressHydrationWarning>
       <head>
-        {/* Garante suporte a áreas seguras (notch) e permite aplicar padding interno */}
+        {/* Viewport & safe area */}
         <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+        {/* Font (Be Vietnam Pro) para tipografia display conforme protótipo da tela de Saída */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet" />
+        {/* Material Symbols (Outlined) - utilizada em ícones da nova tela */}
+        <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
         {/* Ajuste de altura mínima semelhante ao protótipo fornecido */}
-        <style>{`body{min-block-size:max(884px,100dvh);}`}</style>
+        <style>{`body{min-block-size:max(884px,100dvh);font-family:'Be Vietnam Pro',var(--font-body),sans-serif}`}</style>
+        <style>{`.material-symbols-outlined{font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24}.material-symbols-outlined.filled{font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24}`}</style>
       </head>
       <body className={`bg-background text-foreground antialiased flex min-h-screen flex-col`}>
         <Providers>

@@ -3,13 +3,14 @@
 
 import React, { useMemo, useState } from "react";
 import { UseFormReturn } from "react-hook-form";
-import { ScanLine, Plus, PackageX } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import FullscreenSearchList from "@/components/ui/fullscreen-search-list"
+import type { SearchableOption } from "@/hooks/useSearchableSelect";
 import { hapticImpact, hapticNotification } from "@/lib/native/haptics";
 import type { StockItem, WithdrawalItem } from "@/lib/types";
 import type { WithdrawalFormValues } from "./stock-release-client";
@@ -60,6 +61,16 @@ export const WithdrawalForm = React.forwardRef<HTMLFormElement, WithdrawalFormPr
 
   const hasStockAvailable = useMemo(() => stockItems.some(item => item.quantity > 0), [stockItems]);
 
+  // Precompute the options for the FullscreenSearchList unconditionally to avoid
+  // calling hooks conditionally inside JSX (fixes React hook order errors).
+  const searchOptions = useMemo(() => stockItems.map(item => ({
+    value: item.id,
+    label: `${item.name}${item.specifications ? ` - ${item.specifications}` : ''}`,
+    data: item,
+    disabled: item.quantity === 0,
+    keywords: [item.location ?? '', item.barcode ?? '', (item as any).sku ?? ''].filter(Boolean),
+  })), [stockItems]);
+
   // Preenche os campos quando solicitado (fluxo: Cadastro -> Saída com prefill)
   React.useEffect(() => {
     if (!prefill) return;
@@ -97,7 +108,7 @@ export const WithdrawalForm = React.forwardRef<HTMLFormElement, WithdrawalFormPr
     const item = stockItems.find(i => i.id === effectiveItemId);
     if (item) {
   let finalQuantity = Number(quantity) || 1;
-  if (finalQuantity > MAX_QUANTITY) finalQuantity = MAX_QUANTITY;
+  if (finalQuantity > 30000) finalQuantity = 30000;
       if (finalQuantity <= 0) {
         toast({ variant: 'destructive', title: 'Quantidade Inválida', description: 'A quantidade deve ser maior que zero.' });
         return;
@@ -133,111 +144,133 @@ export const WithdrawalForm = React.forwardRef<HTMLFormElement, WithdrawalFormPr
     <>
       <Form {...form}>
         <form ref={ref} onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          <Card className="shadow-lg">
-            <CardHeader>
-              <div className="flex justify-between items-center">
+          {/* Cabeçalho interno da tela, seguindo o protótipo */}
+          <div className="flex justify-between items-start">
+            <div>
+              <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Registrar Saída</h2>
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">{currentDate}</p>
+            </div>
+            <button type="button" className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-400" onClick={() => setSearchScannerOpen(true)} aria-label="Ler código de barras">
+              <span className="material-symbols-outlined">qr_code_scanner</span>
+            </button>
+          </div>
+
+          {/* Bloco: Adicionar item à retirada */}
+          <div className="bg-white dark:bg-zinc-800/50 p-4 rounded-lg shadow-sm border border-slate-200 dark:border-zinc-700/50">
+            <h3 className="font-semibold text-zinc-800 dark:text-zinc-200 mb-4">Adicionar Item à Retirada</h3>
+            {hasStockAvailable ? (
+              <div className="space-y-4">
                 <div>
-                  <CardTitle>Registrar Saída de Estoque</CardTitle>
-                  <CardDescription>{currentDate}</CardDescription>
+                  <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1" htmlFor="item">Item</label>
+                  {/* Select de item com busca fullscreen */}
+                  <div className="relative">
+                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-zinc-500">search</span>
+                    <div className="pl-8">
+                      <FullscreenSearchList
+                        options={searchOptions}
+                        value={currentItemId}
+                        onSelect={(opt) => setCurrentItemId(opt.value)}
+                        placeholder="Selecione um item..."
+                        searchPlaceholder="Digite nome, código ou local..."
+                        maxResults={500}
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Button type="button" variant="outline" size="icon" onClick={() => setSearchScannerOpen(true)}>
-                    <ScanLine className="h-4 w-4" />
-                    <span className="sr-only">Buscar por código de barras</span>
-                  </Button>
+                <div className="flex items-end gap-3">
+                  <div className="flex-grow">
+                    <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1" htmlFor="quantity">Quantidade</label>
+                    <Input id="quantity" name="quantity" type="number" min={1} max={30000} value={quantity} onChange={(e)=>setQuantity(e.target.value)} className="py-2.5" placeholder="1" />
+                  </div>
+                  <div className="w-28">
+                    <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1" htmlFor="unit">Unidade</label>
+                    <Select value={unit} onValueChange={setUnit}>
+                      <SelectTrigger id="unit" className="py-2.5"><SelectValue placeholder="UN" /></SelectTrigger>
+                      <SelectContent>
+                        {unitOptions.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {unit === 'OUTRA' && (
+                    <div className="w-28">
+                      <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1" htmlFor="customUnit">Unid. personalizada</label>
+                      <Input id="customUnit" className="py-2.5" placeholder="UN" value={customUnit} onChange={(e)=>setCustomUnit(e.target.value.toUpperCase())} maxLength={8} />
+                    </div>
+                  )}
+                  <button type="button" onClick={handleAddItemToCart} className="h-11 w-11 flex-shrink-0 bg-primary text-white rounded-md flex items-center justify-center hover:bg-blue-600 transition-colors" aria-label="Adicionar">
+                    <span className="material-symbols-outlined">add</span>
+                  </button>
                 </div>
               </div>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-6">
-              <div className="p-4 border rounded-lg space-y-4">
-                <h3 className="text-lg font-medium">Adicionar Item à Retirada</h3>
-                {hasStockAvailable ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-[1fr_80px] md:grid-cols-[1fr_80px_100px_auto] gap-2 items-end">
-                      <FormItem className="sm:col-span-2 md:col-span-1">
-                        <FormLabel>Item</FormLabel>
-                        <Select onValueChange={setCurrentItemId} value={currentItemId}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Selecione um item" />
-                            </SelectTrigger>
-                          <SelectContent>
-                            {stockItems.map((item) => (
-                              <SelectItem key={item.id} value={item.id}>
-                                {item.name} - ({item.quantity} em estoque)
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </FormItem>
-                      <FormItem>
-                        <FormLabel>Qtd.</FormLabel>
-                        <Input type="number" placeholder="1" value={quantity} onChange={(e) => setQuantity(e.target.value)} min="1" max={MAX_QUANTITY} />
-                      </FormItem>
-                      <FormItem>
-                        <FormLabel>Unidade</FormLabel>
-                        <Select value={unit} onValueChange={setUnit}>
-                          <SelectTrigger><SelectValue placeholder="UN" /></SelectTrigger>
-                          <SelectContent>
-                            {unitOptions.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                        {unit === 'OUTRA' && (
-                          <Input className="mt-2" placeholder="Digite a unidade" value={customUnit} onChange={(e)=>setCustomUnit(e.target.value.toUpperCase())} maxLength={8} />
-                        )}
-                      </FormItem>
-            <Button type="button" size="icon" onClick={handleAddItemToCart} className="bg-primary hover:bg-primary/90 sm:col-start-2 md:col-start-4 dark:bg-teal-500 dark:hover:bg-teal-600">
-                          <Plus className="h-4 w-4" />
-                          <span className="sr-only">Adicionar</span>
-                      </Button>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center text-center text-muted-foreground p-4 gap-2">
-                    <PackageX className="h-8 w-8 text-foreground dark:text-white" />
-                    <p className="font-medium">Não há itens em estoque para retirada.</p>
-                    <p className="text-sm">Vá para a aba de "Entrada" para adicionar novos itens ao estoque.</p>
-                  </div>
-                )}
+            ) : (
+              <div className="text-center py-8 border-2 border-dashed border-slate-300 dark:border-zinc-700 rounded-lg">
+                <span className="material-symbols-outlined text-4xl text-slate-400 dark:text-zinc-600 mb-2">shopping_basket</span>
+                <p className="text-zinc-500 dark:text-zinc-400">Não há itens em estoque para retirada.</p>
+                <p className="text-sm text-zinc-400 dark:text-zinc-500">Vá para a aba de Entrada para adicionar.</p>
               </div>
+            )}
+          </div>
 
-              <WithdrawalCart 
-                items={withdrawalItems} 
-                onRemove={onRemoveItem} 
-                onUpdateQuantity={onUpdateItemQuantity} 
-              />
+          {/* Cesta / estado vazio */}
+          {withdrawalItems.length === 0 ? (
+            <div className="text-center py-10 border-2 border-dashed border-slate-300 dark:border-zinc-700 rounded-lg">
+              <span className="material-symbols-outlined text-4xl text-slate-400 dark:text-zinc-600 mb-2">shopping_basket</span>
+              <p className="text-zinc-500 dark:text-zinc-400">Sua cesta de retirada está vazia.</p>
+              <p className="text-sm text-zinc-400 dark:text-zinc-500">Adicione itens para continuar.</p>
+            </div>
+          ) : (
+            <WithdrawalCart
+              items={withdrawalItems}
+              onRemove={onRemoveItem}
+              onUpdateQuantity={onUpdateItemQuantity}
+            />
+          )}
 
-              <div className="grid sm:grid-cols-2 gap-4">
+          {/* Quem / Destino */}
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1" htmlFor="retirado">Quem (Retirou)</label>
+              <div className="relative">
+                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-zinc-500">person</span>
                 <FormField
                   control={form.control}
                   name="requestedBy"
-                  render={({ field }) => (
+                  render={({ field }: any) => (
                     <FormItem>
-                      <FormLabel>Quem (Retirou)</FormLabel>
                       <FormControl>
-                        <Input placeholder="Nome do responsável" {...field} autoComplete="off" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="requestedFor"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Para Quem (Destino)</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Nome ou departamento" {...field} autoComplete="off" />
+                        <Input id="retirado" placeholder="Nome do responsável" {...field} autoComplete="off" className="pl-10 py-2.5" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
               </div>
-            </CardContent>
-            <CardFooter className="px-6 pt-6 flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={()=>{ onClearCart(); hapticImpact('medium').catch(()=>{}); }}>Limpar Tudo</Button>
-              <Button type="submit" disabled={isSubmitDisabled} onClick={()=> hapticNotification('success').catch(()=>{})}>Salvar Retirada</Button>
-            </CardFooter>
-          </Card>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1" htmlFor="destino">Para Quem (Destino)</label>
+              <div className="relative">
+                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-zinc-500">apartment</span>
+                <FormField
+                  control={form.control}
+                  name="requestedFor"
+                  render={({ field }: any) => (
+                    <FormItem>
+                      <FormControl>
+                        <Input id="destino" placeholder="Nome ou departamento" {...field} autoComplete="off" className="pl-10 py-2.5" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Ações */}
+          <div className="grid grid-cols-2 gap-3 pt-2">
+            <Button type="button" variant="outline" className="w-full py-3" onClick={()=>{ onClearCart(); hapticImpact('medium').catch(()=>{}); }}>Limpar Tudo</Button>
+            <Button type="submit" className="w-full py-3" disabled={isSubmitDisabled} onClick={()=> hapticNotification('success').catch(()=>{})}>Salvar Retirada</Button>
+          </div>
         </form>
       </Form>
       {isSearchScannerOpen && (
