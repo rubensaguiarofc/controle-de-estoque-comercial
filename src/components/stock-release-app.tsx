@@ -19,6 +19,7 @@ import { Skeleton } from "./ui/skeleton";
 import { AddToolDialog } from "./add-tool-dialog";
 import { HistoryPanel } from './history-panel';
 import { BackupListDialog } from './backup-list-dialog';
+import { SettingsDialog } from './settings-dialog';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 // Lazy-load AdMob banner only on client to keep web/dev bundle lighter
@@ -102,6 +103,8 @@ export default function StockReleaseApp() {
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   // Backup UI state
   const [isBackupListOpen, setBackupListOpen] = useState(false);
+  // Settings UI state
+  const [isSettingsOpen, setSettingsOpen] = useState(false);
   // Restore options UI state (deprecated - mantido para compatibilidade)
   const [isRestoreMenuOpen, setIsRestoreMenuOpen] = useState(false);
   const [restoreMerge, setRestoreMerge] = useState(true); // sempre merge agora
@@ -895,10 +898,11 @@ export default function StockReleaseApp() {
                 lowStockOnly={lowStockFilter}
                 onClearLowStockFilter={() => setLowStockFilter(false)}
                 onDeleteItem={(id) => {
+                  // Atualiza estado local imediatamente
+                  setStockItems(prev => prev.filter(i => i.id !== id));
+                  // Sincroniza com Firestore se habilitado
                   if (repo) {
                     repo.deleteItem(id).catch(console.error);
-                  } else {
-                    setStockItems(prev => prev.filter(i => i.id !== id));
                   }
                 }}
                 onUpdateItem={(item) => {
@@ -947,6 +951,14 @@ export default function StockReleaseApp() {
                 title="Restaurar Backup"
               >
                 <span className="material-icons text-foreground">upload_file</span>
+              </button>
+              <button 
+                className="relative" 
+                aria-label="Configurações" 
+                onClick={() => setSettingsOpen(true)}
+                title="Configurações"
+              >
+                <span className="material-icons text-foreground">settings</span>
               </button>
               {/* No 'Menu' text button */}
             </div>
@@ -1014,6 +1026,12 @@ export default function StockReleaseApp() {
           open={isBackupListOpen}
           onOpenChange={setBackupListOpen}
           onRestore={handleRestoreBackup}
+        />
+
+        {/* Settings Dialog */}
+        <SettingsDialog
+          open={isSettingsOpen}
+          onOpenChange={setSettingsOpen}
         />
 
         {/* Mobile debug panel (visible when URL contains ?mobileDebug=1 or when localStorage.mobileDebug === '1') */}
