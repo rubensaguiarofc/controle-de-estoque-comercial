@@ -188,7 +188,7 @@ export default function StockEntryClient({ stockItems, onUpdateHistory, uniqueAd
             <FormField
               control={form.control}
               name="addedBy"
-              render={({ field }) => (
+              render={({ field }: any) => (
                 <FormItem>
                   <FormLabel>Adicionado por</FormLabel>
                   <FormControl>

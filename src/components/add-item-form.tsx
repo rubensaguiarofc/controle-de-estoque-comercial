@@ -33,7 +33,7 @@ export function AddItemForm({ editingItem, onOpenChange, onSwitchToScanner }: Ad
         <FormField
           control={form.control}
           name="name"
-          render={({ field }) => (
+          render={({ field }: any) => (
             <FormItem>
               <FormLabel>Nome do Item</FormLabel>
               <FormControl>
@@ -46,7 +46,7 @@ export function AddItemForm({ editingItem, onOpenChange, onSwitchToScanner }: Ad
         <FormField
           control={form.control}
           name="specifications"
-          render={({ field }) => (
+          render={({ field }: any) => (
             <FormItem>
               <FormLabel>Especificações</FormLabel>
               <FormControl>
@@ -59,7 +59,7 @@ export function AddItemForm({ editingItem, onOpenChange, onSwitchToScanner }: Ad
         <FormField
           control={form.control}
           name="quantity"
-          render={({ field }) => (
+          render={({ field }: any) => (
             <FormItem>
               <FormLabel>Quantidade {editingItem ? 'Atual' : 'Inicial'}</FormLabel>
               <FormControl>
@@ -72,7 +72,7 @@ export function AddItemForm({ editingItem, onOpenChange, onSwitchToScanner }: Ad
         <FormField
           control={form.control}
           name="barcode"
-          render={({ field }) => (
+          render={({ field }: any) => (
             <FormItem>
               <FormLabel>Código de Barras (Opcional)</FormLabel>
               <div className="flex gap-2">

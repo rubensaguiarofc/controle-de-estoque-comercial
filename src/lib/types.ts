@@ -4,7 +4,10 @@ export type StockItem = {
   name: string;
   specifications: string;
   quantity: number;
-  barcode?: string;
+  // barcode may be a string or null when intentionally empty (avoid undefined when writing to Firestore)
+  barcode?: string | null;
+  category?: string;
+  location?: string;
 };
 
 export type WithdrawalItem = {
@@ -41,6 +44,7 @@ export type Tool = {
   id: string;
   name: string;
   assetId: string; // Patrimônio
+  isActive?: boolean;
 };
 
 export type ToolRecord = {

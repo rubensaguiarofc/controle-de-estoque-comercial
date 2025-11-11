@@ -3,6 +3,11 @@
 
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import type { StockItem } from '@/lib/types';
+import { XLSXUtils } from '@/lib/xlsx-utils';
+import { Capacitor } from '@capacitor/core';
+import { MediaStoreSaver } from '@/lib/native/media-store-saver';
+import { DocumentPicker } from '@/lib/native/document-picker';
+import { AppSettings } from '@/lib/native/app-settings';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Edit, Trash, Search, Plus, Barcode, Printer, ShoppingCart } from 'lucide-react';
@@ -17,6 +22,8 @@ import { ScrollArea } from './ui/scroll-area';
 import { ItemDetailsDialog } from './item-details-dialog';
 import { Badge } from './ui/badge';
 import { MAX_QUANTITY } from '@/lib/constants';
+import { BulkGridDialog, type GridRow } from './bulk-grid-dialog';
+import { BatchScanDialog } from './batch-scan-dialog';
 // Heavy libs loaded on demand during printing to improve initial load time
 
 interface ItemManagementProps {
@@ -57,10 +64,126 @@ export default function ItemManagement({
   const [viewingItem, setViewingItem] = useState<StockItem | null>(null);
   const [importing, setImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [gridOpen, setGridOpen] = useState(false);
+  const [gridRows, setGridRows] = useState<GridRow[] | undefined>(undefined);
+  const [batchOpen, setBatchOpen] = useState(false);
+  // Feature flag: desabilitar temporariamente importação/exportação por CSV/XLSX
+  const CSV_IMPORT_EXPORT_ENABLED = false;
 
   const handleEdit = (item: StockItem) => {
     onSetEditingItem(item);
     onSetIsAddItemDialogOpen(true);
+  };
+
+  // Minimal debug dump helper (writes console + attempts to save JSON on native devices)
+  const dumpParsedDebug = async (rows: any[], label = 'parsed-rows') => {
+    try {
+      console.debug('dumpParsedDebug rows sample:', Array.isArray(rows) ? rows.slice(0,3) : rows);
+      if (Capacitor.isNativePlatform()) {
+        try {
+          const cap = await import('@capacitor/filesystem');
+          const { Filesystem, Directory } = cap;
+          const json = JSON.stringify(rows, null, 2);
+          const filename = `${label}-${Date.now()}.json`;
+          await Filesystem.writeFile({ path: filename, data: json, directory: Directory.Documents, recursive: true } as any);
+        } catch (e) {
+          console.debug('dumpParsedDebug native write failed', e);
+        }
+      }
+    } catch (e) {
+      console.debug('dumpParsedDebug failed', e);
+    }
+  };
+
+  // Centralize processing of parsed rows -> candidates -> bulk add
+  const processImportedRows = async (rows: any[]) => {
+    try {
+      if (!rows || rows.length === 0) {
+        toast({ variant: 'destructive', title: 'Planilha vazia', description: 'Nenhuma linha encontrada.' });
+        return;
+      }
+      const normalizeKey = (k: string) => k.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+      const toItem = (r: any) => {
+        const m: Record<string, any> = {};
+        Object.keys(r).forEach(k => { m[normalizeKey(k)] = r[k]; });
+        const name = String(m['name'] ?? m['nome'] ?? '').toUpperCase().trim();
+        const specifications = String(m['specifications'] ?? m['especificacoes'] ?? m['especificações'] ?? '').toUpperCase().trim();
+        const quantityRaw = m['quantity'] ?? m['quantidade'] ?? 0;
+        const quantity = Math.max(0, Math.min(Number(quantityRaw) || 0, MAX_QUANTITY));
+        const barcode = String(m['barcode'] ?? m['codigo'] ?? m['código'] ?? '').trim() || undefined;
+        return { name, specifications, quantity, barcode } as Omit<StockItem,'id'>;
+      };
+      const candidates = rows.map(toItem).filter(i => i.name && i.specifications);
+      if (candidates.length === 0) {
+        console.debug('Parsed rows keys sample:', Array.isArray(rows) && rows.length ? Object.keys(rows[0]) : rows);
+        toast({ variant: 'destructive', title: 'Colunas ausentes', description: 'Certifique-se de ter Nome, Especificações e (opcional) Quantidade/Código.' });
+        return;
+      }
+
+      if (onBulkAddItems) {
+        const res = await onBulkAddItems(candidates) as any;
+        const added = res?.added ?? 0;
+        const skipped = res?.skipped ?? 0;
+        toast({ title: 'Importação concluída', description: `${added} itens adicionados, ${skipped} ignorados.` });
+      } else {
+        const res = await performLocalBulkAdd(candidates);
+        toast({ title: 'Importação concluída', description: `${res.added} itens adicionados (local), ${res.skipped} ignorados.` });
+      }
+    } catch (e) {
+      console.error('processImportedRows error', e);
+      toast({ variant: 'destructive', title: 'Falha na importação', description: 'Verifique o arquivo e tente novamente.' });
+    }
+  };
+
+  // Show a native dialog offering to open app settings when permission denied
+  const promptOpenAppSettings = async (message: string) => {
+    try {
+      const { Dialog } = await import('@capacitor/dialog');
+      const res = await Dialog.confirm({
+        title: 'Permissão necessária',
+        message: message + '\n\nDeseja abrir as configurações do aplicativo para conceder a permissão?',
+        okButtonTitle: 'Abrir configurações',
+        cancelButtonTitle: 'Cancelar',
+      } as any);
+      if ((res as any).value) {
+        try {
+          // Call native plugin to open app settings
+          try {
+            await AppSettings.openAppSettings();
+          } catch (e) {
+            console.debug('AppSettings plugin call failed', e);
+          }
+        } catch (e) {
+          console.debug('Failed to open app settings', e);
+        }
+      }
+    } catch (e) {
+      console.debug('promptOpenAppSettings failed', e);
+      toast({ variant: 'destructive', title: 'Permissão necessária', description: message });
+    }
+  };
+
+  // Local helper to add items using the same logic as the main registration flow
+  const performLocalBulkAdd = async (items: Array<Omit<StockItem, 'id'>>) => {
+    const normalize = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim().replace(/\s+/g, ' ');
+    const existingByName = new Set(stockItems.map(i => normalize(i.name)));
+    let maxNum = stockItems.reduce((acc, i) => Math.max(acc, parseInt(i.id.split('-')[1]) || 0), 0);
+    const toSave: StockItem[] = [];
+    for (const it of items) {
+      if (!it.name || !it.specifications) continue;
+      const n = normalize(it.name);
+      if (existingByName.has(n)) continue;
+      maxNum += 1;
+      const id = `ITM-${String(maxNum).padStart(3, '0')}`;
+  toSave.push({ id, quantity: it.quantity ?? 0, name: it.name, specifications: it.specifications, barcode: it.barcode ?? null });
+      existingByName.add(n);
+    }
+
+    if (toSave.length === 0) return { added: 0, skipped: items.length };
+
+    await onSetStockItems([...toSave, ...stockItems]);
+    return { added: toSave.length, skipped: items.length - toSave.length };
   };
 
   const handleDelete = (itemId: string) => {
@@ -187,47 +310,30 @@ export default function ItemManagement({
     }
   };
 
+  // Unified handler to save bulk rows from grid or batch scanner
+  const handleSaveBulkRows = async (rows: Array<Omit<StockItem, 'id'>>) => {
+    if (!rows || rows.length === 0) return;
+    if (onBulkAddItems) {
+      const res = await onBulkAddItems(rows) as any;
+      const added = res?.added ?? 0;
+      const skipped = res?.skipped ?? 0;
+      toast({ title: 'Itens adicionados', description: `${added} adicionados, ${skipped} ignorados.` });
+    } else {
+      const res = await performLocalBulkAdd(rows);
+      toast({ title: 'Itens adicionados', description: `${res.added} adicionados (local), ${res.skipped} ignorados.` });
+    }
+  };
+
   const handleImportFile = async (file: File) => {
     try {
       setImporting(true);
-      const xlsx = await import('xlsx');
-      const ab = await file.arrayBuffer();
-      const wb = xlsx.read(ab, { type: 'array' });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const rows: any[] = xlsx.utils.sheet_to_json(ws, { defval: '' });
-      if (!rows || rows.length === 0) {
-        toast({ variant: 'destructive', title: 'Planilha vazia', description: 'Nenhuma linha encontrada.' });
-        return;
-      }
-      const normalizeKey = (k: string) => k.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
-      const toItem = (r: any) => {
-        const m: Record<string, any> = {};
-        Object.keys(r).forEach(k => { m[normalizeKey(k)] = r[k]; });
-        const name = String(m['name'] ?? m['nome'] ?? '').toUpperCase().trim();
-        const specifications = String(m['specifications'] ?? m['especificacoes'] ?? m['especificações'] ?? '').toUpperCase().trim();
-        const quantityRaw = m['quantity'] ?? m['quantidade'] ?? 0;
-        const quantity = Math.max(0, Math.min(Number(quantityRaw) || 0, MAX_QUANTITY));
-        const barcode = String(m['barcode'] ?? m['codigo'] ?? m['código'] ?? '').trim() || undefined;
-        return { name, specifications, quantity, barcode } as Omit<StockItem,'id'>;
-      };
-      const candidates = rows.map(toItem).filter(i => i.name && i.specifications);
-      if (candidates.length === 0) {
-        toast({ variant: 'destructive', title: 'Colunas ausentes', description: 'Certifique-se de ter Nome, Especificações e (opcional) Quantidade/Código.' });
-        return;
-      }
-      if (onBulkAddItems) {
-        const res = await onBulkAddItems(candidates) as any;
-        const added = res?.added ?? 0;
-        const skipped = res?.skipped ?? 0;
-        toast({ title: 'Importação concluída', description: `${added} itens adicionados, ${skipped} ignorados.` });
-      } else {
-        // Fallback local: evitar duplicados por nome exato
-        const existingNames = new Set(stockItems.map(i => i.name));
-        const unique = candidates.filter(i => !existingNames.has(i.name));
-        const withIds: StockItem[] = unique.map((i, idx) => ({ id: `IMP-${Date.now()}-${idx}`, ...i }));
-        await onSetStockItems([ ...withIds, ...stockItems ]);
-        toast({ title: 'Importação concluída', description: `${withIds.length} itens adicionados (local).` });
-      }
+      try { toast({ title: 'Lendo arquivo…', description: file.name }); } catch {}
+      // Use XLSXUtils which includes robust CSV/base64 decoding fallbacks
+      const rows: any[] = await XLSXUtils.importFile(file);
+      console.debug('handleImportFile: parsed rows count=', Array.isArray(rows) ? rows.length : 0, 'sample=', Array.isArray(rows) ? rows.slice(0,3) : rows);
+      try { await dumpParsedDebug(rows, 'import-file'); } catch (e) { console.debug('dump parsed rows failed', e); }
+      try { toast({ title: 'Arquivo analisado', description: `${Array.isArray(rows) ? rows.length : 0} linhas encontradas` }); } catch {}
+      await processImportedRows(rows);
     } catch (e) {
       console.error(e);
       toast({ variant: 'destructive', title: 'Falha na importação', description: 'Verifique o arquivo e tente novamente.' });
@@ -358,6 +464,27 @@ export default function ItemManagement({
                 variant="ghost"
                 className="justify-start"
                 onClick={() => {
+                  setGridRows(undefined);
+                  setGridOpen(true);
+                  setFabOpen(false);
+                }}
+              >
+                Cadastro em Grade (Rápido)
+              </Button>
+              <Button
+                variant="ghost"
+                className="justify-start"
+                onClick={() => {
+                  setBatchOpen(true);
+                  setFabOpen(false);
+                }}
+              >
+                Escanear em Lote
+              </Button>
+              <Button
+                variant="ghost"
+                className="justify-start"
+                onClick={() => {
                   if (onGoToEntry) onGoToEntry();
                   setFabOpen(false);
                 }}
@@ -374,31 +501,322 @@ export default function ItemManagement({
               >
                 Imprimir Etiquetas
               </Button>
-              <Button
-                variant="ghost"
-                disabled={importing}
-                className="justify-start"
-                onClick={() => {
-                  fileInputRef.current?.click();
-                  setFabOpen(false);
-                }}
-              >
-                {importing ? 'Importando...' : 'Importar Planilha'}
-              </Button>
-              <a
-                href="/templates/estoque-import-template.csv"
-                download
-                className="inline-flex items-center justify-start whitespace-nowrap rounded-md text-sm h-9 px-3 hover:bg-accent"
-                onClick={() => setFabOpen(false)}
-              >
-                Baixar Modelo (CSV)
-              </a>
+              {CSV_IMPORT_EXPORT_ENABLED && (
+                <>
+                  <Button
+                    variant="ghost"
+                    disabled={importing}
+                    className="justify-start"
+                    onClick={async () => {
+                      try {
+                        if (Capacitor.isNativePlatform()) {
+                          // Primeiro tenta ler diretamente possíveis arquivos em Downloads
+                          let triedDirectDownloads = false;
+                          try {
+                            const capFS = await import('@capacitor/filesystem');
+                            const { Filesystem } = capFS;
+                            try {
+                              const perm = await Filesystem.checkPermissions();
+                              if (!perm || (perm as any).publicStorage !== 'granted') {
+                                const req = await Filesystem.requestPermissions();
+                                if (!req || (req as any).publicStorage !== 'granted') {
+                                  toast({ variant: 'destructive', title: 'Permissão necessária', description: 'Autorize acesso ao armazenamento para importar arquivos.' });
+                                  await promptOpenAppSettings('Conceda acesso ao armazenamento para continuar.');
+                                }
+                              }
+                            } catch {}
+                            // Listar arquivos CSV/XLSX em Download (nome comum "Download" em External storage)
+                            triedDirectDownloads = true;
+                            try {
+                              const listing: any = await Filesystem.readdir({ path: 'Download', directory: (Filesystem as any).Directory?.External || (Filesystem as any).Directory?.Documents || 'EXTERNAL' } as any);
+                              const names: string[] = Array.isArray(listing.files) ? listing.files.map((f: any) => typeof f === 'string' ? f : f.name) : [];
+                              const candidates = names.filter(n => /\.(csv|xlsx)$/i.test(n));
+                              if (candidates.length > 0) {
+                                // Pega o mais recente por nome (simples) e importa
+                                candidates.sort((a,b) => b.localeCompare(a));
+                                const chosen = candidates[0];
+                                try {
+                                  const fileRes: any = await Filesystem.readFile({ path: `Download/${chosen}`, directory: (Filesystem as any).Directory?.External || (Filesystem as any).Directory?.Documents || 'EXTERNAL', encoding: 'base64' } as any);
+                                  if (fileRes?.data) {
+                                    setImporting(true);
+                                    try {
+                                      const rows = await XLSXUtils.importFromBase64(fileRes.data as string);
+                                      await processImportedRows(rows);
+                                      console.debug('Import direto de Downloads concluído', chosen, rows?.length);
+                                    } finally { setImporting(false); }
+                                    setFabOpen(false);
+                                    return;
+                                  }
+                                } catch (readErr) {
+                                  console.debug('Falha ao ler direto de Downloads', readErr);
+                                }
+                              }
+                            } catch (listErr) {
+                              console.debug('Falha ao listar Downloads', listErr);
+                            }
+                          } catch (directErr) {
+                            console.debug('Erro fluxo direto Downloads', directErr);
+                          }
+                          // Se não importou direto, abrir picker iniciando em Downloads
+                          try {
+                            const picked = await DocumentPicker.pickFile({ mimeTypes: ['text/csv','application/csv','text/plain','text/comma-separated-values','application/vnd.ms-excel','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'], openDownloads: true });
+                            if (picked?.base64) {
+                              setImporting(true);
+                              try {
+                                try { toast({ title: 'Arquivo selecionado', description: picked.name || picked.mimeType || 'Documento' }); } catch {}
+                                const rows = await XLSXUtils.importFromBase64(picked.base64);
+                                try { toast({ title: 'Arquivo analisado', description: `${Array.isArray(rows) ? rows.length : 0} linhas encontradas` }); } catch {}
+                                await processImportedRows(rows);
+                                console.debug('DocumentPicker (Downloads) import concluído', { name: picked.name, mime: picked.mimeType, sizeBase64: picked.base64.length });
+                                if (!rows || rows.length === 0) {
+                                  toast({ variant: 'destructive', title: 'Arquivo vazio', description: 'Verifique se o CSV/XLSX possui conteúdo.' });
+                                }
+                              } finally { setImporting(false); }
+                              setFabOpen(false);
+                              return;
+                            }
+                            toast({ variant: 'destructive', title: 'Falha na importação', description: 'Arquivo sem dados base64 retornado.' });
+                          } catch (e) {
+                            console.debug('DocumentPicker erro (Downloads)', e);
+                            toast({ variant: 'destructive', title: 'Erro ao abrir arquivo', description: 'Abrindo fallback manual.' });
+                            setImportDialogOpen(true);
+                            setFabOpen(false);
+                            return;
+                          }
+                        }
+                        // Web: abrir input oculto
+                        fileInputRef.current?.click();
+                        setFabOpen(false);
+                      } catch (e) {
+                        console.debug('open import failed', e);
+                        toast({ variant: 'destructive', title: 'Erro inesperado', description: 'Não foi possível iniciar importação.' });
+                      }
+                    }}
+                  >
+                    {importing ? 'Importando...' : 'Importar Planilha'}
+                  </Button>
+                  {Capacitor.isNativePlatform() && (
+                    <Button
+                      variant="ghost"
+                      className="justify-start"
+                      onClick={() => {
+                        // Abrir diretamente o diálogo com input visível (fallback manual)
+                        setImportDialogOpen(true);
+                        setFabOpen(false);
+                      }}
+                    >
+                      Importar (fallback manual)
+                    </Button>
+                  )}
+                </>
+              )}
+              {CSV_IMPORT_EXPORT_ENABLED && (
+                <>
+                  {/* Template download: on native, fetch and write to Documents + share; on web, rely on anchor download */}
+                  {Capacitor.isNativePlatform() ? (
+                    <Button
+                      variant="ghost"
+                      className="justify-start"
+                      onClick={async () => { setFabOpen(false); await handleDownloadTemplate(); }}
+                    >
+                      Baixar Modelo (CSV)
+                    </Button>
+                  ) : (
+                    <a
+                      href="/templates/estoque-import-template.csv"
+                      download
+                      className="inline-flex items-center justify-start whitespace-nowrap rounded-md text-sm h-9 px-3 hover:bg-accent"
+                      onClick={() => setFabOpen(false)}
+                    >
+                      Baixar Modelo (CSV)
+                    </a>
+                  )}
+                  {Capacitor.isNativePlatform() && (
+                    <Button variant="ghost" className="justify-start" onClick={async () => { setFabOpen(false); await handleListAndImportDocuments(); }}>
+                      Importar de Documentos
+                    </Button>
+                  )}
+                </>
+              )}
             </div>
           </PopoverContent>
         </Popover>
       </div>
     );
   }
+
+  // Fetch template from web root and write/share on native devices
+  const handleDownloadTemplate = async () => {
+    try {
+      const res = await fetch('/templates/estoque-import-template.csv');
+      if (!res.ok) throw new Error('Failed to fetch template');
+      const text = await res.text();
+      if (Capacitor.isNativePlatform()) {
+        try {
+          const cap = await import('@capacitor/filesystem');
+          const share = await import('@capacitor/share');
+          const { Filesystem, Directory } = cap;
+          const filename = 'estoque-import-template.csv';
+
+          // Estratégia confiável: gravar em Cache e compartilhar (o usuário escolhe onde salvar)
+          await Filesystem.writeFile({ path: filename, data: text, directory: Directory.Cache } as any);
+          const cacheUriRes: any = await Filesystem.getUri({ path: filename, directory: Directory.Cache } as any);
+          const shareUrl = cacheUriRes?.uri;
+          try {
+            await share.Share.share({ title: 'Modelo CSV', text: 'Modelo de importação de estoque.', url: shareUrl });
+            toast({ title: 'Modelo pronto', description: 'Escolha "Salvar em..." no menu de compartilhamento.' });
+          } catch (shareErr) {
+            console.debug('Share from cache failed', shareErr);
+          }
+
+          // Tentativa secundária: salvar em Downloads via plugin nativo (quando disponível)
+          try {
+            const base64 = btoa(unescape(encodeURIComponent(text)));
+            if (MediaStoreSaver && (MediaStoreSaver as any).saveToDownloads) {
+              await MediaStoreSaver.saveToDownloads({ base64, filename, mimeType: 'text/csv' });
+              toast({ title: 'Também salvo em Downloads', description: filename });
+            }
+          } catch (e) {
+            console.debug('Secondary Downloads save attempt failed', e);
+          }
+        } catch (e) {
+          console.error('native template save failed', e);
+          toast({ variant: 'destructive', title: 'Falha', description: `Não foi possível salvar o modelo no dispositivo: ${(e as any)?.message || e}` });
+        }
+      }
+    } catch (e) {
+      console.error('handleDownloadTemplate failed', e);
+      toast({ variant: 'destructive', title: 'Erro', description: `Não foi possível baixar o modelo: ${(e as any)?.message || e}` });
+    }
+  };
+
+  // List Documents and import the most relevant CSV/XLSX file (native fallback)
+  const handleListAndImportDocuments = async () => {
+    try {
+      const cap = await import('@capacitor/filesystem');
+      const { Filesystem, Directory } = cap;
+
+      // Request/check permissions to access Documents/Public storage on Android
+      try {
+        const current = await Filesystem.checkPermissions();
+        if (!current || (current as any).publicStorage !== 'granted') {
+          const requested = await Filesystem.requestPermissions();
+          if (!requested || (requested as any).publicStorage !== 'granted') {
+            await promptOpenAppSettings('Permita acesso ao armazenamento para importar arquivos.');
+            return;
+          }
+        }
+      } catch (permErr) {
+        console.debug('Filesystem permission check/request failed', permErr);
+      }
+
+      const res: any = await Filesystem.readdir({ path: '', directory: Directory.Documents } as any);
+      const names: string[] = Array.isArray(res.files) ? (res.files as any).map((f: any) => typeof f === 'string' ? f : f.name) : (Array.isArray(res) ? (res as string[]) : []);
+      const candidates = names.filter(n => n && /\.(csv|xlsx)$/i.test(n));
+      if (candidates.length === 0) {
+        // Tentar ler arquivo padrão salvo em Downloads via MediaStore (caminho usual)
+        const fallbackName = 'estoque-import-template.csv';
+        try {
+          // Tentativa: ler via External + caminho relativo
+          // Nem todos dispositivos permitem Directory.External; se falhar, seguimos para file picker no futuro
+          const dlBase64Res: any = await Filesystem.readFile({ path: `Download/${fallbackName}`, directory: (Filesystem as any).Directory?.External || Directory.External, encoding: 'base64' } as any);
+          if (dlBase64Res?.data) {
+            const rows = await XLSXUtils.importFromBase64(dlBase64Res.data as string);
+            await dumpParsedDebug(rows, `import-download-${fallbackName}`);
+            await processImportedRows(rows);
+            return;
+          }
+        } catch (downloadErr) {
+          console.debug('Fallback leitura de Download falhou', downloadErr);
+        }
+        toast({ variant: 'destructive', title: 'Nenhum arquivo', description: 'Nenhum CSV/XLSX em Documentos ou Downloads. Re-baixe o modelo ou use o seletor (futuro).' });
+        return;
+      }
+      // pick newest by lexicographic sort (filename may include date) or first
+      candidates.sort((a,b) => b.localeCompare(a));
+      const chosen = candidates[0];
+      try {
+        const fileRes: any = await Filesystem.readFile({ path: chosen, directory: Directory.Documents, encoding: 'base64' } as any);
+        const base64 = fileRes.data as string;
+        const rows = await XLSXUtils.importFromBase64(base64);
+        await dumpParsedDebug(rows, `import-docs-${chosen}`);
+        await processImportedRows(rows);
+      } catch (e) {
+        console.error('Failed to read/import chosen document from Documents', e);
+        // Tentar leitura alternativa em Downloads se o arquivo veio do MediaStore
+        try {
+          const altRes: any = await Filesystem.readFile({ path: `Download/${chosen}`, directory: (Filesystem as any).Directory?.External || Directory.External, encoding: 'base64' } as any);
+          const altBase64 = altRes.data as string;
+          const rows = await XLSXUtils.importFromBase64(altBase64);
+          await dumpParsedDebug(rows, `import-alt-download-${chosen}`);
+          await processImportedRows(rows);
+          return;
+        } catch (altErr) {
+          console.error('Alternate download read failed', altErr);
+        }
+        toast({ variant: 'destructive', title: 'Falha na leitura', description: `Erro ao ler/processar em Documentos/Downloads: ${(e as any)?.message || e}` });
+      }
+    } catch (e) {
+      console.error('handleListAndImportDocuments failed', e);
+      toast({ variant: 'destructive', title: 'Erro', description: `Não foi possível acessar Documentos: ${(e as any)?.message || e}` });
+    }
+  };
+
+  // New: Explicit helper to auto-import from Downloads (scan + pick newest)
+  const handleAutoImportFromDownloads = async () => {
+    try {
+      const capFS = await import('@capacitor/filesystem');
+      const { Filesystem, Directory } = capFS;
+
+      // Ensure permission for public storage
+      try {
+        const perm = await Filesystem.checkPermissions();
+        if (!perm || (perm as any).publicStorage !== 'granted') {
+          const req = await Filesystem.requestPermissions();
+          if (!req || (req as any).publicStorage !== 'granted') {
+            await promptOpenAppSettings('Permita acesso ao armazenamento para importar arquivos.');
+            return;
+          }
+        }
+      } catch {}
+
+      // List Downloads folder (may vary by OEM; try External first)
+      let chosen: string | null = null;
+      try {
+        const listing: any = await Filesystem.readdir({ path: 'Download', directory: (Filesystem as any).Directory?.External || Directory.External } as any);
+        const names: string[] = Array.isArray(listing.files) ? listing.files.map((f: any) => typeof f === 'string' ? f : f.name) : [];
+        const candidates = names.filter(n => n && /\.(csv|xlsx)$/i.test(n));
+        if (candidates.length > 0) {
+          candidates.sort((a,b) => b.localeCompare(a));
+          chosen = candidates[0];
+        }
+      } catch (e) {
+        console.debug('Downloads listing failed', e);
+      }
+
+      if (!chosen) {
+        toast({ variant: 'destructive', title: 'Nenhum arquivo encontrado', description: 'Nenhum CSV/XLSX detectado em Downloads.' });
+        return;
+      }
+
+      try {
+        setImporting(true);
+        const fileRes: any = await Filesystem.readFile({ path: `Download/${chosen}`, directory: (Filesystem as any).Directory?.External || Directory.External, encoding: 'base64' } as any);
+        if (fileRes?.data) {
+          const rows = await XLSXUtils.importFromBase64(fileRes.data as string);
+          try { toast({ title: 'Arquivo analisado', description: `${Array.isArray(rows) ? rows.length : 0} linhas` }); } catch {}
+          await processImportedRows(rows);
+          return;
+        }
+        toast({ variant: 'destructive', title: 'Falha na leitura', description: 'Não foi possível ler arquivo de Downloads.' });
+      } finally {
+        setImporting(false);
+      }
+    } catch (e) {
+      console.debug('handleAutoImportFromDownloads error', e);
+      toast({ variant: 'destructive', title: 'Erro', description: 'Importação automática de Downloads falhou.' });
+    }
+  };
   return (
     <>
       <Card className="shadow-lg h-full flex flex-col bg-transparent sm:bg-card border-none sm:border">
@@ -502,45 +920,51 @@ export default function ItemManagement({
             </ScrollArea>
           </CardContent>
       </Card>
-      {/* Input de arquivo escondido para a ação de Importar no FAB */}
-      <input
-        type="file"
-        accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
-        className="hidden"
-        ref={fileInputRef}
-        onChange={(e) => {
-          const f = e.target.files?.[0];
-          if (f) {
-            handleImportFile(f);
-            e.currentTarget.value = '';
-          }
+      {/* Floating Action Button (draggable) */}
+      <div data-fab>
+        <DraggableFab />
+      </div>
+      {CSV_IMPORT_EXPORT_ENABLED && (
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
+          style={{ position: 'absolute', left: -9999, width: 1, height: 1, opacity: 0 }}
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) handleImportFile(f);
+          }}
+        />
+      )}
+
+      {/* Dialogs / Modals */}
+      {barcodeItem && (
+        <BarcodeDisplayDialog item={barcodeItem} isOpen={!!barcodeItem} onOpenChange={(open) => { if (!open) setBarcodeItem(null); }} />
+      )}
+      {viewingItem && (
+        <ItemDetailsDialog item={viewingItem} isOpen={!!viewingItem} onOpenChange={(open) => { if (!open) setViewingItem(null); }} />
+      )}
+      <BulkGridDialog
+        open={gridOpen}
+        rows={gridRows}
+        onOpenChange={setGridOpen}
+        onSave={async (rows) => {
+          await handleSaveBulkRows(rows);
+          setGridRows(undefined);
         }}
       />
-
-      {/* FAB flutuante movível (arrastável) */}
-      {/* Movable floating action button: user can drag to reposition; position persisted in localStorage */}
-      <DraggableFab />
-      
-    
-      {barcodeItem && (
-          <BarcodeDisplayDialog
-              isOpen={!!barcodeItem}
-              onOpenChange={() => setBarcodeItem(null)}
-              item={barcodeItem}
-          />
-      )}
-
-      {viewingItem && (
-          <ItemDetailsDialog
-              isOpen={!!viewingItem}
-              onOpenChange={() => setViewingItem(null)}
-              item={viewingItem}
-          />
-      )}
+      <BatchScanDialog
+        open={batchOpen}
+        onOpenChange={setBatchOpen}
+        onSave={async (rows) => {
+          await handleSaveBulkRows(rows);
+        }}
+      />
     </>
   );
 }
 
+// Quick add popover component (restored after accidental corruption)
 function QuickAddButton({ item, onGoToRelease }: { item: StockItem; onGoToRelease?: () => void }) {
   const [open, setOpen] = useState(false);
   const [qty, setQty] = useState<number | string>('');
@@ -554,12 +978,9 @@ function QuickAddButton({ item, onGoToRelease }: { item: StockItem; onGoToReleas
     if (!quantity || quantity <= 0) quantity = 1;
     if (quantity > MAX_QUANTITY) quantity = MAX_QUANTITY;
     const finalUnit = unit === 'OUTRA' ? (customUnit || 'UN') : unit;
-    // Em vez de adicionar direto ao carrinho, preenche o formulário da Saída
     try {
       localStorage.setItem('prefillReleaseForm', JSON.stringify({ itemId: item.id, quantity, unit: finalUnit }));
     } catch {}
-
-    // Navega para Saída (os campos serão preenchidos ao montar)
     if (onGoToRelease) onGoToRelease();
     setOpen(false);
   };

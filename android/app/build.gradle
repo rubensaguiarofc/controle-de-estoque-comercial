@@ -26,8 +26,8 @@ android {
     applicationId "com.rubensaguiarofc.controleestoque"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-            versionCode 13
-            versionName "13"
+            versionCode 14
+            versionName "14"
         // AdMob App ID placeholder (replace in keystore.properties or local gradle.properties if needed)
         manifestPlaceholders = [
             ADMOB_APP_ID: (project.hasProperty('ADMOB_APP_ID') ? project.property('ADMOB_APP_ID') : "ca-app-pub-3940256099942544~3347511713")
@@ -65,7 +65,8 @@ android {
             enable !isBundleTask
             reset()
             include 'armeabi-v7a', 'arm64-v8a'
-            universalApk false
+            // Também gera um APK universal para facilitar instalação manual
+            universalApk true
         }
     }
     // Excluir recursos redundantes/licenças para economizar espaço.

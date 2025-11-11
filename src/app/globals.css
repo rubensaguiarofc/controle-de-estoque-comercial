@@ -163,6 +163,8 @@ button, .btn, [role="button"] {
   transition: inset 180ms ease, bottom 180ms ease, inset-block-end 180ms ease;
 }
 
-/* Hide bottom navigation while AdMob banner is visible */
-.admob-banner-visible .bottom-nav { display: none; }
+/* Previously hid bottom navigation while AdMob banner was visible. This caused the bottom nav to disappear
+  on some devices/environments; prefer keeping the nav visible and rely on the CSS variable
+  --admob-bottom-inset to avoid overlap. */
+.admob-banner-visible .bottom-nav { display: block; }
 

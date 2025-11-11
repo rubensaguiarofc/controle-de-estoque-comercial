@@ -6,8 +6,9 @@ import dynamic from 'next/dynamic';
 import { Capacitor } from '@capacitor/core';
 import { App, type BackButtonListenerEvent } from '@capacitor/app';
 import { Dialog } from '@capacitor/dialog';
-import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
+import { DocumentPicker } from '@/lib/native/document-picker';
 
 import type { StockItem, WithdrawalRecord, Tool, ToolRecord, EntryRecord } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
@@ -17,12 +18,14 @@ import { AddItemDialog } from "./add-item-dialog";
 import { Skeleton } from "./ui/skeleton";
 import { AddToolDialog } from "./add-tool-dialog";
 import { HistoryPanel } from './history-panel';
+import { BackupListDialog } from './backup-list-dialog';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 // Lazy-load AdMob banner only on client to keep web/dev bundle lighter
 const AdmobBanner = dynamic(() => import('./admob-banner').then(m => m.AdmobBanner), { ssr: false });
 import { useFirestore } from "@/firebase/provider";
 import { StockRepo } from "@/lib/data/firestore-repo";
+import { BackupManager } from "@/lib/backup/backup-manager";
 
 const StockReleaseClient = dynamic(() => import('./stock-release-client'), {
   loading: () => <ClientSkeleton />,
@@ -97,12 +100,12 @@ export default function StockReleaseApp() {
   const [tools, setTools] = useState<Tool[]>([]);
   const [toolHistory, setToolHistory] = useState<ToolRecord[]>([]);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
-  // Restore options UI state
+  // Backup UI state
+  const [isBackupListOpen, setBackupListOpen] = useState(false);
+  // Restore options UI state (deprecated - mantido para compatibilidade)
   const [isRestoreMenuOpen, setIsRestoreMenuOpen] = useState(false);
-  const [restoreMerge, setRestoreMerge] = useState(false); // false = replace, true = merge
+  const [restoreMerge, setRestoreMerge] = useState(true); // sempre merge agora
   const [syncItemsToCloud, setSyncItemsToCloud] = useState(false);
-  const [docFiles, setDocFiles] = useState<string[] | null>(null);
-  const [isDocsLoading, setIsDocsLoading] = useState(false);
   
   const [isAddItemDialogOpen, setAddItemDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<StockItem | null>(null);
@@ -122,6 +125,62 @@ export default function StockReleaseApp() {
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
   const tracking = useRef(false);
+  const storagePermissionState = useRef<'unknown' | 'granted' | 'denied'>('unknown');
+
+  const ensureLegacyStoragePermission = useCallback(async () => {
+    if (!Capacitor.isNativePlatform()) return true;
+    try {
+      const platform = typeof Capacitor.getPlatform === 'function' ? Capacitor.getPlatform() : undefined;
+      if (platform && platform !== 'android') return true;
+
+      if (storagePermissionState.current === 'granted') return true;
+      const win = typeof window !== 'undefined' ? (window as any) : undefined;
+      const capCore = await import('@capacitor/core').catch(() => null);
+      const plugins = (capCore as any)?.Plugins || win?.Capacitor?.Plugins || (win as any)?.Plugins;
+      const Permissions = plugins?.Permissions;
+      if (!Permissions) return true; // nothing to request
+
+      // Try querying first to avoid duplicate prompts
+      try {
+        if (typeof Permissions.query === 'function') {
+          const queryRes = await Permissions.query({ name: 'android.permission.WRITE_EXTERNAL_STORAGE' }).catch(() => null);
+          const granted = queryRes && (queryRes.state === 'granted' || queryRes.granted === true);
+          if (granted) {
+            storagePermissionState.current = 'granted';
+            return true;
+          }
+        }
+      } catch {
+        // ignore query errors
+      }
+
+      const requestNames = [
+        'android.permission.WRITE_EXTERNAL_STORAGE',
+        'android.permission.READ_EXTERNAL_STORAGE',
+        'storage',
+      ];
+
+      for (const name of requestNames) {
+        try {
+          if (typeof Permissions.request !== 'function') break;
+          const res = await Permissions.request({ name });
+          const granted = res && (res.state === 'granted' || res.granted === true);
+          if (granted) {
+            storagePermissionState.current = 'granted';
+            return true;
+          }
+        } catch (_err) {
+          // try next alias
+        }
+      }
+
+      storagePermissionState.current = 'denied';
+      return false;
+    } catch (err) {
+      console.warn('Storage permission request failed', err);
+      return true;
+    }
+  }, []);
 
   // Gesture: swipe from left edge to go back
   useEffect(() => {
@@ -188,32 +247,50 @@ export default function StockReleaseApp() {
   // Android hardware back button: confirm exit when at root, otherwise navigate back/close dialogs
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
-  let handlePromise = App.addListener('backButton', async ({ canGoBack }: BackButtonListenerEvent) => {
-      // Close any open dialog first
-      if (isAddItemDialogOpen) { setAddItemDialogOpen(false); return; }
-      if (isAddToolDialogOpen) { setAddToolDialogOpen(false); return; }
-      // If we're not on the release page, go back to it
-      if (activeView !== 'release') { setActiveView('release'); return; }
-      // If webview can go back in history, prefer that
-      if (canGoBack) { window.history.back(); return; }
-      // Ask to exit the app
+    
+    let listener: any = null;
+    
+    const setupListener = async () => {
       try {
-        const { value } = await Dialog.confirm({
-          title: 'Sair do aplicativo',
-          message: 'Deseja realmente sair?',
-          okButtonTitle: 'Sair',
-          cancelButtonTitle: 'Cancelar',
+        listener = await App.addListener('backButton', async ({ canGoBack }: BackButtonListenerEvent) => {
+          // Close any open dialog first
+          if (isAddItemDialogOpen) { setAddItemDialogOpen(false); return; }
+          if (isAddToolDialogOpen) { setAddToolDialogOpen(false); return; }
+          // If we're not on the release page, go back to it
+          if (activeView !== 'release') { setActiveView('release'); return; }
+          // If webview can go back in history, prefer that
+          if (canGoBack) { window.history.back(); return; }
+          // Ask to exit the app
+          try {
+            const { value } = await Dialog.confirm({
+              title: 'Sair do aplicativo',
+              message: 'Deseja realmente sair?',
+              okButtonTitle: 'Sair',
+              cancelButtonTitle: 'Cancelar',
+            });
+            if (value) {
+              App.exitApp();
+            }
+          } catch (err) {
+            // Fallback: no dialog available - just minimize instead of exit
+            console.warn('Dialog failed, not exiting:', err);
+          }
         });
-        if (value) {
-          App.exitApp();
-        }
-      } catch {
-        // Fallback: no dialog available
-        App.exitApp();
+      } catch (err) {
+        console.error('Failed to setup back button listener:', err);
       }
-    });
+    };
+    
+    setupListener();
+    
     return () => {
-      handlePromise.then(h => h.remove()).catch(() => {});
+      if (listener) {
+        try {
+          listener.remove();
+        } catch (err) {
+          console.error('Failed to remove back button listener:', err);
+        }
+      }
     };
   }, [activeView, isAddItemDialogOpen, isAddToolDialogOpen]);
   // Ensure we don't get stuck on an endless initial loading state
@@ -324,59 +401,31 @@ export default function StockReleaseApp() {
     }
   }, []);
 
-  // Backup: exportar dados para arquivo e compartilhar
-  const handleExportBackup = useCallback(async () => {
+  // Backup: exportar dados usando o novo BackupManager
+  const handleExportBackup = useCallback(async (): Promise<void> => {
     try {
-      const payload = {
-        schema: 'almoxarifado.backup.v1',
-        exportedAt: new Date().toISOString(),
-        appVersion: '1.0.9',
-        data: { stockItems, history, entryHistory, tools, toolHistory },
+      toast({
+        title: 'Criando backup...',
+        description: 'Aguarde enquanto salvamos seus dados.',
+      });
+
+      const data = {
+        stockItems,
+        history,
+        entryHistory,
+        tools,
+        toolHistory,
       };
-      const json = JSON.stringify(payload, null, 2);
-      const filename = `almoxarifado_backup_${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
-      if (Capacitor.isNativePlatform()) {
-        // 1) Tenta salvar no Cache e compartilhar via Sheet (mais confiável, sem permissões extras)
-        try {
-          await Filesystem.writeFile({ path: filename, data: json, directory: Directory.Cache });
-          const { uri } = await Filesystem.getUri({ path: filename, directory: Directory.Cache });
-          try {
-            await Share.share({ title: 'Backup do Almoxarifado', text: 'Backup dos dados do aplicativo.', url: uri, dialogTitle: 'Compartilhar Backup' });
-          } catch (shareErr) {
-            // 2) Fallback: salvar em Downloads via MediaStore (Android 10+)
-            try {
-              const { MediaStoreSaver } = await import('@/lib/native/media-store-saver');
-              const base64 = btoa(unescape(encodeURIComponent(json)));
-              await MediaStoreSaver.saveToDownloads({ base64, filename, mimeType: 'application/json' });
-            } catch (msErr) {
-              // 3) Último recurso: tentar Documents (pode falhar em alguns devices/versões)
-              await Filesystem.writeFile({ path: filename, data: json, directory: Directory.Documents });
-            }
-          }
-        } catch (cacheErr) {
-          // Se falhar o Cache, tenta direto o MediaStore
-          try {
-            const { MediaStoreSaver } = await import('@/lib/native/media-store-saver');
-            const base64 = btoa(unescape(encodeURIComponent(json)));
-            await MediaStoreSaver.saveToDownloads({ base64, filename, mimeType: 'application/json' });
-          } catch (e) {
-            // Última tentativa: Documents
-            await Filesystem.writeFile({ path: filename, data: json, directory: Directory.Documents });
-          }
-        }
-      } else {
-        // Web fallback: trigger a file download
-        const blob = new Blob([json], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
-      }
-      toast({ title: 'Backup criado', description: `Arquivo salvo: ${filename}` });
+
+      const path = await BackupManager.createLocalBackup(data);
+
+      toast({
+        title: 'Backup criado com sucesso!',
+        description: Capacitor.isNativePlatform() 
+          ? 'Salvo em Documents/Backups/'
+          : `Download iniciado`,
+      });
+
       // Após exportar dados, exibir vídeo de 30s (rewarded)
       try {
         const { showLongRewarded } = await import('@/lib/native/ad-manager');
@@ -384,11 +433,106 @@ export default function StockReleaseApp() {
       } catch {}
     } catch (error) {
       console.error('Backup export error', error);
-      toast({ variant: 'destructive', title: 'Falha no Backup', description: 'Não foi possível criar o backup.' });
+      toast({ 
+        variant: 'destructive', 
+        title: 'Falha no Backup', 
+        description: 'Erro inesperado ao criar backup.' 
+      });
     }
   }, [stockItems, history, entryHistory, tools, toolHistory, toast]);
 
-  // Restore: importar dados de um arquivo JSON selecionado
+  // Restore: função simplificada que recebe dados do BackupListDialog ou arquivo antigo
+  const handleRestoreBackup = useCallback(async (data: any) => {
+    try {
+      // Normalizar estrutura (compatível com v1 e v2)
+      const root = (data && data.data && typeof data.data === 'object') ? data.data : data;
+      const toArray = (v: any) => (Array.isArray(v) ? v : []);
+
+      const normalized = {
+        stockItems: toArray(root.stockItems ?? root.items ?? root.inventory ?? []),
+        history: toArray(root.history ?? root.withdrawals ?? root.withdrawalsHistory ?? []),
+        entryHistory: toArray(root.entryHistory ?? root.entries ?? root.entriesHistory ?? []),
+        tools: toArray(root.tools ?? root.ferramentas ?? []),
+        toolHistory: toArray(root.toolHistory ?? root.toolsHistory ?? root.toolRecords ?? []),
+      };
+
+      if (Array.isArray(data) && !data.data) {
+        // Legacy: array direto de itens
+        normalized.stockItems = data;
+      }
+
+      // Validar conteúdo
+      const totalCount = normalized.stockItems.length + normalized.history.length + 
+        normalized.entryHistory.length + normalized.tools.length + normalized.toolHistory.length;
+      
+      if (totalCount === 0) {
+        throw new Error('Backup vazio ou formato inválido');
+      }
+
+      // Sempre fazer merge (não sobrescrever dados mais recentes)
+      const mergeById = <T extends { id: string }>(current: T[], incoming: T[]) => {
+        const map = new Map<string, T>();
+        current.forEach(i => map.set(i.id, i));
+        incoming.forEach(i => map.set(i.id, i));
+        return Array.from(map.values());
+      };
+
+      setStockItems(prev => mergeById(prev as any, normalized.stockItems as any) as any);
+      setHistory(prev => {
+        const map = new Map<string, any>();
+        [...prev, ...normalized.history].forEach(r => map.set(r.id, r));
+        return Array.from(map.values()).sort((a, b) => 
+          new Date(b.requestedAt).getTime() - new Date(a.requestedAt).getTime()
+        );
+      });
+      setEntryHistory(prev => {
+        const map = new Map<string, any>();
+        [...prev, ...normalized.entryHistory].forEach(r => map.set(r.id, r));
+        return Array.from(map.values()).sort((a, b) => 
+          new Date(b.enteredAt).getTime() - new Date(a.enteredAt).getTime()
+        );
+      });
+      setTools(prev => mergeById(prev as any, normalized.tools as any) as any);
+      setToolHistory(prev => {
+        const map = new Map<string, any>();
+        [...prev, ...normalized.toolHistory].forEach(r => map.set(r.id, r));
+        return Array.from(map.values()).sort((a, b) => 
+          new Date(b.checkedOutAt).getTime() - new Date(a.checkedOutAt).getTime()
+        );
+      });
+
+      // Sincronizar com nuvem se solicitado
+      if (syncItemsToCloud && repo) {
+        try {
+          const mergedItems = mergeById(stockItems as any, normalized.stockItems as any) as any;
+          for (const item of mergedItems) {
+            await repo.upsertItem(item).catch(() => {});
+          }
+        } catch (err) {
+          console.error('Cloud sync error:', err);
+        }
+      }
+
+      // Persist marker
+      safeSetItem('lastRestoreAt', new Date().toISOString());
+
+      toast({ 
+        title: 'Backup restaurado!', 
+        description: `${totalCount} registros importados (mesclados com dados existentes).`
+      });
+    } catch (e: any) {
+      console.error('Restore error', e);
+      const msg = e?.message || 'Arquivo inválido ou corrompido';
+      toast({ 
+        variant: 'destructive', 
+        title: 'Falha na Restauração', 
+        description: msg 
+      });
+      throw e;
+    }
+  }, [toast, syncItemsToCloud, repo, stockItems]);
+
+  // Função auxiliar para importação via Document Picker (deprecated, mas mantida)
   const performRestoreFromText = useCallback((textOrBytes: string | ArrayBuffer) => {
     try {
       let jsonText: string;
@@ -398,153 +542,62 @@ export default function StockReleaseApp() {
         try {
           jsonText = new TextDecoder('utf-8').decode(new Uint8Array(textOrBytes));
         } catch {
-          // last resort: assume latin1
           jsonText = String.fromCharCode.apply(null, Array.from(new Uint8Array(textOrBytes)) as any);
         }
       }
 
       const parsed = JSON.parse(jsonText);
-
-      // Normalize various possible backup shapes (for compatibility with older exports)
-      // Accepted shapes:
-      // 1) { schema: 'almoxarifado.backup.v1', data: { stockItems, history, entryHistory, tools, toolHistory } }
-      // 2) { data: { ...same keys... } }
-      // 3) { stockItems?, items?, history?|withdrawals?, entryHistory?|entries?, tools?, toolHistory?|toolRecords? }
-      // 4) A single array of stock items (legacy): [...]
-      const toArray = (v: any) => (Array.isArray(v) ? v : []);
-
-      const root = (parsed && parsed.data && typeof parsed.data === 'object') ? parsed.data : parsed;
-      let normalized = {
-        stockItems: [] as any[],
-        history: [] as any[],
-        entryHistory: [] as any[],
-        tools: [] as any[],
-        toolHistory: [] as any[],
-      };
-
-      if (Array.isArray(parsed)) {
-        // Legacy: only items array
-        normalized.stockItems = parsed;
-      } else if (root && typeof root === 'object') {
-        // Map common aliases
-        const stockItems = root.stockItems ?? root.items ?? root.inventory ?? [];
-        const history = root.history ?? root.withdrawals ?? root.withdrawalsHistory ?? [];
-        const entryHistory = root.entryHistory ?? root.entries ?? root.entriesHistory ?? [];
-        const tools = root.tools ?? root.ferramentas ?? [];
-        const toolHistory = root.toolHistory ?? root.toolsHistory ?? root.toolRecords ?? [];
-        normalized = {
-          stockItems: toArray(stockItems),
-          history: toArray(history),
-          entryHistory: toArray(entryHistory),
-          tools: toArray(tools),
-          toolHistory: toArray(toolHistory),
-        };
-      }
-
-      // If nothing recognized, fail gracefully
-      const totalCount = normalized.stockItems.length + normalized.history.length + normalized.entryHistory.length + normalized.tools.length + normalized.toolHistory.length;
-      if (totalCount === 0) {
-        throw new Error('Estrutura de backup não reconhecida');
-      }
-
-      if (restoreMerge) {
-        // Merge with existing state
-        const mergeById = <T extends { id: string }>(current: T[], incoming: T[]) => {
-          const map = new Map<string, T>();
-          current.forEach(i => map.set(i.id, i));
-          incoming.forEach(i => map.set(i.id, i)); // incoming overwrites by id
-          return Array.from(map.values());
-        };
-        setStockItems(prev => mergeById(prev as any, normalized.stockItems as any) as any);
-        setHistory(prev => {
-          const map = new Map<string, any>();
-          [...prev, ...normalized.history].forEach(r => map.set(r.id, r));
-          return Array.from(map.values());
-        });
-        setEntryHistory(prev => {
-          const map = new Map<string, any>();
-          [...prev, ...normalized.entryHistory].forEach(r => map.set(r.id, r));
-          return Array.from(map.values());
-        });
-        setTools(prev => mergeById(prev as any, normalized.tools as any) as any);
-        setToolHistory(prev => {
-          const map = new Map<string, any>();
-          [...prev, ...normalized.toolHistory].forEach(r => map.set(r.id, r));
-          return Array.from(map.values());
-        });
-      } else {
-        // Replace
-        setStockItems(normalized.stockItems);
-        setHistory(normalized.history);
-        setEntryHistory(normalized.entryHistory);
-        setTools(normalized.tools);
-        setToolHistory(normalized.toolHistory);
-      }
-
-  // Persist a small marker for UX and optional re-restore (does not alter Firestore)
-  safeSetItem('lastRestoreAt', new Date().toISOString());
-
-      toast({ title: 'Restauração concluída', description: `${restoreMerge ? 'Mesclado' : 'Substituído'}: ${normalized.stockItems.length} itens, ${normalized.history.length} saídas, ${normalized.entryHistory.length} entradas, ${normalized.tools.length} ferramentas, ${normalized.toolHistory.length} registros de ferramentas.` });
-
-      // Optional: sync items to cloud repo if available and opted-in
-      if (syncItemsToCloud && repo) {
-        try {
-          normalized.stockItems.forEach((item: any) => {
-            repo.upsertItem(item as any).catch(() => {});
-          });
-        } catch {}
-      }
+      handleRestoreBackup(parsed);
     } catch (e: any) {
       console.error('Restore parse error', e);
-      const msg = (e && e.message) ? e.message : 'Arquivo inválido ou corrompido';
-      toast({ variant: 'destructive', title: 'Falha na Restauração', description: `${msg}. Certifique-se de selecionar um backup JSON exportado pelo app.` });
+      const msg = e?.message || 'Arquivo inválido ou corrompido';
+      toast({ 
+        variant: 'destructive', 
+        title: 'Falha na Restauração', 
+        description: `${msg}. Certifique-se de selecionar um backup JSON exportado pelo app.` 
+      });
     }
-  }, [toast, restoreMerge, syncItemsToCloud, repo]);
+  }, [handleRestoreBackup, toast]);
 
-  const handleTriggerImport = useCallback(() => {
-    if (fileInputRef.current) fileInputRef.current.click();
+  const handleTriggerImport = useCallback(async () => {
     setIsRestoreMenuOpen(false);
-  }, []);
-
-  const handleListDeviceBackups = useCallback(async () => {
-    if (!Capacitor.isNativePlatform()) return;
-    try {
-      setIsDocsLoading(true);
-      setDocFiles(null);
-      const res = await Filesystem.readdir({ path: '', directory: Directory.Documents } as any);
-      const names = (res.files || res) as any; // compat with different plugin returns
-      const list: string[] = Array.isArray(names)
-        ? names.map((f: any) => typeof f === 'string' ? f : f.name)
-        : [];
-      const filtered = list.filter(n => n && (n.endsWith('.json') || n.endsWith('.backup.json')));
-      filtered.sort((a, b) => b.localeCompare(a));
-      setDocFiles(filtered);
-    } catch (e) {
-      console.error('Erro ao listar backups', e);
-      toast({ variant: 'destructive', title: 'Falha ao listar backups', description: 'Não foi possível acessar Documentos.' });
-    } finally {
-      setIsDocsLoading(false);
-    }
-  }, [toast]);
-
-  const handleRestoreFromDocuments = useCallback(async (filename: string) => {
-    try {
-      const res = await Filesystem.readFile({ path: filename, directory: Directory.Documents, encoding: 'utf8' as any } as any);
-      const data: any = (res as any).data;
-      if (typeof data === 'string') {
-        performRestoreFromText(data);
-      } else if (data && typeof (data as any).arrayBuffer === 'function') {
-        const ab = await (data as Blob).arrayBuffer();
-        performRestoreFromText(ab);
-      } else {
-        throw new Error('Formato de leitura desconhecido');
+    
+    if (Capacitor.isNativePlatform()) {
+      // Usar Document Picker no mobile
+      try {
+        const result = await DocumentPicker.pickFile({
+          mimeTypes: ['application/json', 'text/plain', '*/*'],
+          openDownloads: true // Abre direto na pasta Downloads
+        });
+        
+        if (!result.base64) {
+          toast({ title: 'Cancelado', description: 'Nenhum arquivo selecionado.' });
+          return;
+        }
+        
+        console.log('[RESTORE] Arquivo selecionado:', result.name);
+        
+        // Decodificar o base64 para texto
+        const jsonText = atob(result.base64);
+        performRestoreFromText(jsonText);
+        
+      } catch (error: any) {
+        console.error('[RESTORE] Erro:', error);
+        if (error.message && (error.message.includes('canceled') || error.message.includes('cancelled'))) {
+          // Usuário cancelou - não mostrar erro
+          return;
+        }
+        toast({ 
+          variant: 'destructive', 
+          title: 'Falha ao restaurar', 
+          description: 'Não foi possível ler o arquivo selecionado.' 
+        });
       }
-      setIsRestoreMenuOpen(false);
-    } catch (e) {
-      console.error('Erro ao ler backup de Documentos', e);
-      toast({ variant: 'destructive', title: 'Falha na Restauração', description: 'Não foi possível ler o arquivo selecionado.' });
+    } else {
+      // Web: usar input file
+      if (fileInputRef.current) fileInputRef.current.click();
     }
-  }, [performRestoreFromText, toast]);
+  }, [toast, performRestoreFromText]);
 
   const handleFileSelected = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -887,50 +940,14 @@ export default function StockReleaseApp() {
               <button className="relative" aria-label="Exportar Backup" onClick={handleExportBackup} title="Exportar Backup">
                 <span className="material-icons text-foreground">save_alt</span>
               </button>
-              <Popover open={isRestoreMenuOpen} onOpenChange={setIsRestoreMenuOpen}>
-                <PopoverTrigger asChild>
-                  <button className="relative" aria-label="Restaurar Backup" title="Restaurar Backup">
-                    <span className="material-icons text-foreground">upload_file</span>
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent className="w-80 p-3">
-                  <div className="space-y-3">
-                    <div className="font-medium">Restauração de Backup</div>
-                    <div className="space-y-2">
-                      <button className="w-full text-left px-3 py-2 rounded border hover:bg-accent" onClick={handleTriggerImport}>Escolher arquivo…</button>
-                      {Capacitor.isNativePlatform() && (
-                        <div className="space-y-2">
-                          <button className="w-full text-left px-3 py-2 rounded border hover:bg-accent" onClick={handleListDeviceBackups} disabled={isDocsLoading}>
-                            {isDocsLoading ? 'Carregando backups…' : 'Listar backups (Documentos)'}
-                          </button>
-                          {docFiles && docFiles.length > 0 && (
-                            <div className="max-h-40 overflow-auto border rounded">
-                              {docFiles.map(name => (
-                                <button key={name} className="w-full text-left px-3 py-2 hover:bg-accent border-b last:border-0" onClick={() => handleRestoreFromDocuments(name)}>
-                                  {name}
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                          {docFiles && docFiles.length === 0 && (
-                            <div className="text-sm text-muted-foreground">Nenhum backup .json encontrado em Documentos.</div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                    <div className="space-y-1 pt-2 border-t">
-                      <label className="flex items-center gap-2 text-sm">
-                        <input type="checkbox" checked={restoreMerge} onChange={(e) => setRestoreMerge(e.target.checked)} />
-                        Mesclar com os dados atuais (em vez de substituir)
-                      </label>
-                      <label className="flex items-center gap-2 text-sm">
-                        <input type="checkbox" checked={syncItemsToCloud} onChange={(e) => setSyncItemsToCloud(e.target.checked)} />
-                        Sincronizar itens com a nuvem (se conectado)
-                      </label>
-                    </div>
-                  </div>
-                </PopoverContent>
-              </Popover>
+              <button 
+                className="relative" 
+                aria-label="Restaurar Backup" 
+                onClick={() => setBackupListOpen(true)}
+                title="Restaurar Backup"
+              >
+                <span className="material-icons text-foreground">upload_file</span>
+              </button>
               {/* No 'Menu' text button */}
             </div>
           </div>
@@ -983,15 +1000,22 @@ export default function StockReleaseApp() {
             </div>
           </div>
         </nav>
-        {/* Hidden input for backup restore */}
+        {/* Hidden input for backup restore (legacy, mantido para compatibilidade web) */}
         <input
           ref={fileInputRef}
           type="file"
-          // Broaden accepted types to handle file pickers that don't set application/json
           accept=".json,.backup.json,application/json,text/json,text/plain,application/octet-stream,application/*+json"
           className="hidden"
           onChange={handleFileSelected}
         />
+
+        {/* Backup Management Dialog */}
+        <BackupListDialog
+          open={isBackupListOpen}
+          onOpenChange={setBackupListOpen}
+          onRestore={handleRestoreBackup}
+        />
+
         {/* Mobile debug panel (visible when URL contains ?mobileDebug=1 or when localStorage.mobileDebug === '1') */}
         {typeof window !== 'undefined' && (new URLSearchParams(window.location.search).get('mobileDebug') === '1' || window.localStorage.getItem('mobileDebug') === '1') && (
           <MobileDebugPanel />

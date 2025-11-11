@@ -22,8 +22,9 @@ public class MainActivity extends BridgeActivity {
 		setTheme(R.style.AppTheme_NoActionBar);
 		super.onCreate(savedInstanceState);
 
-		// Register native plugins (explicit)
-		registerPlugin(MediaStoreSaver.class);
+	// Register native plugins (explicit)
+	registerPlugin(MediaStoreSaver.class);
+	registerPlugin(AppSettings.class);
 
 		// Ensure the WebView will grant permission requests (getUserMedia) when compatible
 		try {

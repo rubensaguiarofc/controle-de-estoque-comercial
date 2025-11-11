@@ -9,7 +9,7 @@ import { MAX_QUANTITY } from "@/lib/constants";
 import dynamic from 'next/dynamic';
 
 import type { StockItem } from "@/lib/types";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AddItemForm } from "./add-item-form";
 import { Form } from "./ui/form";
 import { Skeleton } from "./ui/skeleton";
@@ -23,7 +23,7 @@ const formSchema = z.object({
   name: z.string().min(1, "O nome do item é obrigatório.").toUpperCase(),
   specifications: z.string().min(1, "As especificações são obrigatórias.").toUpperCase(),
   quantity: z.preprocess(
-    (val) => (val === "" || val === undefined || val === null ? 0 : Number(val)),
+    (val: unknown) => (val === "" || val === undefined || val === null ? 0 : Number(val)),
     z.number({ invalid_type_error: "Deve ser um número." })
       .min(0, "A quantidade não pode ser negativa.")
       .max(MAX_QUANTITY, `A quantidade não pode exceder ${MAX_QUANTITY}.`)
@@ -97,6 +97,9 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[480px]">
+        <DialogHeader>
+          <DialogTitle>{editingItem ? 'Editar Item' : 'Adicionar Item'}</DialogTitle>
+        </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleDialogSubmit)}>
             {renderContent()}

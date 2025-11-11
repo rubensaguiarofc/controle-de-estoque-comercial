@@ -57,7 +57,7 @@ export function AddToolDialog({ isOpen, onOpenChange, onAddTool, editingTool }: 
               <FormField
                 control={form.control}
                 name="name"
-                render={({ field }) => (
+                render={({ field }: any) => (
                   <FormItem>
                     <FormLabel>Nome da Ferramenta</FormLabel>
                     <FormControl>
@@ -70,7 +70,7 @@ export function AddToolDialog({ isOpen, onOpenChange, onAddTool, editingTool }: 
               <FormField
                 control={form.control}
                 name="assetId"
-                render={({ field }) => (
+                render={({ field }: any) => (
                   <FormItem>
                     <FormLabel>Patrimônio</FormLabel>
                     <FormControl>
