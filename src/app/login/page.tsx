@@ -22,6 +22,8 @@ export default function LoginPage() {
   if (!loginEnabled) return null;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isSignUp, setIsSignUp] = useState(false); // Toggle entre login e criar conta
   const [loading, setLoading] = useState(false);
   const snackbarRef = useRef<HTMLDivElement | null>(null);
 
@@ -41,6 +43,47 @@ export default function LoginPage() {
   }
 
   // router already defined above
+
+  async function handleSignUp() {
+    if (!email || !password || !confirmPassword) {
+      showSnackbar("Por favor, preencha todos os campos.", true);
+      return;
+    }
+    if (password !== confirmPassword) {
+      showSnackbar("As senhas não coincidem.", true);
+      return;
+    }
+    if (password.length < 6) {
+      showSnackbar("A senha deve ter no mínimo 6 caracteres.", true);
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      // Criar conta usando Firebase Auth diretamente (funciona em static export)
+      const { createUserWithEmailAndPassword } = await import("firebase/auth");
+      if (auth) {
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        showSnackbar(`Conta criada com sucesso! Bem-vindo(a), ${email}.`, false);
+        router.push("/");
+      } else {
+        showSnackbar("Erro ao conectar com o sistema de autenticação.", true);
+      }
+    } catch (e: any) {
+      console.error(e);
+      if (e.code === "auth/email-already-in-use") {
+        showSnackbar("Este e-mail já está cadastrado.", true);
+      } else if (e.code === "auth/invalid-email") {
+        showSnackbar("E-mail inválido.", true);
+      } else if (e.code === "auth/weak-password") {
+        showSnackbar("Senha muito fraca. Use pelo menos 6 caracteres.", true);
+      } else {
+        showSnackbar("Erro ao criar conta. Tente novamente.", true);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
 
   async function handleLogin() {
     if (!email || !password) {
@@ -161,13 +204,17 @@ export default function LoginPage() {
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-md bg-card p-8 md:p-10 rounded-xl shadow-2xl border border-border text-foreground">
         <h2 className="text-xl font-semibold text-primary text-center mb-4 dark:text-indigo-400">Almoxarifado Fácil</h2>
-        <h1 className="text-3xl font-extrabold text-foreground text-center mb-2 dark:text-white">Bem-vindo(a)</h1>
-        <p className="text-muted-foreground text-center mb-8 dark:text-gray-400">Faça login para continuar</p>
+        <h1 className="text-3xl font-extrabold text-foreground text-center mb-2 dark:text-white">
+          {isSignUp ? "Criar Conta" : "Bem-vindo(a)"}
+        </h1>
+        <p className="text-muted-foreground text-center mb-8 dark:text-gray-400">
+          {isSignUp ? "Preencha os dados para criar sua conta" : "Faça login para continuar"}
+        </p>
 
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            handleLogin();
+            isSignUp ? handleSignUp() : handleLogin();
           }}
           className="space-y-6"
         >
@@ -201,17 +248,53 @@ export default function LoginPage() {
               placeholder="••••••••"
               className="mt-1 block w-full px-4 py-2 border border-input rounded-lg shadow-sm focus:outline-none focus:ring-ring focus:border-primary transition duration-150 ease-in-out bg-card text-foreground"
             />
+            {isSignUp && (
+              <p className="text-xs text-muted-foreground mt-1">Mínimo 6 caracteres</p>
+            )}
           </div>
+
+          {isSignUp && (
+            <div>
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-muted-foreground mb-1 dark:text-gray-300">
+                Confirmar Senha
+              </label>
+              <input
+                id="confirmPassword"
+                name="confirmPassword"
+                type="password"
+                required
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="••••••••"
+                className="mt-1 block w-full px-4 py-2 border border-input rounded-lg shadow-sm focus:outline-none focus:ring-ring focus:border-primary transition duration-150 ease-in-out bg-card text-foreground"
+              />
+            </div>
+          )}
 
           <button
             type="submit"
             disabled={loading}
             className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-md text-sm font-medium text-primary-foreground bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition duration-150 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed dark:text-white dark:bg-indigo-600 dark:hover:bg-indigo-700 dark:focus:ring-indigo-500"
           >
-            {loading ? "Carregando..." : "Entrar"}
+            {loading ? "Carregando..." : isSignUp ? "Criar Conta" : "Entrar"}
           </button>
 
-          {googleLoginEnabled && (
+          {/* Toggle entre Login e Criar Conta */}
+          <div className="text-center">
+            <button
+              type="button"
+              onClick={() => {
+                setIsSignUp(!isSignUp);
+                setPassword("");
+                setConfirmPassword("");
+              }}
+              className="text-sm font-medium text-primary hover:opacity-90 dark:text-indigo-400"
+            >
+              {isSignUp ? "Já tem uma conta? Entrar" : "Não tem conta? Criar agora"}
+            </button>
+          </div>
+
+          {!isSignUp && googleLoginEnabled && (
             <div className="relative py-4">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-border dark:border-gray-700"></div>
@@ -223,7 +306,7 @@ export default function LoginPage() {
           )}
 
           {/* Google Sign In: permitir/desabilitar via NEXT_PUBLIC_GOOGLE_LOGIN_ENABLED */}
-          {googleLoginEnabled && (
+          {!isSignUp && googleLoginEnabled && (
             Capacitor.getPlatform() === 'android' ? (
               <div className="w-full space-y-3">
                 <button
@@ -246,11 +329,13 @@ export default function LoginPage() {
             )
           )}
 
-          <div className="text-center mt-4">
-            <a href="#" className="text-sm font-medium text-primary hover:opacity-90 dark:text-indigo-400">
-              Esqueceu sua senha?
-            </a>
-          </div>
+          {!isSignUp && (
+            <div className="text-center mt-4">
+              <a href="#" className="text-sm font-medium text-primary hover:opacity-90 dark:text-indigo-400">
+                Esqueceu sua senha?
+              </a>
+            </div>
+          )}
         </form>
 
         <div className="text-center text-xs text-muted-foreground mt-6 pt-4 border-t border-border dark:border-gray-700">
