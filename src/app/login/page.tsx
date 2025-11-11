@@ -92,22 +92,28 @@ export default function LoginPage() {
     }
     setLoading(true);
     try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-      const data = await res.json();
-      if (res.ok && data.ok) {
+      // Login usando Firebase Auth diretamente (funciona em static export)
+      const { signInWithEmailAndPassword } = await import("firebase/auth");
+      if (auth) {
+        await signInWithEmailAndPassword(auth, email, password);
         showSnackbar(`Login realizado com sucesso! Bem-vindo(a), ${email}.`, false);
-        // server sets cookie; navigate to app home
         router.push("/");
       } else {
-        showSnackbar(data.error || "E-mail ou senha incorretos.", true);
+        showSnackbar("Erro ao conectar com o sistema de autenticação.", true);
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      showSnackbar("Erro de conexão com o servidor.", true);
+      if (e.code === "auth/invalid-credential" || e.code === "auth/wrong-password" || e.code === "auth/user-not-found") {
+        showSnackbar("E-mail ou senha incorretos.", true);
+      } else if (e.code === "auth/invalid-email") {
+        showSnackbar("E-mail inválido.", true);
+      } else if (e.code === "auth/user-disabled") {
+        showSnackbar("Esta conta foi desativada.", true);
+      } else if (e.code === "auth/too-many-requests") {
+        showSnackbar("Muitas tentativas. Tente novamente mais tarde.", true);
+      } else {
+        showSnackbar("Erro ao fazer login. Verifique suas credenciais.", true);
+      }
     } finally {
       setLoading(false);
     }
