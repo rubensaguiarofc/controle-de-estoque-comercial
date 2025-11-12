@@ -1,7 +1,7 @@
 "use client";
 
 import { Capacitor } from '@capacitor/core';
-import { showShortInterstitial } from '@/lib/native/ad-manager';
+import { showLongRewarded } from '@/lib/native/ad-manager';
 import { Toast } from '@capacitor/toast';
 
 const DAY_KEY = 'ads:export:day';
@@ -15,11 +15,11 @@ function fmtDay(d: Date) {
 }
 
 /**
- * Decide e exibir (se necessário) um vídeo curto antes de exportar.
+ * Decide e exibir (se necessário) um vídeo rewarded antes de exportar.
  * Regras:
  *  - 1ª exportação do dia: exibe
  *  - Depois, a cada 3 exportações (3ª, 6ª, 9ª...): exibe
- *  - Sempre permite avançar após X segundos (skip)
+ *  - Vídeo com recompensa (rewarded)
  */
 export async function maybeShowAdBeforeExport() {
   try {
@@ -38,17 +38,20 @@ export async function maybeShowAdBeforeExport() {
     // 1ª do dia OU múltiplos de 3
     const shouldShow = next === 1 || next % 3 === 0;
     window.localStorage.setItem(COUNT_KEY, String(next));
-    if (!shouldShow) return;
+    
+    if (!shouldShow) {
+      console.debug(`[ads-export] skip (export #${next})`);
+      return;
+    }
 
-    const skipSec = Number(process.env.NEXT_PUBLIC_ADS_SKIP_SECONDS || '5');
+    console.debug(`[ads-export] attempting rewarded video (export #${next})`);
+    
     try {
-      try { await Toast.show({ text: 'Mostrando anúncio antes da exportação…', duration: 'short' }); } catch {}
-      await Promise.race([
-        showShortInterstitial(true), // força exibição mesmo se cooldown recente
-        new Promise((resolve) => setTimeout(resolve, Math.max(0, skipSec) * 1000)),
-      ]);
+      try { await Toast.show({ text: 'Mostrando vídeo com recompensa…', duration: 'short' }); } catch {}
+      await showLongRewarded();
     } catch (e) {
-      console.debug('[ads-export] interstitial unavailable', e);
+      console.error('[ads-export] rewarded video error:', e);
+      try { await Toast.show({ text: 'Vídeo não disponível no momento', duration: 'short' }); } catch {}
     }
   } catch {}
 }
