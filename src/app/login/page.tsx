@@ -300,41 +300,6 @@ export default function LoginPage() {
             </button>
           </div>
 
-          {!isSignUp && googleLoginEnabled && (
-            <div className="relative py-4">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-border dark:border-gray-700"></div>
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-card text-muted-foreground font-semibold dark:bg-gray-800 dark:text-gray-400">OU</span>
-              </div>
-            </div>
-          )}
-
-          {/* Google Sign In: permitir/desabilitar via NEXT_PUBLIC_GOOGLE_LOGIN_ENABLED */}
-          {!isSignUp && googleLoginEnabled && (
-            Capacitor.getPlatform() === 'android' ? (
-              <div className="w-full space-y-3">
-                <button
-                  type="button"
-                  onClick={handleGoogleNative}
-                  className="w-full flex items-center justify-center gap-2 py-3 px-4 border rounded-lg shadow-md text-sm font-medium bg-white text-gray-700 hover:bg-gray-50 dark:bg-gray-800 dark:text-white"
-                >
-                  <img src="/a6-logo.png" alt="Google" className="h-5 w-5" />
-                  Entrar com Google (Android)
-                </button>
-                <div className="text-center text-[11px] text-muted-foreground">ou</div>
-                <div className="w-full">
-                  <GoogleSignIn onCredential={handleGoogleCredential} />
-                </div>
-              </div>
-            ) : (
-              <div className="w-full">
-                <GoogleSignIn onCredential={handleGoogleCredential} />
-              </div>
-            )
-          )}
-
           {!isSignUp && (
             <div className="text-center mt-4">
               <a href="#" className="text-sm font-medium text-primary hover:opacity-90 dark:text-indigo-400">

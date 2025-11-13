@@ -348,7 +348,7 @@ export default function ItemManagement({
     if (lowStockOnly) {
       list = list.filter(i => i.quantity <= 5);
     }
-    const effectiveQuery = (globalSearch ?? searchQuery).trim();
+    const effectiveQuery = (globalSearch || searchQuery).trim();
     if (!effectiveQuery) return list;
     const q = effectiveQuery.toLowerCase();
     return list.filter(item =>
