@@ -387,6 +387,47 @@ export default function StockReleaseApp() {
     safeSetArray('local:entryHistory', entryHistory);
   }, [repo, entryHistory]);
 
+  // Source of truth for tools and toolHistory: subscribe when Firestore is available;
+  // otherwise, restore from and persist to localStorage
+  useEffect(() => {
+    if (repo) {
+      const unsubs: Array<() => void> = [];
+      try {
+        unsubs.push(repo.onTools(list => {
+          const snapshot = Array.isArray(list) ? list : [];
+          setTools(snapshot);
+          safeSetArray('local:tools:lastSnapshot', snapshot);
+        }));
+      } catch {}
+      try {
+        unsubs.push(repo.onToolHistory(list => {
+          const snapshot = Array.isArray(list) ? list : [];
+          setToolHistory(snapshot);
+          safeSetArray('local:toolHistory:lastSnapshot', snapshot);
+        }));
+      } catch {}
+      return () => { unsubs.forEach(u => { try { u(); } catch {} }); };
+    }
+
+    const storedTools = safeGetArray<Tool>('local:tools');
+    if (storedTools.length) {
+      setTools(storedTools);
+    }
+    const storedToolHistory = safeGetArray<ToolRecord>('local:toolHistory');
+    if (storedToolHistory.length) {
+      setToolHistory(storedToolHistory);
+    }
+  }, [repo]);
+
+  useEffect(() => {
+    if (repo) return;
+    safeSetArray('local:tools', tools);
+  }, [repo, tools]);
+  useEffect(() => {
+    if (repo) return;
+    safeSetArray('local:toolHistory', toolHistory);
+  }, [repo, toolHistory]);
+
   // Prefetch heavy client chunks on idle to reduce first navigation delay
   useEffect(() => {
     const prefetch = () => {
@@ -717,15 +758,23 @@ export default function StockReleaseApp() {
     if (editingTool) {
       toolToSave = { ...editingTool, ...toolData };
       setTools(prev => prev.map(tool => tool.id === editingTool.id ? toolToSave : tool));
+      // Sync to Firestore if enabled
+      if (repo) {
+        repo.upsertTool(toolToSave).catch(console.error);
+      }
     } else {
       const newId = `TOOL-${Date.now()}`;
       toolToSave = { ...toolData, id: newId };
       setTools(prev => [toolToSave, ...prev]);
+      // Sync to Firestore if enabled
+      if (repo) {
+        repo.upsertTool(toolToSave).catch(console.error);
+      }
     }
     toast({ title: editingTool ? "Ferramenta Atualizada" : "Ferramenta Adicionada", description: `${toolToSave.name} foi salva.` });
     setAddToolDialogOpen(false);
     setEditingTool(null);
-  }, [editingTool, toast]);
+  }, [editingTool, repo, toast]);
 
   const handleToolDialogClose = useCallback((isOpen: boolean) => {
     if (!isOpen) setEditingTool(null);
@@ -925,7 +974,7 @@ export default function StockReleaseApp() {
         </div>
       );
   case "history": return <HistoryPanel itemHistory={history} entryHistory={entryHistory} toolHistory={toolHistory} onDeleteItemRecord={(id) => handleDeleteRecord(id, 'withdrawals')} onDeleteEntryRecord={(id) => handleDeleteRecord(id, 'entries')} onDeleteToolRecord={(id) => handleDeleteRecord(id, 'tools')} onReturnItem={handleReturnItem} onClearAll={handleClearAllHistory} />;
-      case "tools": return <ToolManagement tools={tools} setTools={setTools} toolHistory={toolHistory} setToolHistory={setToolHistory} onSetEditingTool={setEditingTool} onSetIsAddToolDialogOpen={setAddToolDialogOpen} />;
+      case "tools": return <ToolManagement tools={tools} setTools={setTools} toolHistory={toolHistory} setToolHistory={setToolHistory} onSetEditingTool={setEditingTool} onSetIsAddToolDialogOpen={setAddToolDialogOpen} repo={repo} />;
       default: return null;
     }
   };

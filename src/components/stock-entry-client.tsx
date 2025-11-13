@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -15,9 +15,11 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash } from "lucide-react";
+import { Plus, Trash, Scan, Package } from "lucide-react";
 import { MAX_QUANTITY } from "@/lib/constants";
 import { hapticImpact } from "@/lib/native/haptics";
+import { SearchScannerDialog } from "@/components/search-scanner-dialog";
+import { Badge } from "@/components/ui/badge";
 
 const formSchema = z.object({
   addedBy: z.string().min(1, 'O campo "Adicionado por" é obrigatório.').toUpperCase(),
@@ -42,6 +44,10 @@ export default function StockEntryClient({ stockItems, onUpdateHistory, uniqueAd
   const [unit, setUnit] = useState('UN');
   const unitOptions = ['UN','PC','CX','KG','M','L','OUTRA'];
   const [customUnit, setCustomUnit] = useState('');
+  const [isScannerOpen, setScannerOpen] = useState(false);
+  
+  const quantityInputRef = useRef<HTMLInputElement>(null);
+  const filterInputRef = useRef<HTMLInputElement>(null);
 
   const filteredItems = useMemo(() => {
     const q = itemQuery.trim().toLowerCase();
@@ -69,7 +75,7 @@ export default function StockEntryClient({ stockItems, onUpdateHistory, uniqueAd
   if (numQuantity > MAX_QUANTITY) numQuantity = MAX_QUANTITY;
     if (item && numQuantity > 0) {
       setEntryItems(prev => {
-        const existingIndex = prev.findIndex(e => e.item.id === item.id);
+        const existingIndex = prev.findIndex(e => e.item.id === item.id && e.unit === (unit === 'OUTRA' ? (customUnit || 'UN') : unit));
         if (existingIndex > -1) {
           const updated = [...prev];
           updated[existingIndex].quantity += numQuantity;
@@ -78,13 +84,34 @@ export default function StockEntryClient({ stockItems, onUpdateHistory, uniqueAd
   const finalUnit = unit === 'OUTRA' ? (customUnit || 'UN') : unit;
   return [...prev, { item, quantity: numQuantity, unit: finalUnit }];
       });
-      toast({ title: 'Item adicionado à entrada', description: `${numQuantity}x "${item.name}" pronto para ser adicionado.` });
+      toast({ title: '✅ Item adicionado', description: `${numQuantity} ${unit === 'OUTRA' ? (customUnit || 'UN') : unit} de "${item.name}"` });
   hapticImpact('light').catch(()=>{});
-      setCurrentItemId('');
+      // Manter o item selecionado, limpar apenas quantidade para entrada rápida
       setQuantity('');
-      setUnit('UN');
+      // Auto-focus no campo de quantidade para próxima entrada
+      setTimeout(() => quantityInputRef.current?.focus(), 100);
     }
-  }, [currentItemId, quantity, unit, stockItems, toast]);
+  }, [currentItemId, quantity, unit, customUnit, stockItems, toast]);
+
+  const handleScanSuccess = useCallback((item: StockItem) => {
+    setCurrentItemId(item.id);
+    setItemQuery('');
+    setScannerOpen(false);
+    toast({ title: '📦 Item escaneado', description: item.name });
+    setTimeout(() => quantityInputRef.current?.focus(), 100);
+  }, [toast]);
+
+  const handleScanNotFound = useCallback(() => {
+    toast({ variant: 'destructive', title: 'Item não encontrado', description: 'Código de barras não cadastrado.' });
+    setScannerOpen(false);
+  }, [toast]);
+
+  const handleKeyPress = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && currentItemId && quantity) {
+      e.preventDefault();
+      handleAddItemToEntry();
+    }
+  }, [currentItemId, quantity, handleAddItemToEntry]);
   
   const handleRemoveEntryItem = (itemId: string) => {
     setEntryItems(prev => prev.filter(entry => entry.item.id !== itemId));
@@ -108,10 +135,21 @@ export default function StockEntryClient({ stockItems, onUpdateHistory, uniqueAd
     
     onUpdateHistory(newRecords);
 
-    toast({ title: "Sucesso!", description: `Entrada de ${newRecords.length} item(ns) registrada.` });
+    toast({ title: "✅ Sucesso!", description: `Entrada de ${newRecords.length} item(ns) registrada.` });
     form.reset({ addedBy: "" });
     setEntryItems([]);
+    setCurrentItemId('');
+    setQuantity('');
+    setUnit('UN');
+    setItemQuery('');
+    // Auto-focus no filtro para próxima entrada
+    setTimeout(() => filterInputRef.current?.focus(), 100);
   }, [entryItems, onUpdateHistory, toast, form]);
+
+  const selectedItem = useMemo(() => 
+    stockItems.find(i => i.id === currentItemId), 
+    [currentItemId, stockItems]
+  );
 
   return (
     <Form {...form}>
@@ -122,27 +160,61 @@ export default function StockEntryClient({ stockItems, onUpdateHistory, uniqueAd
             <CardDescription>{currentDate}</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-6">
-            <div className="p-4 border rounded-lg space-y-4">
-              <h3 className="text-lg font-medium">Adicionar Item ao Estoque</h3>
+            <div className="p-4 border rounded-lg space-y-4 bg-muted/30">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-medium">Adicionar Item ao Estoque</h3>
+                <Button type="button" variant="outline" size="sm" onClick={() => setScannerOpen(true)}>
+                  <Scan className="h-4 w-4 mr-2" />
+                  Scanner
+                </Button>
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-[1fr_80px] md:grid-cols-[1fr_80px_100px_auto] gap-2 items-end">
                   <FormItem className="sm:col-span-2 md:col-span-1">
-                    <FormLabel>Filtrar</FormLabel>
-                    <Input placeholder="Nome, especificação ou código" value={itemQuery} onChange={(e)=>setItemQuery(e.target.value)} />
+                    <FormLabel>Filtrar Item</FormLabel>
+                    <Input 
+                      ref={filterInputRef}
+                      placeholder="Nome, especificação ou código" 
+                      value={itemQuery} 
+                      onChange={(e)=>setItemQuery(e.target.value)} 
+                    />
                   </FormItem>
                   <FormItem className="sm:col-span-2 md:col-span-1">
-                    <FormLabel>Item</FormLabel>
+                    <FormLabel>
+                      Item
+                      {selectedItem && (
+                        <Badge variant="outline" className="ml-2">
+                          <Package className="h-3 w-3 mr-1" />
+                          Estoque: {selectedItem.quantity}
+                        </Badge>
+                      )}
+                    </FormLabel>
                     <Select onValueChange={setCurrentItemId} value={currentItemId}>
                       <SelectTrigger><SelectValue placeholder="Selecione um item" /></SelectTrigger>
                       <SelectContent>
-                        {filteredItems.map((item) => (
-                          <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>
-                        ))}
+                        {filteredItems.length > 0 ? (
+                          filteredItems.map((item) => (
+                            <SelectItem key={item.id} value={item.id}>
+                              {item.name} <span className="text-muted-foreground text-xs">(Qtd: {item.quantity})</span>
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem value="no-items" disabled>Nenhum item encontrado</SelectItem>
+                        )}
                       </SelectContent>
                     </Select>
                   </FormItem>
                   <FormItem>
                     <FormLabel>Qtd.</FormLabel>
-                    <Input type="number" placeholder="0" value={quantity} onChange={(e) => setQuantity(e.target.value)} min="0" max={MAX_QUANTITY} />
+                    <Input 
+                      ref={quantityInputRef}
+                      type="number" 
+                      placeholder="0" 
+                      value={quantity} 
+                      onChange={(e) => setQuantity(e.target.value)} 
+                      onKeyPress={handleKeyPress}
+                      min="0" 
+                      max={MAX_QUANTITY} 
+                    />
                   </FormItem>
                    <FormItem className="hidden md:block">
                     <FormLabel>Unidade</FormLabel>
@@ -156,11 +228,23 @@ export default function StockEntryClient({ stockItems, onUpdateHistory, uniqueAd
                       <Input className="mt-2" placeholder="Digite a unidade" value={customUnit} onChange={(e)=>setCustomUnit(e.target.value.toUpperCase())} maxLength={8} />
                     )}
                   </FormItem>
-                  <Button type="button" size="icon" onClick={handleAddItemToEntry} className="bg-blue-500 hover:bg-blue-600 sm:col-start-2 md:col-start-4">
+                  <Button 
+                    type="button" 
+                    size="icon" 
+                    onClick={handleAddItemToEntry} 
+                    className="bg-green-600 hover:bg-green-700 sm:col-start-2 md:col-start-4"
+                    disabled={!currentItemId || !quantity}
+                    title="Adicionar (Enter)"
+                  >
                       <Plus className="h-4 w-4" />
                       <span className="sr-only">Adicionar</span>
                   </Button>
               </div>
+              {currentItemId && quantity && (
+                <p className="text-xs text-muted-foreground">
+                  💡 Dica: Pressione <kbd className="px-1.5 py-0.5 bg-muted border rounded">Enter</kbd> para adicionar rapidamente
+                </p>
+              )}
             </div>
 
             {entryItems.length > 0 && (
@@ -203,11 +287,22 @@ export default function StockEntryClient({ stockItems, onUpdateHistory, uniqueAd
             />
           </CardContent>
           <CardFooter className="px-6 pt-6 flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => { form.reset(); setEntryItems([]); }}>Limpar</Button>
-            <Button type="submit">Salvar Entrada</Button>
+            <Button type="button" variant="outline" onClick={() => { form.reset(); setEntryItems([]); setCurrentItemId(''); setQuantity(''); setUnit('UN'); setItemQuery(''); }}>Limpar</Button>
+            <Button type="submit" disabled={entryItems.length === 0}>
+              Salvar Entrada
+              {entryItems.length > 0 && ` (${entryItems.length})`}
+            </Button>
           </CardFooter>
         </Card>
       </form>
+      
+      <SearchScannerDialog
+        isOpen={isScannerOpen}
+        onOpenChange={setScannerOpen}
+        stockItems={stockItems}
+        onSuccess={handleScanSuccess}
+        onNotFound={handleScanNotFound}
+      />
     </Form>
   );
 }

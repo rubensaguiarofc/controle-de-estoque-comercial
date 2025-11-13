@@ -3,6 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import { AdMob, BannerAdPosition, BannerAdSize } from "@capacitor-community/admob";
 
+// Flag para desabilitar anúncios completamente
+const ADS_DISABLED = process.env.NEXT_PUBLIC_DISABLE_ADS === 'true';
+
 // This component tries to show a simple banner when running on a native build.
 // On web it will do nothing.
 export function AdmobBanner() {
@@ -17,6 +20,11 @@ export function AdmobBanner() {
   const reshowRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    if (ADS_DISABLED) {
+      console.debug('[AdmobBanner] Ads disabled, skipping');
+      return;
+    }
+    
     let cancelled = false;
 
     async function showBannerNow() {

@@ -3,6 +3,9 @@
 import { Capacitor } from "@capacitor/core";
 import { AdMob, RewardAdPluginEvents, AdMobRewardItem } from "@capacitor-community/admob";
 
+// Flag para desabilitar anúncios completamente (útil para testes)
+const ADS_DISABLED = process.env.NEXT_PUBLIC_DISABLE_ADS === 'true';
+
 const PRINTS_KEY = "admob:prints_count";
 const LAST_ANY_TS = "admob:last_any_ts";
 const LAST_INTERSTITIAL_TS = "admob:last_interstitial_ts";
@@ -13,6 +16,7 @@ const COOLDOWN_MS = Number(process.env.NEXT_PUBLIC_ADS_COOLDOWN_SECONDS || '60')
 const GLOBAL_MIN_MS = Number(process.env.NEXT_PUBLIC_ADS_GLOBAL_MINUTES || '0') * 60_000; // global rate limit
 
 export function incrementPrintCounter(by: number = 1, threshold?: number): boolean {
+  if (ADS_DISABLED) return false;
   try {
     if (typeof window === "undefined") return false;
     const prev = Number(window.localStorage.getItem(PRINTS_KEY) || "0") || 0;
@@ -27,6 +31,7 @@ export function incrementPrintCounter(by: number = 1, threshold?: number): boole
 }
 
 export async function showShortInterstitial(force: boolean = false) {
+  if (ADS_DISABLED) return;
   if (!Capacitor.isNativePlatform()) return;
   try {
     if (!force && !canShow('interstitial')) return;
@@ -42,6 +47,10 @@ export async function showShortInterstitial(force: boolean = false) {
 }
 
 export async function showLongRewarded() {
+  if (ADS_DISABLED) {
+    console.debug('[showLongRewarded] Ads disabled, skipping');
+    return;
+  }
   if (!Capacitor.isNativePlatform()) {
     console.debug('[showLongRewarded] not native platform, skipping');
     return;

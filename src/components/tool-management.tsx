@@ -4,6 +4,7 @@ import type { Tool, ToolRecord } from '@/lib/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ToolLibrary } from './tool-library';
 import { ToolHistory } from './tool-history';
+import type { StockRepo } from '@/lib/data/firestore-repo';
 
 interface ToolManagementProps {
   tools: Tool[];
@@ -12,6 +13,7 @@ interface ToolManagementProps {
   setToolHistory: (history: ToolRecord[]) => void;
   onSetEditingTool: (tool: Tool | null) => void;
   onSetIsAddToolDialogOpen: (isOpen: boolean) => void;
+  repo?: StockRepo | null;
 }
 
 export default function ToolManagement({
@@ -20,7 +22,8 @@ export default function ToolManagement({
   toolHistory,
   setToolHistory,
   onSetEditingTool,
-  onSetIsAddToolDialogOpen
+  onSetIsAddToolDialogOpen,
+  repo
 }: ToolManagementProps) {
 
   const handleCheckout = (tool: Tool, checkedOutBy: string, company: string, usageLocation: string, checkoutSignature: string) => {
@@ -34,22 +37,30 @@ export default function ToolManagement({
       checkoutSignature,
     };
     setToolHistory([newRecord, ...toolHistory]);
+    // Sync to Firestore if enabled
+    if (repo) {
+      repo.addToolCheckout(newRecord).catch(console.error);
+    }
   };
 
   const handleReturn = (recordId: string, isDamaged: boolean, damageDescription?: string, damagePhoto?: string, signature?: string) => {
+    const returnData = {
+      returnDate: new Date().toISOString(),
+      isDamaged,
+      damageDescription: damageDescription?.toUpperCase(),
+      damagePhoto,
+      returnSignature: signature,
+    };
     const newHistory = toolHistory.map((rec: ToolRecord) =>
       rec.id === recordId
-        ? {
-            ...rec,
-            returnDate: new Date().toISOString(),
-            isDamaged,
-            damageDescription: damageDescription?.toUpperCase(),
-            damagePhoto,
-            returnSignature: signature,
-          }
+        ? { ...rec, ...returnData }
         : rec
     );
     setToolHistory(newHistory);
+    // Sync to Firestore if enabled
+    if (repo) {
+      repo.updateToolReturn(recordId, returnData).catch(console.error);
+    }
   };
   
   return (
@@ -73,6 +84,7 @@ export default function ToolManagement({
           toolHistory={toolHistory}
           onSetEditingTool={onSetEditingTool}
           onSetIsAddToolDialogOpen={onSetIsAddToolDialogOpen}
+          repo={repo}
         />
       </TabsContent>
     </Tabs>
