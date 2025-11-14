@@ -49,3 +49,22 @@
 -keep class com.google.android.gms.ads.** { *; }
 -keep interface com.google.android.gms.ads.** { *; }
 -keep class com.google.ads.** { *; }
+
+# === Firebase ===
+-keep class com.google.firebase.** { *; }
+-keep class com.google.android.gms.** { *; }
+-dontwarn com.google.firebase.**
+-dontwarn com.google.android.gms.**
+
+# === Facebook SDK (não usado, mas referenciado pelo Firebase Auth) ===
+-dontwarn com.facebook.**
+-dontwarn com.facebook.login.**
+
+# === Capacitor Plugins ===
+-keep class com.rubensaguiarofc.controleestoque.AppSettings { *; }
+-keep class com.rubensaguiarofc.controleestoque.DocumentPicker { *; }
+
+# === Preserve annotations for reflection ===
+-keepattributes *Annotation*
+-keepattributes Signature
+-keepattributes Exceptions

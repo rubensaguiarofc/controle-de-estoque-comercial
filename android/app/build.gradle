@@ -26,8 +26,8 @@ android {
     applicationId "com.rubensaguiarofc.controleestoque"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-            versionCode 20
-            versionName "20"
+            versionCode 21
+            versionName "21"
         // AdMob App ID placeholder (replace in keystore.properties or local gradle.properties if needed)
         manifestPlaceholders = [
             ADMOB_APP_ID: (project.hasProperty('ADMOB_APP_ID') ? project.property('ADMOB_APP_ID') : "ca-app-pub-5771833523730319~8308280172")
@@ -49,11 +49,9 @@ android {
     buildTypes {
         release {
             signingConfig signingConfigs.release
-            // Desativa minify/shrink temporariamente para evitar falhas do R8 por classes ausentes
-            // (ex.: provedores de login opcionais não adicionados). Reativar depois com deps corretas.
-            minifyEnabled false
-            shrinkResources false
-            // Mantém arquivo de regras para futuro reenable
+            // Ativa R8 para reduzir tamanho e gerar mapping.txt para desofuscação
+            minifyEnabled true
+            shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
