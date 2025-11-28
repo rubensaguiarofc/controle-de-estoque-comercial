@@ -25,6 +25,7 @@ export function CheckoutToolDialog({ isOpen, onOpenChange, tool, onConfirm }: Ch
   const [usageLocation, setUsageLocation] = useState('');
   
   const signaturePadRef = useRef<SignatureCanvas>(null);
+  const [signatureDataUrl, setSignatureDataUrl] = useState('');
 
   useEffect(() => {
     if (isOpen) {
@@ -33,10 +34,27 @@ export function CheckoutToolDialog({ isOpen, onOpenChange, tool, onConfirm }: Ch
       setCompany('');
       setUsageLocation('');
       signaturePadRef.current?.clear();
+      setSignatureDataUrl('');
     }
   }, [isOpen]);
 
-  const handleClearSignature = () => signaturePadRef.current?.clear();
+  const handleClearSignature = () => {
+    signaturePadRef.current?.clear();
+    setSignatureDataUrl('');
+  };
+
+  useEffect(() => {
+    // restore saved signature to the pad if available
+    if (signatureDataUrl && signaturePadRef.current) {
+      try {
+        if (signaturePadRef.current.isEmpty()) {
+          signaturePadRef.current.fromDataURL(signatureDataUrl);
+        }
+      } catch (err) {
+        // ignore restore errors
+      }
+    }
+  }, [signatureDataUrl]);
   
   const handleSave = () => {
     if (!checkedOutBy || !usageLocation) {
@@ -48,7 +66,7 @@ export function CheckoutToolDialog({ isOpen, onOpenChange, tool, onConfirm }: Ch
       return;
     }
     
-    if (signaturePadRef.current?.isEmpty()) {
+    if (!signatureDataUrl && signaturePadRef.current?.isEmpty()) {
       toast({
         variant: 'destructive',
         title: 'Assinatura Obrigatória',
@@ -57,7 +75,8 @@ export function CheckoutToolDialog({ isOpen, onOpenChange, tool, onConfirm }: Ch
       return;
     }
 
-    const signature = signaturePadRef.current?.toDataURL('image/png') ?? '';
+    // prefer persisted signature data if present
+    const signature = signatureDataUrl || signaturePadRef.current?.toDataURL('image/png') ?? '';
     
     onConfirm({
       checkedOutBy,
@@ -119,6 +138,12 @@ export function CheckoutToolDialog({ isOpen, onOpenChange, tool, onConfirm }: Ch
               <SignatureCanvas
                 ref={signaturePadRef}
                 penColor="black"
+                onEnd={() => {
+                  try {
+                    const d = signaturePadRef.current?.toDataURL('image/png') ?? '';
+                    if (d) setSignatureDataUrl(d);
+                  } catch {}
+                }}
                 canvasProps={{ id: 'signature-checkout', className: 'w-full h-[120px]' }}
               />
             </div>
