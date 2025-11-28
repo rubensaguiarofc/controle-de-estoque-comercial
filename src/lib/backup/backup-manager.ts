@@ -276,4 +276,148 @@ export class BackupManager {
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   }
+
+  /**
+   * Tenta abrir um file picker nativo (quando disponível no runtime) e retornar os dados do backup.
+   * Esta função é defensiva: ela tenta suportar alguns plugins conhecidos e retorna os dados
+   * do backup (parsed.data) ou lança um erro se não for possível obter o conteúdo.
+   */
+  static async pickExternalBackup(): Promise<BackupData['data']> {
+    if (!Capacitor.isNativePlatform()) {
+      throw new Error('Picker nativo só disponível em dispositivos móveis');
+    }
+
+    // Tentativa 1: plugin exposto via Capacitor.Plugins.FilePicker
+    const anyCap: any = (Capacitor as any);
+    const plugins = anyCap.Plugins || (anyCap as any);
+
+    const filePicker = plugins?.FilePicker || plugins?.filePicker || (globalThis as any).FilePicker || (globalThis as any).CapacitorFilePicker;
+
+    // Suporte a plugins Cordova de file chooser (cordova-plugin-filechooser)
+    const cordovaFileChooser = (globalThis as any).fileChooser || (globalThis as any).plugins?.fileChooser || (globalThis as any).cordovaFileChooser || (globalThis as any).plugins?.FileChooser;
+
+    if (!filePicker && !cordovaFileChooser) {
+      throw new Error('Plugin de seleção de arquivos não encontrado. Instale um plugin de file-picker nativo (ou cordova-plugin-filechooser) e rode `npx cap sync android`.');
+    }
+
+    // APIs dos plugins variam; tentamos algumas formas comuns de chamada
+    let pickResult: any = null;
+
+    if (filePicker) {
+      if (typeof filePicker.pickFiles === 'function') {
+        pickResult = await filePicker.pickFiles();
+      } else if (typeof filePicker.pick === 'function') {
+        pickResult = await filePicker.pick();
+      } else if (typeof filePicker.open === 'function') {
+        pickResult = await filePicker.open();
+      } else {
+        throw new Error('Plugin de file-picker encontrado, mas método de abertura não reconhecido.');
+      }
+    } else if (cordovaFileChooser) {
+      // cordova-plugin-filechooser usa callback: fileChooser.open(success, error)
+      pickResult = await new Promise((resolve, reject) => {
+        try {
+          const chooser = cordovaFileChooser;
+          if (typeof chooser.open === 'function') {
+            chooser.open((uri: string) => resolve({ uri }), (err: any) => reject(err));
+          } else if (typeof chooser.choose === 'function') {
+            chooser.choose((uri: string) => resolve({ uri }), (err: any) => reject(err));
+          } else {
+            reject(new Error('API do file chooser Cordova não reconhecida'));
+          }
+        } catch (err) {
+          reject(err);
+        }
+      });
+    }
+
+    // Normalizar resultado para um array de arquivos
+    const files = pickResult?.files || pickResult?.file || (Array.isArray(pickResult) ? pickResult : null) || (pickResult?.results || null);
+
+    const fileObj = Array.isArray(files) && files.length > 0 ? files[0] : (files || pickResult);
+
+    // Possíveis formatos: { data: '<base64>' } ou { uri: 'content://...' } ou { webPath } etc.
+    if (!fileObj) {
+      throw new Error('Nenhum arquivo selecionado');
+    }
+
+    // Se o plugin já nos deu o conteúdo em base64 ou texto
+    if (fileObj.data) {
+      // Pode ser base64 ou texto JSON
+      try {
+        // Se for base64, tentar decodificar
+        const maybeBase64 = String(fileObj.data);
+        // heurística: se contém '{' ou '[' consideramos JSON direto
+        if (maybeBase64.trim().startsWith('{') || maybeBase64.trim().startsWith('[')) {
+          const parsed = JSON.parse(maybeBase64);
+          return parsed.data;
+        }
+        // Caso contrário, tentar decodificar base64
+        const decoded = atob(maybeBase64);
+        const parsed = JSON.parse(decoded);
+        return parsed.data;
+      } catch (err) {
+        throw new Error('Falha ao decodificar conteúdo do arquivo selecionado');
+      }
+    }
+
+    // Se recebemos uma URI (content://) - tentar usar Filesystem.readFile pode não funcionar com content://
+    if (fileObj.uri) {
+      try {
+        // Em muitos casos Cordova retornará uma URI content://; tentamos resolver via cordova-plugin-filepath
+        const filePathPlugin = (globalThis as any).FilePath || (globalThis as any).cordovaFilePath || (globalThis as any).window?.FilePath || (globalThis as any).plugins?.FilePath;
+        if (filePathPlugin && typeof filePathPlugin.resolveNativePath === 'function') {
+          const nativePath = await new Promise<string>((resolve, reject) => {
+            filePathPlugin.resolveNativePath(fileObj.uri, (p: string) => resolve(p), (err: any) => reject(err));
+          });
+          try {
+            // Tentar ler via Filesystem com path nativo
+            const content = await Filesystem.readFile({ path: nativePath, directory: Directory.External } as any);
+            const parsed = JSON.parse(content.data as string);
+            return parsed.data;
+          } catch (err) {
+            // fallback: tentar resolver via File API
+          }
+        }
+
+        // fallback: tentar usar resolveLocalFileSystemURL (cordova-plugin-file)
+        if ((globalThis as any).resolveLocalFileSystemURL) {
+          const txt = await new Promise<string>((resolve, reject) => {
+            try {
+              (globalThis as any).resolveLocalFileSystemURL(fileObj.uri, (fileEntry: any) => {
+                fileEntry.file((file: any) => {
+                  const reader = new FileReader();
+                  reader.onloadend = () => resolve(reader.result as string);
+                  reader.onerror = (e) => reject(e);
+                  reader.readAsText(file);
+                }, (err: any) => reject(err));
+              }, (err: any) => reject(err));
+            } catch (err) { reject(err); }
+          });
+          const parsed = JSON.parse(txt as string);
+          return parsed.data;
+        }
+
+        throw new Error('Não foi possível ler o arquivo selecionado por URI. Dependendo do plugin, pode ser necessário instalar um plugin complementar (cordova-plugin-filepath e cordova-plugin-file).');
+      } catch (err) {
+        throw new Error('Não foi possível ler o arquivo selecionado por URI. Dependendo do plugin, pode ser necessário instalar um plugin complementar que retorne o conteúdo em base64.');
+      }
+    }
+
+    // Se vier com webPath (alguns plugins retornam uma URL acessível no WebView)
+    if (fileObj.webPath || fileObj.path) {
+      try {
+        const url = fileObj.webPath || fileObj.path;
+        // fetch a URL local (apenas disponível em alguns webPaths)
+        const res = await fetch(url);
+        const txt = await res.text();
+        const parsed = JSON.parse(txt);
+        return parsed.data;
+      } catch (err) {
+        throw new Error('Falha ao buscar conteúdo via webPath');
+      }
+    }
+
+    throw new Error('Formato de arquivo selecionado não suportado pelo picker atual');
+  }
 }

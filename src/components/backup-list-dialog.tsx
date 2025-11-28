@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import { useRef } from 'react';
 import { BackupManager, type BackupMetadata } from '@/lib/backup/backup-manager';
+import { Capacitor } from '@capacitor/core';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -126,6 +128,59 @@ export function BackupListDialog({ open, onOpenChange, onRestore }: BackupListDi
     }
   };
 
+  // Handler para importar arquivo de qualquer pasta (input file)
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleImportClick = () => {
+    // Em plataformas nativas, tentamos usar o picker nativo
+    if (Capacitor.isNativePlatform()) {
+      (async () => {
+        try {
+          toast({ title: 'Abrindo seletor de arquivos...' });
+          const data = await BackupManager.pickExternalBackup();
+          toast({ title: 'Importando backup...', description: 'Aguarde enquanto aplicamos os dados.' });
+          await onRestore(data);
+          toast({ title: 'Backup importado', description: 'Backup importado com sucesso.' });
+          onOpenChange(false);
+        } catch (err: any) {
+          console.error('[BACKUP] Erro no picker nativo:', err);
+          toast({ variant: 'destructive', title: 'Erro', description: err.message || 'Não foi possível selecionar o arquivo.' });
+        }
+      })();
+      return;
+    }
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+      fileInputRef.current.click();
+    }
+  };
+
+  const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const file = files[0];
+
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+
+      // Basic validation of schema
+      if (!parsed || !parsed.schema || !String(parsed.schema).includes('almoxarifado.backup')) {
+        throw new Error('Arquivo não parece ser um backup válido do aplicativo.');
+      }
+
+      toast({ title: 'Importando backup...', description: 'Aguarde enquanto aplicamos os dados.' });
+      await onRestore(parsed.data);
+      toast({ title: 'Backup importado', description: `Backup '${file.name}' importado com sucesso.` });
+      onOpenChange(false);
+      setConfirmOpen(false);
+    } catch (err: any) {
+      console.error('[BACKUP] Erro ao importar arquivo:', err);
+      toast({ variant: 'destructive', title: 'Falha ao importar', description: err.message || 'Arquivo inválido.' });
+    }
+  };
+
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -213,9 +268,14 @@ export function BackupListDialog({ open, onOpenChange, onRestore }: BackupListDi
           </ScrollArea>
 
           <DialogFooter className="p-6 pt-4 border-t">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
-              Fechar
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={handleImportClick}>
+                Importar arquivo...
+              </Button>
+              <Button variant="outline" onClick={() => onOpenChange(false)}>
+                Fechar
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -254,6 +314,14 @@ export function BackupListDialog({ open, onOpenChange, onRestore }: BackupListDi
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* Hidden file input usado para importar backups de qualquer pasta */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".json,.backup.json,application/json,text/json,text/plain"
+        onChange={handleFileSelected}
+        style={{ display: 'none' }}
+      />
     </>
   );
 }
