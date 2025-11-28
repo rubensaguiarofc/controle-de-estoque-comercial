@@ -370,21 +370,23 @@ export default function StockReleaseApp() {
 
     const storedWithdrawals = safeGetArray<WithdrawalRecord>('local:history');
     if (storedWithdrawals.length) {
-      setHistory(storedWithdrawals);
+      // keep only the most recent 200 entries to avoid huge startup payloads
+      setHistory(storedWithdrawals.slice(0, 200));
     }
     const storedEntries = safeGetArray<EntryRecord>('local:entryHistory');
     if (storedEntries.length) {
-      setEntryHistory(storedEntries);
+      setEntryHistory(storedEntries.slice(0, 200));
     }
   }, [repo]);
 
   useEffect(() => {
     if (repo) return;
-    safeSetArray('local:history', history);
+    // persist only the most recent 200 records locally
+    try { safeSetArray('local:history', history.slice(0, 200)); } catch {}
   }, [repo, history]);
   useEffect(() => {
     if (repo) return;
-    safeSetArray('local:entryHistory', entryHistory);
+    try { safeSetArray('local:entryHistory', entryHistory.slice(0, 200)); } catch {}
   }, [repo, entryHistory]);
 
   // Source of truth for tools and toolHistory: subscribe when Firestore is available;
