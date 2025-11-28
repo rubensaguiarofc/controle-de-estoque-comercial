@@ -57,12 +57,11 @@ export async function showLongRewarded() {
   }
   
   try {
-    // Verificar se o plugin está disponível
-    console.log('[showLongRewarded] checking plugin availability...');
-    console.log('[showLongRewarded] Capacitor.isPluginAvailable("AdMob"):', Capacitor.isPluginAvailable('AdMob'));
-    console.log('[showLongRewarded] AdMob object:', AdMob);
-    console.log('[showLongRewarded] AdMob.prepareRewardVideoAd:', typeof AdMob.prepareRewardVideoAd);
-    console.log('[showLongRewarded] AdMob.showRewardVideoAd:', typeof AdMob.showRewardVideoAd);
+    // Verificações silenciosas em produção
+    if (!Capacitor.isPluginAvailable('AdMob') || !AdMob) {
+      console.debug('[showLongRewarded] AdMob plugin not available');
+      return;
+    }
     
     // Verificar cooldown mas NÃO bloquear (apenas logar)
     const allowed = canShow('rewarded');
@@ -75,79 +74,72 @@ export async function showLongRewarded() {
     
     const adId = process.env.NEXT_PUBLIC_ADMOB_REWARDED_ID || "ca-app-pub-3940256099942544/5224354917";
     const isTesting = !process.env.NEXT_PUBLIC_ADMOB_REWARDED_ID;
-    
-    console.log('[showLongRewarded] starting...', { adId, isTesting });
 
     try {
       // Explicit initialize to ensure SDK ready (Capacitor 6 sometimes needs this)
       await AdMob.initialize({ initializeForTesting: isTesting });
       console.debug('[showLongRewarded] AdMob.initialize resolved');
     } catch (initErr) {
-      console.warn('[showLongRewarded] AdMob.initialize failed/ignored', initErr);
+      console.debug('[showLongRewarded] AdMob.initialize failed', initErr);
     }
 
     const cleanup: Array<() => void> = [];
     try {
       const rewardListener = await AdMob.addListener(RewardAdPluginEvents.Rewarded, (reward: AdMobRewardItem) => {
-        console.log('[showLongRewarded] reward received', reward);
+        console.debug('[showLongRewarded] reward received');
       });
       cleanup.push(() => rewardListener.remove());
     } catch (listenerErr) {
-      console.warn('[showLongRewarded] failed to attach Rewarded listener', listenerErr);
+      console.debug('[showLongRewarded] listener attach failed', listenerErr);
     }
 
     try {
       const loadListener = await AdMob.addListener(RewardAdPluginEvents.Loaded, info => {
-        console.log('[showLongRewarded] reward ad loaded', info);
+        console.debug('[showLongRewarded] ad loaded');
       });
       cleanup.push(() => loadListener.remove());
     } catch {}
 
     try {
       const failListener = await AdMob.addListener(RewardAdPluginEvents.FailedToLoad, info => {
-        console.error('[showLongRewarded] reward ad failed to load event', info);
+        console.error('[showLongRewarded] ad load failed', info.code);
       });
       cleanup.push(() => failListener.remove());
     } catch {}
 
     try {
       const showListener = await AdMob.addListener(RewardAdPluginEvents.Showed, () => {
-        console.log('[showLongRewarded] reward ad is now visible');
+        console.debug('[showLongRewarded] ad showing');
       });
       cleanup.push(() => showListener.remove());
     } catch {}
 
     try {
       const dismissListener = await AdMob.addListener(RewardAdPluginEvents.Dismissed, () => {
-        console.log('[showLongRewarded] reward ad dismissed');
+        console.debug('[showLongRewarded] ad dismissed');
       });
       cleanup.push(() => dismissListener.remove());
     } catch {}
     
-    // Prepare o anúncio (nome EXATO do método no plugin)
-    console.log('[showLongRewarded] calling prepareRewardVideoAd...');
+    // Preparar anúncio
     try {
-      // Tentar chamar o método diretamente
       if (typeof (AdMob as any).prepareRewardVideoAd !== 'function') {
         throw new Error('prepareRewardVideoAd is not a function. Available methods: ' + Object.keys(AdMob).filter(k => typeof (AdMob as any)[k] === 'function').join(', '));
       }
-      const result = await (AdMob as any).prepareRewardVideoAd({ adId, isTesting });
-      console.log('[showLongRewarded] prepareRewardVideoAd result:', result);
+      await (AdMob as any).prepareRewardVideoAd({ adId, isTesting });
+      console.debug('[showLongRewarded] ad prepared');
     } catch (prepErr: any) {
-      console.error('[showLongRewarded] prepareRewardVideoAd failed:', prepErr);
-      console.error('[showLongRewarded] prepErr.code:', prepErr?.code);
-      console.error('[showLongRewarded] prepErr.message:', prepErr?.message);
+      console.error('[showLongRewarded] prepare failed', prepErr?.code);
       throw prepErr;
     }
-    console.log('[showLongRewarded] ad prepared successfully, showing...');
     
-    // Mostrar o anúncio (nome EXATO do método no plugin)
+    // Mostrar anúncio
     try {
       if (typeof (AdMob as any).showRewardVideoAd !== 'function') {
         throw new Error('showRewardVideoAd is not a function. Available methods: ' + Object.keys(AdMob).filter(k => typeof (AdMob as any)[k] === 'function').join(', '));
       }
-      const result = await (AdMob as any).showRewardVideoAd();
-      console.log('[showLongRewarded] showRewardVideoAd result:', result);
+      await (AdMob as any).showRewardVideoAd();
+      console.debug('[showLongRewarded] ad shown');
     } catch (showErr: any) {
       console.error('[showLongRewarded] showRewardVideoAd failed:', showErr);
       console.error('[showLongRewarded] showErr.code:', showErr?.code);

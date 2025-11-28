@@ -58,12 +58,16 @@ export class StockRepo {
   async addEntry(rec: EntryRecord) {
     await addDoc(this.entriesCol(), { ...rec, createdAt: serverTimestamp() });
     const itemRef = doc(this.itemsCol(), rec.item.id);
+    // Ensure item exists in Firestore before updating
+    await setDoc(itemRef, rec.item, { merge: true });
     await updateDoc(itemRef, { quantity: increment(rec.quantity) });
   }
 
   async addWithdrawal(rec: WithdrawalRecord) {
     await addDoc(this.withdrawalsCol(), { ...rec, createdAt: serverTimestamp() });
     const itemRef = doc(this.itemsCol(), rec.item.id);
+    // Ensure item exists in Firestore before decrementing
+    await setDoc(itemRef, rec.item, { merge: true });
     await updateDoc(itemRef, { quantity: increment(-rec.quantity) });
   }
 
