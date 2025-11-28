@@ -23,6 +23,7 @@ export function BackupListDialog({ open, onOpenChange, onRestore }: BackupListDi
   const [loading, setLoading] = useState(false);
   const [selectedBackup, setSelectedBackup] = useState<BackupMetadata | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [permissionDialogOpen, setPermissionDialogOpen] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -144,6 +145,12 @@ export function BackupListDialog({ open, onOpenChange, onRestore }: BackupListDi
           onOpenChange(false);
         } catch (err: any) {
           console.error('[BACKUP] Erro no picker nativo:', err);
+          // Se o erro indicar falta de permissão, abrir diálogo de instruções
+          const msg = String(err?.message || '').toLowerCase();
+          if (msg.includes('permission') || msg.includes('manage') || msg.includes('perm') || msg.includes('acesso')) {
+            setPermissionDialogOpen(true);
+            return;
+          }
           toast({ variant: 'destructive', title: 'Erro', description: err.message || 'Não foi possível selecionar o arquivo.' });
         }
       })();
@@ -311,6 +318,30 @@ export function BackupListDialog({ open, onOpenChange, onRestore }: BackupListDi
             <Button onClick={handleRestore}>
               Confirmar Restauração
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* Diálogo de instruções quando falta permissão de arquivos */}
+      <Dialog open={permissionDialogOpen} onOpenChange={setPermissionDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Permissão necessária</DialogTitle>
+            <DialogDescription>
+              Para importar backups de pastas externas é necessário conceder acesso a arquivos.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <div className="text-sm mb-2">Siga os passos:</div>
+            <ol className="text-xs list-decimal ml-5 space-y-1">
+              <li>Abra as Configurações do aplicativo.</li>
+              <li>Permissões → Arquivos e mídia (Allow manage all files).</li>
+              <li>Ative o acesso para este aplicativo.</li>
+            </ol>
+            <div className="mt-4 text-xs text-muted-foreground">Após habilitar, volte e tente importar novamente.</div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPermissionDialogOpen(false)}>Fechar</Button>
+            <Button onClick={() => { BackupManager.openAppSettings(); }}>Abrir configurações</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

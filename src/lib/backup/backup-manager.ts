@@ -420,4 +420,37 @@ export class BackupManager {
 
     throw new Error('Formato de arquivo selecionado não suportado pelo picker atual');
   }
+
+  /**
+   * Tenta abrir a tela de configurações do app para que o usuário possa conceder permissões.
+   * A implementação é heurística: tenta usar Capacitor App plugin se disponível e, em seguida,
+   * uma intent URL para Android que abre os detalhes do app.
+   */
+  static async openAppSettings(): Promise<void> {
+    try {
+      const anyCap: any = (Capacitor as any);
+      const plugins = anyCap.Plugins || anyCap;
+
+      // Tentar App.openUrl se disponível
+      const AppPlugin = plugins?.App || plugins?.app;
+      if (AppPlugin && typeof AppPlugin.openUrl === 'function') {
+        try {
+          await AppPlugin.openUrl({ url: 'app-settings:' });
+          return;
+        } catch (e) {
+          // fallback
+        }
+      }
+
+      // Fallback: abrir intent para Android via window.open
+      if (typeof window !== 'undefined') {
+        const pkg = 'com.rubensaguiarofc.controleestoque';
+        // Intent URL que deve abrir a página do app nas configurações (Android)
+        const intentUrl = `intent:#Intent;action=android.settings.APPLICATION_DETAILS_SETTINGS;package=${pkg};end`;
+        try { window.open(intentUrl); } catch (e) { /* ignore */ }
+      }
+    } catch (err) {
+      console.warn('[BACKUP] openAppSettings failed', err);
+    }
+  }
 }
