@@ -803,8 +803,9 @@ export default function StockReleaseApp() {
       });
       // persist pending withdrawals for later sync
       try {
-        const { pushPendingOp } = await import('@/lib/offline-queue');
-        newRecords.forEach(rec => pushPendingOp({ id: rec.id, type: 'withdrawal', payload: rec }));
+        import('@/lib/offline-queue').then(m => {
+          newRecords.forEach(rec => m.pushPendingOp({ id: rec.id, type: 'withdrawal', payload: rec }));
+        }).catch(() => {});
       } catch {}
     }
 
@@ -827,8 +828,9 @@ export default function StockReleaseApp() {
         return updatedStock;
       });
       try {
-        const { pushPendingOp } = await import('@/lib/offline-queue');
-        newRecords.forEach(rec => pushPendingOp({ id: rec.id, type: 'entry', payload: rec }));
+        import('@/lib/offline-queue').then(m => {
+          newRecords.forEach(rec => m.pushPendingOp({ id: rec.id, type: 'entry', payload: rec }));
+        }).catch(() => {});
       } catch {}
     }
   }, [repo]);
