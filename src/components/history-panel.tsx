@@ -54,8 +54,8 @@ declare global {
 export function HistoryPanel({ itemHistory, toolHistory, entryHistory, onDeleteItemRecord, onDeleteToolRecord, onDeleteEntryRecord, onReturnItem, onClearAll }: HistoryPanelProps) {
   const { toast } = useToast();
   const [currentPage, setCurrentPage] = useState(1);
-  const [startDate, setStartDate] = useState<Date | undefined>();
-  const [endDate, setEndDate] = useState<Date | undefined>();
+  const [startDate, setStartDate] = useState<Date | null>(null);
+  const [endDate, setEndDate] = useState<Date | null>(null);
   const [isRangeOpen, setIsRangeOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState("withdrawals");
@@ -95,8 +95,8 @@ export function HistoryPanel({ itemHistory, toolHistory, entryHistory, onDeleteI
     if (startDate || endDate) {
         filtered = filtered.filter(record => {
             const d = new Date((record as any).date || (record as ToolRecord).checkoutDate).getTime();
-            const s = startDate ? new Date(startDate).setHours(0,0,0,0) : -Infinity;
-            const e = endDate ? new Date(endDate).setHours(23,59,59,999) : Infinity;
+      const s = startDate ? new Date(startDate).setHours(0, 0, 0, 0) : -Infinity;
+      const e = endDate ? new Date(endDate).setHours(23, 59, 59, 999) : Infinity;
             return d >= s && d <= e;
         });
     }
@@ -168,8 +168,22 @@ export function HistoryPanel({ itemHistory, toolHistory, entryHistory, onDeleteI
   // Resumo de uso (apenas para Saídas): soma das quantidades efetivamente usadas (retiradas - devolvidas)
   const usageSummary = useMemo(() => {
     if (activeTab !== 'withdrawals') return [] as { name: string; specifications: string; unit: string; totalUsed: number }[];
-    return computeUsageSummary(filteredHistory as WithdrawalRecord[]);
+    return computeUsageSummary(filteredHistory as WithdrawalRecord[] | []);
   }, [activeTab, filteredHistory]);
+
+  // Visible usage summary: when the user is searching, show only items matching the search
+  const visibleUsageSummary = useMemo(() => {
+    if (activeTab !== 'withdrawals') return [] as { name: string; specifications: string; unit: string; totalUsed: number }[];
+    const term = (searchTerm || '').trim().toLowerCase();
+    if (term) {
+      return usageSummary.filter(u => (u.name || '').toLowerCase().includes(term) || (u.specifications || '').toLowerCase().includes(term));
+    }
+    if (selectedItemName) {
+      const sel = selectedItemName.toLowerCase();
+      return usageSummary.filter(u => (u.name || '').toLowerCase() === sel);
+    }
+    return usageSummary;
+  }, [activeTab, usageSummary, searchTerm, selectedItemName]);
 
   const itemNameOptions = useMemo(() => {
     const set = new Set<string>();
@@ -511,7 +525,7 @@ export function HistoryPanel({ itemHistory, toolHistory, entryHistory, onDeleteI
                 Exportar XLSX
               </DropdownMenuItem>
                 {activeTab === 'withdrawals' && (
-                  <DropdownMenuItem onClick={handleExportUsageToXLSX} disabled={usageSummary.length === 0} className={usageSummary.length === 0 ? 'opacity-60' : ''}>
+                  <DropdownMenuItem onClick={handleExportUsageToXLSX} disabled={visibleUsageSummary.length === 0} className={visibleUsageSummary.length === 0 ? 'opacity-60' : ''}>
                     <span className="material-icons text-muted-foreground">summarize</span>
                     Relatório de Saídas (Uso)
                   </DropdownMenuItem>
@@ -647,7 +661,7 @@ export function HistoryPanel({ itemHistory, toolHistory, entryHistory, onDeleteI
                     )}
                   </div>
                 )}
-                {usageSummary.length === 0 ? (
+                {visibleUsageSummary.length === 0 ? (
                   <p className="text-sm text-muted-foreground">Nenhum dado no período atual.</p>
                 ) : (
                   <div className="overflow-x-auto">
@@ -661,7 +675,7 @@ export function HistoryPanel({ itemHistory, toolHistory, entryHistory, onDeleteI
                         </tr>
                       </thead>
                       <tbody>
-                        {usageSummary.map((row, idx) => (
+                        {visibleUsageSummary.map((row, idx) => (
                           <tr key={idx} className="border-b last:border-b-0">
                             <td className="py-2 pr-4 font-medium">{row.name}</td>
                             <td className="py-2 pr-4 text-muted-foreground">{row.specifications}</td>
