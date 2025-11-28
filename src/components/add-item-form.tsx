@@ -2,6 +2,7 @@
 "use client";
 
 import { Camera } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { useFormContext } from "react-hook-form";
 import type { StockItem } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -64,6 +65,33 @@ export function AddItemForm({ editingItem, onOpenChange, onSwitchToScanner }: Ad
               <FormLabel>Quantidade {editingItem ? 'Atual' : 'Inicial'}</FormLabel>
               <FormControl>
                 <Input type="number" placeholder="0" {...field} min="0" max={MAX_QUANTITY} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="unit"
+          render={({ field }: any) => (
+            <FormItem>
+              <FormLabel>Unidade</FormLabel>
+              <FormControl>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <SelectTrigger>
+                    <SelectValue>{field.value || 'un'}</SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="un">un (unidade)</SelectItem>
+                    <SelectItem value="kg">kg</SelectItem>
+                    <SelectItem value="g">g</SelectItem>
+                    <SelectItem value="l">l</SelectItem>
+                    <SelectItem value="ml">ml</SelectItem>
+                    <SelectItem value="box">box</SelectItem>
+                    <SelectItem value="m">m</SelectItem>
+                    <SelectItem value="cm">cm</SelectItem>
+                  </SelectContent>
+                </Select>
               </FormControl>
               <FormMessage />
             </FormItem>

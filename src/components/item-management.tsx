@@ -176,7 +176,7 @@ export default function ItemManagement({
       if (existingByName.has(n)) continue;
       maxNum += 1;
       const id = `ITM-${String(maxNum).padStart(3, '0')}`;
-  toSave.push({ id, quantity: it.quantity ?? 0, name: it.name, specifications: it.specifications, barcode: it.barcode ?? null });
+  toSave.push({ id, quantity: it.quantity ?? 0, unit: it.unit ?? 'un', name: it.name, specifications: it.specifications, barcode: it.barcode ?? null });
       existingByName.add(n);
     }
 

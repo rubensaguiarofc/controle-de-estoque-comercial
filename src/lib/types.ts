@@ -4,6 +4,7 @@ export type StockItem = {
   name: string;
   specifications: string;
   quantity: number;
+  unit?: string; // unidade padrão do item (ex: un, kg, l, box)
   // barcode may be a string or null when intentionally empty (avoid undefined when writing to Firestore)
   barcode?: string | null;
   category?: string;

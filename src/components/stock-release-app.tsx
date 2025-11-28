@@ -489,7 +489,7 @@ export default function StockReleaseApp() {
   const handleRestoreBackup = useCallback(async (data: any) => {
     try {
       // Normalizar estrutura (compatível com v1 e v2)
-      const root = (data && data.data && typeof data.data === 'object') ? data.data : data;
+      const root = (data && typeof data === 'object' && !Array.isArray(data) && 'data' in data && typeof data.data === 'object') ? data.data : data;
       const toArray = (v: any) => (Array.isArray(v) ? v : []);
 
       const normalized = {
@@ -500,7 +500,7 @@ export default function StockReleaseApp() {
         toolHistory: toArray(root.toolHistory ?? root.toolsHistory ?? root.toolRecords ?? []),
       };
 
-      if (Array.isArray(data) && !data.data) {
+      if (Array.isArray(data)) {
         // Legacy: array direto de itens
         normalized.stockItems = data;
       }
@@ -692,7 +692,7 @@ export default function StockReleaseApp() {
       if (existingByName.has(normalize(it.name))) { skipped++; continue; }
       maxNum += 1;
       const id = `ITM-${String(maxNum).padStart(3, '0')}`;
-  toSave.push({ id, quantity: it.quantity ?? 0, name: it.name, specifications: it.specifications, barcode: it.barcode ?? null });
+  toSave.push({ id, quantity: it.quantity ?? 0, unit: it.unit ?? 'un', name: it.name, specifications: it.specifications, barcode: it.barcode ?? null });
       existingByName.add(normalize(it.name));
     }
     if (toSave.length === 0) return { added: 0, skipped };
@@ -715,6 +715,7 @@ export default function StockReleaseApp() {
         barcode: typeof itemData.barcode === 'undefined' ? editingItem.barcode : itemData.barcode ?? null,
         // allow updating quantity when editing
         quantity: typeof itemData.quantity === 'number' ? itemData.quantity : editingItem.quantity,
+        unit: typeof (itemData as any).unit === 'string' ? (itemData as any).unit : (editingItem.unit ?? 'un'),
       };
       // Prevent renaming to an existing item name (exact normalized match)
       const existsOther = stockItems.some(i => i.id !== editingItem.id && normalize(i.name) === normalize(itemToSave.name));
@@ -736,7 +737,7 @@ export default function StockReleaseApp() {
       }
       const newIdNumber = (stockItems.length > 0 ? Math.max(...stockItems.map(item => parseInt(item.id.split('-')[1]) || 0)) + 1 : 1).toString().padStart(3, '0');
       const newId = `ITM-${newIdNumber}`;
-  itemToSave = { ...itemData, id: newId, quantity: itemData.quantity || 0, barcode: itemData.barcode ?? null } as StockItem;
+  itemToSave = { ...itemData, id: newId, quantity: itemData.quantity || 0, unit: (itemData as any).unit ?? 'un', barcode: itemData.barcode ?? null } as StockItem;
       if (repo) {
         repo.upsertItem(itemToSave).catch(err => console.error('Failed to add item', err));
       } else {
@@ -790,7 +791,8 @@ export default function StockReleaseApp() {
       setStockItems(currentStock => {
         const updatedStock = [...currentStock];
         newRecords.forEach(record => {
-          const itemIndex = updatedStock.findIndex(i => i.id === record.item.id);
+          const matchUnit = (v?: string) => v ?? 'un';
+          const itemIndex = updatedStock.findIndex(i => i.id === record.item.id && matchUnit(i.unit) === matchUnit(record.unit));
           if (itemIndex > -1) {
             updatedStock[itemIndex].quantity -= record.quantity;
           }
@@ -809,7 +811,8 @@ export default function StockReleaseApp() {
       setStockItems(currentStock => {
         const updatedStock = [...currentStock];
         newRecords.forEach(record => {
-          const itemIndex = updatedStock.findIndex(i => i.id === record.item.id);
+          const matchUnit = (v?: string) => v ?? 'un';
+          const itemIndex = updatedStock.findIndex(i => i.id === record.item.id && matchUnit(i.unit) === matchUnit(record.unit));
           if (itemIndex > -1) {
             updatedStock[itemIndex].quantity += record.quantity;
           }

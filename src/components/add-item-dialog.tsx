@@ -22,6 +22,7 @@ const BarcodeScanner = dynamic(() => import('./barcode-scanner').then(mod => mod
 const formSchema = z.object({
   name: z.string().min(1, "O nome do item é obrigatório.").toUpperCase(),
   specifications: z.string().min(1, "As especificações são obrigatórias.").toUpperCase(),
+  unit: z.string().min(1, "A unidade é obrigatória").default('un'),
   quantity: z.preprocess(
     (val: unknown) => (val === "" || val === undefined || val === null ? 0 : Number(val)),
     z.number({ invalid_type_error: "Deve ser um número." })
@@ -47,7 +48,7 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: 
 
   const form = useForm<AddItemFormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: { name: "", specifications: "", quantity: 0, barcode: "" },
+    defaultValues: { name: "", specifications: "", quantity: 0, barcode: "", unit: 'un' },
   });
 
   useEffect(() => {
@@ -57,10 +58,11 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: 
           name: editingItem.name,
           specifications: editingItem.specifications,
           quantity: editingItem.quantity,
-          barcode: editingItem.barcode || ""
+          barcode: editingItem.barcode || "",
+          unit: editingItem.unit || 'un',
         });
       } else {
-        form.reset({ name: "", specifications: "", quantity: 0, barcode: "" });
+        form.reset({ name: "", specifications: "", quantity: 0, barcode: "", unit: 'un' });
       }
       setView("form");
     }
