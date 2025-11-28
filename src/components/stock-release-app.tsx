@@ -801,6 +801,11 @@ export default function StockReleaseApp() {
         });
         return updatedStock;
       });
+      // persist pending withdrawals for later sync
+      try {
+        const { pushPendingOp } = await import('@/lib/offline-queue');
+        newRecords.forEach(rec => pushPendingOp({ id: rec.id, type: 'withdrawal', payload: rec }));
+      } catch {}
     }
 
   }, [repo]);
@@ -821,7 +826,24 @@ export default function StockReleaseApp() {
         });
         return updatedStock;
       });
+      try {
+        const { pushPendingOp } = await import('@/lib/offline-queue');
+        newRecords.forEach(rec => pushPendingOp({ id: rec.id, type: 'entry', payload: rec }));
+      } catch {}
     }
+  }, [repo]);
+
+  // When repo becomes available, attempt to flush any pending offline ops
+  useEffect(() => {
+    if (!repo) return;
+    (async () => {
+      try {
+        const { flushPendingOps } = await import('@/lib/offline-queue');
+        await flushPendingOps(repo);
+      } catch (err) {
+        console.debug('Failed to flush pending ops', err);
+      }
+    })();
   }, [repo]);
 
   const handleReturnItem = useCallback((recordId: string, quantity: number) => {

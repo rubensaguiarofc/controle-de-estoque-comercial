@@ -40,6 +40,9 @@ export default function ToolManagement({
     // Sync to Firestore if enabled
     if (repo) {
       repo.addToolCheckout(newRecord).catch(console.error);
+    } else {
+      // persist pending tool checkout
+      import('@/lib/offline-queue').then(m => m.pushPendingOp({ id: newRecord.id, type: 'toolCheckout', payload: newRecord })).catch(() => {});
     }
   };
 
@@ -60,6 +63,8 @@ export default function ToolManagement({
     // Sync to Firestore if enabled
     if (repo) {
       repo.updateToolReturn(recordId, returnData).catch(console.error);
+    } else {
+      import('@/lib/offline-queue').then(m => m.pushPendingOp({ id: recordId, type: 'toolReturn', payload: { id: recordId, returnData } })).catch(() => {});
     }
   };
   
