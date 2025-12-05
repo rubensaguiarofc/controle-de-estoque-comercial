@@ -16,7 +16,7 @@ dependencies {
     implementation project(':capacitor-filesystem')
     implementation project(':capacitor-share')
     implementation project(':capacitor-toast')
-
+    implementation "androidx.webkit:webkit:1.4.0"
 }
 
 

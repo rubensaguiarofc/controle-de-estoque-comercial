@@ -26,8 +26,8 @@ android {
     applicationId "com.rubensaguiarofc.controleestoque"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-            versionCode 22
-            versionName "22"
+            versionCode 23
+            versionName "23"
         // AdMob App ID placeholder (replace in keystore.properties or local gradle.properties if needed)
         manifestPlaceholders = [
             ADMOB_APP_ID: (project.hasProperty('ADMOB_APP_ID') ? project.property('ADMOB_APP_ID') : "ca-app-pub-5771833523730319~8308280172")

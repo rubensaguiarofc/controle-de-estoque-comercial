@@ -101,18 +101,51 @@ public class DocumentPicker extends Plugin {
             }
             String name = queryDisplayName(cr, uri);
 
-            InputStream is = cr.openInputStream(uri);
-            if (is == null) {
-                call.reject("failed_to_open_stream");
+            InputStream is = null;
+            ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+            try {
+                try {
+                    is = cr.openInputStream(uri);
+                } catch (SecurityException se) {
+                    // Log and attempt alternative method
+                    android.util.Log.w("DocumentPicker", "openInputStream threw SecurityException, trying openFileDescriptor", se);
+                }
+
+                if (is == null) {
+                    // Try using ParcelFileDescriptor as an alternative (some OEMs require this)
+                    try {
+                        android.os.ParcelFileDescriptor pfd = cr.openFileDescriptor(uri, "r");
+                        if (pfd != null) {
+                            java.io.FileInputStream fis = new java.io.FileInputStream(pfd.getFileDescriptor());
+                            byte[] tmp = new byte[8192];
+                            int read;
+                            while ((read = fis.read(tmp)) != -1) {
+                                buffer.write(tmp, 0, read);
+                            }
+                            fis.close();
+                            try { pfd.close(); } catch (Exception ignored) {}
+                        } else {
+                            call.reject("failed_to_open_stream");
+                            return;
+                        }
+                    } catch (Exception ex) {
+                        android.util.Log.e("DocumentPicker", "openFileDescriptor fallback failed", ex);
+                        call.reject("failed_to_open_stream", ex);
+                        return;
+                    }
+                } else {
+                    byte[] tmp = new byte[8192];
+                    int read;
+                    while ((read = is.read(tmp)) != -1) {
+                        buffer.write(tmp, 0, read);
+                    }
+                    try { is.close(); } catch (Exception ignored) {}
+                }
+            } catch (Exception e) {
+                android.util.Log.e("DocumentPicker", "Error reading picked file", e);
+                call.reject("read_failed", e);
                 return;
             }
-            ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-            byte[] tmp = new byte[8192];
-            int read;
-            while ((read = is.read(tmp)) != -1) {
-                buffer.write(tmp, 0, read);
-            }
-            is.close();
             String base64 = Base64.encodeToString(buffer.toByteArray(), Base64.NO_WRAP);
 
             JSObject ret = new JSObject();
