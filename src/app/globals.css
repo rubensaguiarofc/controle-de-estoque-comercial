@@ -2,36 +2,101 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+/* When AdMob banner is visible, hide bottom bar and reduce bottom padding baseline */
+:root { 
+  --bottom-bar-height: 4.25rem;
+  --system-nav-gap: 0.5rem; /* Extra gap above system navigation bar */
+}
+.admob-banner-visible { --bottom-bar-height: 0rem; }
+
+/* Utility to hide elements when banner visible */
+.admob-banner\:hidden { display: block; }
+.admob-banner-visible .admob-banner\:hidden { display: none; }
+
+/* Local Material Icons (iconfont) — served from /public/fonts */
+@font-face {
+  font-family: 'Material Icons';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/MaterialIcons-Regular.woff2') format('woff2'),
+       url('/fonts/MaterialIcons-Regular.woff') format('woff');
+}
+
+.material-icons {
+  font-family: 'Material Icons';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  display: inline-block;
+  line-height: 1;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  white-space: nowrap;
+  direction: inherit;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: 'liga';
+}
+
+/* Local Inter and Noto Sans (optional variable fonts) — place .woff2 files in /public/fonts */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/Inter-Variable.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Noto Sans';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/NotoSans-Variable.woff2') format('woff2');
+}
 
 @layer base {
   :root {
-    --background: 220 13% 9%;
-    --foreground: 210 40% 98%;
+    /* Light theme palette (project-wide) */
+    /* Background: White */
+    --background: 0 0% 100%;
+    /* Foreground (text/icons): Dark / near-black */
+    --foreground: 0 0% 10%; /* #1A1A1A */
 
-    --card: 220 13% 13%;
-    --card-foreground: 210 40% 98%;
+    /* Cards and surfaces use white background with dark foreground */
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 10%;
 
-    --popover: 220 13% 9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 10%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    /* Primary (Navy) */
+    /* #1C3D6E ≈ hsl(216 59% 27%) */
+    --primary: 216 59% 27%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    /* Secondary / muted elements */
+    --secondary: 210 14% 83%; /* light gray #CED4DA used for muted backgrounds */
+    --secondary-foreground: 0 0% 10%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 210 14% 83%;
+    --muted-foreground: 0 0% 10%;
 
-    --accent: 210 40% 48%;
-    --accent-foreground: 210 40% 98%;
+    /* Accent (kept as primary for now) */
+    --accent: 216 59% 27%;
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 63% 31%;
-    --destructive-foreground: 210 40% 98%;
+    /* Destructive / danger (Red #DC3545) */
+    /* #DC3545 ≈ hsl(354 71% 54%) */
+    --destructive: 354 71% 54%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 210 40% 48%;
+    /* Borders, inputs, placeholders: light gray */
+    --border: 210 14% 83%; /* #CED4DA */
+    --input: 210 14% 83%;
+    --ring: 216 59% 27%; /* use primary for focus rings */
 
     --radius: 0.5rem;
   }
@@ -73,5 +138,33 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: 'Inter', 'Noto Sans', system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Apple Color Emoji', 'Segoe UI Emoji';
   }
 }
+
+/* Safe area handling for devices com notch / barras transparentes */
+.safe-area-wrapper { min-height: 100%; }
+@supports (padding: env(safe-area-inset-top)) or (padding: constant(safe-area-inset-top)) {
+  .safe-area {
+    padding-top: max(env(safe-area-inset-top), 0.75rem);
+    padding-bottom: max(env(safe-area-inset-bottom), 0.75rem);
+  }
+}
+/* Fallback para browsers que não suportam env() */
+.safe-area { padding-top: 0.75rem; padding-bottom: 0.75rem; }
+
+/* Ajuste de botões: garantir altura e borda consistente em release minificado */
+button, .btn, [role="button"] {
+  @apply rounded-md leading-snug;
+}
+
+/* Smooth reposition of bottom nav when ad shows/hides */
+.bottom-nav {
+  transition: inset 180ms ease, bottom 180ms ease, inset-block-end 180ms ease;
+}
+
+/* Previously hid bottom navigation while AdMob banner was visible. This caused the bottom nav to disappear
+  on some devices/environments; prefer keeping the nav visible and rely on the CSS variable
+  --admob-bottom-inset to avoid overlap. */
+.admob-banner-visible .bottom-nav { display: block; }
+

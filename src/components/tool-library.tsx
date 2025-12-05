@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Input } from './ui/input';
 import { SignatureDisplayDialog } from './signature-display-dialog';
 import { Badge } from './ui/badge';
+import type { StockRepo } from '@/lib/data/firestore-repo';
 
 interface ToolLibraryProps {
   tools: Tool[];
@@ -18,6 +19,7 @@ interface ToolLibraryProps {
   toolHistory: ToolRecord[];
   onSetIsAddToolDialogOpen: (isOpen: boolean) => void;
   onSetEditingTool: (tool: Tool | null) => void;
+  repo?: StockRepo | null;
 }
 
 export function ToolLibrary({
@@ -26,6 +28,7 @@ export function ToolLibrary({
   toolHistory,
   onSetIsAddToolDialogOpen,
   onSetEditingTool,
+  repo
 }: ToolLibraryProps) {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
@@ -39,6 +42,10 @@ export function ToolLibrary({
   const handleDelete = (toolId: string) => {
     const updatedTools = tools.filter(tool => tool.id !== toolId);
     setTools(updatedTools);
+    // Delete from Firestore if enabled
+    if (repo) {
+      repo.deleteTool(toolId).catch(console.error);
+    }
     toast({
         title: "Ferramenta Excluída",
         description: "A ferramenta foi removida da biblioteca.",

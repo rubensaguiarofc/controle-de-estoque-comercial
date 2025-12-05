@@ -2,6 +2,7 @@
 "use client";
 
 import { Camera } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { useFormContext } from "react-hook-form";
 import type { StockItem } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,7 @@ import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/co
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import type { AddItemFormValues } from "./add-item-dialog";
+import { MAX_QUANTITY } from "@/lib/constants";
 
 interface AddItemFormProps {
   editingItem?: StockItem | null;
@@ -32,7 +34,7 @@ export function AddItemForm({ editingItem, onOpenChange, onSwitchToScanner }: Ad
         <FormField
           control={form.control}
           name="name"
-          render={({ field }) => (
+          render={({ field }: any) => (
             <FormItem>
               <FormLabel>Nome do Item</FormLabel>
               <FormControl>
@@ -45,7 +47,7 @@ export function AddItemForm({ editingItem, onOpenChange, onSwitchToScanner }: Ad
         <FormField
           control={form.control}
           name="specifications"
-          render={({ field }) => (
+          render={({ field }: any) => (
             <FormItem>
               <FormLabel>Especificações</FormLabel>
               <FormControl>
@@ -58,11 +60,38 @@ export function AddItemForm({ editingItem, onOpenChange, onSwitchToScanner }: Ad
         <FormField
           control={form.control}
           name="quantity"
-          render={({ field }) => (
+          render={({ field }: any) => (
             <FormItem>
               <FormLabel>Quantidade {editingItem ? 'Atual' : 'Inicial'}</FormLabel>
               <FormControl>
-                <Input type="number" placeholder="0" {...field} readOnly={!!editingItem} />
+                <Input type="number" placeholder="0" {...field} min="0" max={MAX_QUANTITY} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="unit"
+          render={({ field }: any) => (
+            <FormItem>
+              <FormLabel>Unidade</FormLabel>
+              <FormControl>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <SelectTrigger>
+                    <SelectValue>{field.value || 'un'}</SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="un">un (unidade)</SelectItem>
+                    <SelectItem value="kg">kg</SelectItem>
+                    <SelectItem value="g">g</SelectItem>
+                    <SelectItem value="l">l</SelectItem>
+                    <SelectItem value="ml">ml</SelectItem>
+                    <SelectItem value="box">box</SelectItem>
+                    <SelectItem value="m">m</SelectItem>
+                    <SelectItem value="cm">cm</SelectItem>
+                  </SelectContent>
+                </Select>
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -71,7 +100,7 @@ export function AddItemForm({ editingItem, onOpenChange, onSwitchToScanner }: Ad
         <FormField
           control={form.control}
           name="barcode"
-          render={({ field }) => (
+          render={({ field }: any) => (
             <FormItem>
               <FormLabel>Código de Barras (Opcional)</FormLabel>
               <div className="flex gap-2">

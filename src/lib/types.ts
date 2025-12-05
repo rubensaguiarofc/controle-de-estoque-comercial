@@ -4,13 +4,19 @@ export type StockItem = {
   name: string;
   specifications: string;
   quantity: number;
-  barcode?: string;
+  unit?: string; // unidade padrão do item (ex: un, kg, l, box)
+  // barcode may be a string or null when intentionally empty (avoid undefined when writing to Firestore)
+  barcode?: string | null;
+  category?: string;
+  location?: string;
 };
 
 export type WithdrawalItem = {
   item: StockItem;
   quantity: number;
   unit: string;
+  // Optional unique key to distinguish entries of the same item with different units in the cart
+  cartKey?: string;
 };
 
 export type WithdrawalRecord = {
@@ -22,6 +28,8 @@ export type WithdrawalRecord = {
   unit: string;
   requestedBy: string; // Quem
   requestedFor:string; // Para Quem
+  // Optional return info: total returned quantity and individual return events
+  returns?: { date: string; quantity: number; note?: string }[];
 };
 
 export type EntryRecord = {
@@ -37,6 +45,7 @@ export type Tool = {
   id: string;
   name: string;
   assetId: string; // Patrimônio
+  isActive?: boolean;
 };
 
 export type ToolRecord = {
@@ -44,6 +53,7 @@ export type ToolRecord = {
   tool: Tool;
   checkoutDate: string;
   checkedOutBy: string;
+  company?: string; // Empresa de quem está retirando
   usageLocation: string;
   checkoutSignature: string; // Data URI da assinatura de retirada
   returnDate?: string;

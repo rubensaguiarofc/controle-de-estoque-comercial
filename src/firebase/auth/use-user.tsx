@@ -8,6 +8,7 @@ import { useFirebaseApp } from '@/firebase';
 
 export function useUser() {
   const app = useFirebaseApp();
+  if (!app) return { user: null, loading: false };
   const auth = getAuth(app);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);

@@ -27,6 +27,7 @@ export function ReturnToolDialog({ isOpen, onOpenChange, record, onConfirm }: Re
   const [damagePhoto, setDamagePhoto] = useState('');
   
   const signaturePadRef = useRef<SignatureCanvas>(null);
+  const [signatureDataUrl, setSignatureDataUrl] = useState('');
   const photoInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -36,13 +37,27 @@ export function ReturnToolDialog({ isOpen, onOpenChange, record, onConfirm }: Re
       setDamageDescription('');
       setDamagePhoto('');
       signaturePadRef.current?.clear();
+      setSignatureDataUrl('');
     }
   }, [isOpen, record]);
 
-  const handleClearSignature = () => signaturePadRef.current?.clear();
+  const handleClearSignature = () => {
+    signaturePadRef.current?.clear();
+    setSignatureDataUrl('');
+  };
+
+  useEffect(() => {
+    if (signatureDataUrl && signaturePadRef.current) {
+      try {
+        if (signaturePadRef.current.isEmpty()) {
+          signaturePadRef.current.fromDataURL(signatureDataUrl);
+        }
+      } catch {}
+    }
+  }, [signatureDataUrl]);
   
   const handleSave = () => {
-    if (signaturePadRef.current?.isEmpty()) {
+    if (!signatureDataUrl && signaturePadRef.current?.isEmpty()) {
       toast({
         variant: 'destructive',
         title: 'Assinatura Obrigatória',
@@ -69,7 +84,7 @@ export function ReturnToolDialog({ isOpen, onOpenChange, record, onConfirm }: Re
         return;
     }
 
-    const signature = signaturePadRef.current?.toDataURL('image/png') ?? '';
+    const signature = signatureDataUrl || signaturePadRef.current?.toDataURL('image/png') ?? '';
     
     onConfirm({
       isDamaged: !!isDamaged,
@@ -177,6 +192,12 @@ export function ReturnToolDialog({ isOpen, onOpenChange, record, onConfirm }: Re
               <SignatureCanvas
                 ref={signaturePadRef}
                 penColor="black"
+                onEnd={() => {
+                  try {
+                    const d = signaturePadRef.current?.toDataURL('image/png') ?? '';
+                    if (d) setSignatureDataUrl(d);
+                  } catch {}
+                }}
                 canvasProps={{ id: 'signature', className: 'w-full h-[120px]' }}
               />
             </div>

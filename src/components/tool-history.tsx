@@ -15,7 +15,7 @@ import { SignatureDisplayDialog } from './signature-display-dialog';
 interface ToolHistoryProps {
   tools: Tool[];
   history: ToolRecord[];
-  onCheckout: (tool: Tool, checkedOutBy: string, usageLocation: string, checkoutSignature: string) => void;
+  onCheckout: (tool: Tool, checkedOutBy: string, company: string, usageLocation: string, checkoutSignature: string) => void;
   onReturn: (recordId: string, isDamaged: boolean, damageDescription?: string, damagePhoto?: string, signature?: string) => void;
 }
 
@@ -47,10 +47,11 @@ export function ToolHistory({ tools, history, onCheckout, onReturn }: ToolHistor
     }
   };
 
-  const handleConfirmCheckout = (data: { checkedOutBy: string; usageLocation: string; signature: string }) => {
+  const handleConfirmCheckout = (data: { checkedOutBy: string; company: string; usageLocation: string; signature: string }) => {
     if (checkingOutTool) {
-        onCheckout(checkingOutTool, data.checkedOutBy, data.usageLocation, data.signature);
-        toast({ title: 'Retirada Registrada', description: `${checkingOutTool.name} retirada por ${data.checkedOutBy}.`});
+        onCheckout(checkingOutTool, data.checkedOutBy, data.company, data.usageLocation, data.signature);
+        const who = [data.checkedOutBy, data.company].filter(Boolean).join(' - ');
+        toast({ title: 'Retirada Registrada', description: `${checkingOutTool.name} retirada por ${who || data.checkedOutBy}.`});
     }
     setCheckoutDialogOpen(false);
     setCheckingOutTool(null);

@@ -1,0 +1,115 @@
+def keystorePropertiesFile = rootProject.file("keystore.properties")
+def keystoreProperties = new Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
+apply plugin: 'com.android.application'
+
+android {
+    // AUTO_VERSION_BUMP: versionCode/versionName são mantidos pelo script bump-android-version.js
+    namespace "com.rubensaguiarofc.controleestoque"
+    compileSdk rootProject.ext.compileSdkVersion
+
+    signingConfigs {
+        release {
+            if (keystorePropertiesFile.exists()) {
+                storeFile file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+            }
+        }
+    }
+
+    defaultConfig {
+    applicationId "com.rubensaguiarofc.controleestoque"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+            versionCode 23
+            versionName "23"
+        // AdMob App ID placeholder (replace in keystore.properties or local gradle.properties if needed)
+        manifestPlaceholders = [
+            ADMOB_APP_ID: (project.hasProperty('ADMOB_APP_ID') ? project.property('ADMOB_APP_ID') : "ca-app-pub-5771833523730319~8308280172")
+        ]
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        aaptOptions {
+             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+            ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+        // Limita idiomas (reduz resources). Adicione outros se necessário.
+        resConfigs "pt", "en"
+    }
+    // Ensure Java 21 compatibility for dependencies requiring it (e.g., AdMob plugin)
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_21
+        targetCompatibility JavaVersion.VERSION_21
+    }
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
+            // Ativa R8 para reduzir tamanho e gerar mapping.txt para desofuscação
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    // Splits de ABI (apenas úteis para gerar APKs separados localmente). Desabilitamos automaticamente em bundleRelease para evitar erro ':app:buildReleasePreBundle'.
+    def isBundleTask = gradle.startParameter.taskNames.any { it.toLowerCase().contains('bundle') }
+    splits {
+        abi {
+            // Se a tarefa for bundle (AAB), disable; se for assemble (APK), enable para reduzir tamanho por arquitetura.
+            enable !isBundleTask
+            reset()
+            include 'armeabi-v7a', 'arm64-v8a'
+            // Também gera um APK universal para facilitar instalação manual
+            universalApk true
+        }
+    }
+    // Excluir recursos redundantes/licenças para economizar espaço.
+    packagingOptions {
+        resources {
+            excludes += [
+                'META-INF/LICENSE',
+                'META-INF/LICENSE.txt',
+                'META-INF/license.txt',
+                'META-INF/NOTICE',
+                'META-INF/NOTICE.txt',
+                'META-INF/notice.txt',
+                'META-INF/DEPENDENCIES'
+            ]
+        }
+    }
+}
+
+repositories {
+    flatDir{
+        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation project(':capacitor-android')
+    testImplementation "junit:junit:$junitVersion"
+    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    implementation project(':capacitor-cordova-android-plugins')
+    // Google Mobile Ads SDK (AdMob)
+    implementation 'com.google.android.gms:play-services-ads:22.6.0'
+}
+
+apply from: 'capacitor.build.gradle'
+
+try {
+    def servicesJSON = file('google-services.json')
+    if (servicesJSON.text) {
+        apply plugin: 'com.google.gms.google-services'
+    }
+} catch(Exception e) {
+    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+}

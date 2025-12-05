@@ -5,10 +5,11 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { MAX_QUANTITY } from "@/lib/constants";
 import dynamic from 'next/dynamic';
 
 import type { StockItem } from "@/lib/types";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AddItemForm } from "./add-item-form";
 import { Form } from "./ui/form";
 import { Skeleton } from "./ui/skeleton";
@@ -21,9 +22,12 @@ const BarcodeScanner = dynamic(() => import('./barcode-scanner').then(mod => mod
 const formSchema = z.object({
   name: z.string().min(1, "O nome do item é obrigatório.").toUpperCase(),
   specifications: z.string().min(1, "As especificações são obrigatórias.").toUpperCase(),
+  unit: z.string().min(1, "A unidade é obrigatória").default('un'),
   quantity: z.preprocess(
-    (val) => (val === "" || val === undefined || val === null ? 0 : Number(val)),
-    z.number({ invalid_type_error: "Deve ser um número." }).min(0, "A quantidade não pode ser negativa.")
+    (val: unknown) => (val === "" || val === undefined || val === null ? 0 : Number(val)),
+    z.number({ invalid_type_error: "Deve ser um número." })
+      .min(0, "A quantidade não pode ser negativa.")
+      .max(MAX_QUANTITY, `A quantidade não pode exceder ${MAX_QUANTITY}.`)
   ),
   barcode: z.string().optional(),
 });
@@ -44,7 +48,7 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: 
 
   const form = useForm<AddItemFormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: { name: "", specifications: "", quantity: 0, barcode: "" },
+    defaultValues: { name: "", specifications: "", quantity: 0, barcode: "", unit: 'un' },
   });
 
   useEffect(() => {
@@ -54,10 +58,11 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: 
           name: editingItem.name,
           specifications: editingItem.specifications,
           quantity: editingItem.quantity,
-          barcode: editingItem.barcode || ""
+          barcode: editingItem.barcode || "",
+          unit: editingItem.unit || 'un',
         });
       } else {
-        form.reset({ name: "", specifications: "", quantity: 0, barcode: "" });
+        form.reset({ name: "", specifications: "", quantity: 0, barcode: "", unit: 'un' });
       }
       setView("form");
     }
@@ -94,6 +99,9 @@ export function AddItemDialog({ isOpen, onOpenChange, onAddItem, editingItem }: 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[480px]">
+        <DialogHeader>
+          <DialogTitle>{editingItem ? 'Editar Item' : 'Adicionar Item'}</DialogTitle>
+        </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleDialogSubmit)}>
             {renderContent()}
